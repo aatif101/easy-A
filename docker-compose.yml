@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: easy_a
+      POSTGRES_USER: easy_a
+      POSTGRES_PASSWORD: easy_a
+    ports:
+      - "5432:5432"
+    volumes:
+      - easy_a_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U easy_a -d easy_a"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  easy_a_pgdata:

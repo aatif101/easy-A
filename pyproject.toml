@@ -1,0 +1,52 @@
+[project]
+name = "easy-a"
+version = "0.1.0"
+description = "Course-intelligence data pipeline for University of South Florida Tampa students."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.16.0",
+    "beautifulsoup4>=4.13.0",
+    "httpx>=0.28.0",
+    "lxml>=5.3.0",
+    "openpyxl>=3.1.0",
+    "pandas>=2.2.0",
+    "psycopg[binary]>=3.2.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.8.0",
+    "sqlalchemy>=2.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=1.14.0",
+    "pandas-stubs>=2.2.0.240807",
+    "pytest>=8.3.0",
+    "ruff>=0.9.0",
+    "types-beautifulsoup4>=4.12.0.20241020",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/easy_a"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["B", "C4", "E", "F", "I", "SIM", "UP"]
+
+[tool.mypy]
+python_version = "3.12"
+mypy_path = "src"
+strict = true
+ignore_missing_imports = false
+warn_unused_ignores = true
+warn_return_any = true
