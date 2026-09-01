@@ -28,6 +28,31 @@ def test_attendance_explicitly_not_required() -> None:
     ]
 
 
+def test_attendance_not_strictly_required_remains_unknown() -> None:
+    assert _values(
+        "Attendance is not strictly required.", SignalType.attendance
+    ) == []
+
+
+def test_attendance_not_generally_required_remains_unknown() -> None:
+    assert _values(
+        "Attendance is not generally required.", SignalType.attendance
+    ) == []
+
+
+def test_students_not_required_to_maintain_attendance_is_negated() -> None:
+    assert _values(
+        "Students are not required to maintain attendance.", SignalType.attendance
+    ) == ["not_required"]
+
+
+def test_adverb_between_not_and_required_cannot_create_required_attendance() -> None:
+    assert _values(
+        "Students are not generally required to maintain attendance.",
+        SignalType.attendance,
+    ) == []
+
+
 def test_late_work_allowed() -> None:
     values = _values(
         "Late assignments are accepted with a 10% late penalty.", SignalType.late_work

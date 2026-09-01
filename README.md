@@ -109,8 +109,9 @@ For a current section, source precedence is:
 Historical signals are explicitly labeled as historical and retain their source
 term. They are never silently combined with current statements. Instructor matching
 accepts exact normalized names, or a unique first-initial plus exact-surname match
-within the course history. `Staff`, multiple current instructors, and ambiguous
-abbreviations do not receive an instructor match.
+within the course history. Current instructors come only from the latest
+`observed_at` state; `Staff`, multiple conflicting instructors in that latest state,
+and ambiguous abbreviations do not receive an instructor match.
 
 Extract signals for one section already present in the database:
 

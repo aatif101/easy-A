@@ -4,7 +4,7 @@ import re
 import unicodedata
 from dataclasses import dataclass
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from easy_a.models import Section, SectionInstructor, Syllabus, Term
@@ -171,10 +171,22 @@ def _from_syllabus(
 
 
 def _current_instructor(session: Session, section_id: int) -> str | None:
+    latest_observed_at = session.scalar(
+        select(func.max(SectionInstructor.observed_at)).where(
+            SectionInstructor.section_id == section_id
+        )
+    )
+    if latest_observed_at is None:
+        return None
     names = session.scalars(
-        select(SectionInstructor.name_raw).where(SectionInstructor.section_id == section_id)
+        select(SectionInstructor.name_raw).where(
+            SectionInstructor.section_id == section_id,
+            SectionInstructor.observed_at == latest_observed_at,
+        )
     ).all()
-    unique = {_normalize_name(name): name for name in names if _normalize_name(name)}
+    unique = {
+        _normalize_name(name): name for name in names if _normalize_name(name)
+    }
     if len(unique) != 1:
         return None
     return next(iter(unique.values()))

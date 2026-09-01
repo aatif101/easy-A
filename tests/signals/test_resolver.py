@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy.orm import Session
 
@@ -79,6 +79,25 @@ def _syllabus(
     return syllabus
 
 
+def _observe_instructor(
+    db_session: Session,
+    *,
+    section_id: int,
+    name: str,
+    observed_at: datetime,
+) -> None:
+    db_session.add(
+        SectionInstructor(
+            section_id=section_id,
+            name_raw=name,
+            name_normalized=name.lower(),
+            source="schedule",
+            observed_at=observed_at,
+        )
+    )
+    db_session.flush()
+
+
 def test_current_syllabus_precedes_note_and_history(db_session: Session) -> None:
     section = _section(
         db_session,
@@ -147,6 +166,141 @@ def test_historical_same_instructor_fallback(db_session: Session) -> None:
     assert result.historical is True
     assert result.instructor_match_confidence == 1.0
     assert result.source_term == "202408"
+
+
+def test_latest_named_instructor_replaces_stale_staff_observation(
+    db_session: Session,
+) -> None:
+    section = _section(
+        db_session,
+        section_id=106,
+        term_id=1,
+        crn="19416",
+        instructor="Staff",
+    )
+    _observe_instructor(
+        db_session,
+        section_id=section.id,
+        name="Leslaw Skrzypek",
+        observed_at=NOW + timedelta(days=1),
+    )
+    _syllabus(
+        db_session,
+        document_id="after-staff",
+        term_id=2,
+        crn="89037",
+        text="Attendance is required.",
+        instructor="Leslaw Skrzypek",
+    )
+
+    result = resolve_section_signals(db_session, term="202701", crn="19416")
+
+    assert result.provenance is SignalSourceKind.historical_same_instructor_course
+    assert result.instructor_match_confidence == 1.0
+
+
+def test_latest_instructor_replaces_different_stale_instructor(db_session: Session) -> None:
+    section = _section(
+        db_session,
+        section_id=107,
+        term_id=1,
+        crn="19417",
+        instructor="Instructor A",
+    )
+    _observe_instructor(
+        db_session,
+        section_id=section.id,
+        name="Instructor B",
+        observed_at=NOW + timedelta(days=1),
+    )
+    _syllabus(
+        db_session,
+        document_id="stale-a",
+        term_id=2,
+        crn="89038",
+        text="Attendance is not required.",
+        instructor="Instructor A",
+    )
+    _syllabus(
+        db_session,
+        document_id="latest-b",
+        term_id=2,
+        crn="89039",
+        text="Attendance is required.",
+        instructor="Instructor B",
+    )
+
+    result = resolve_section_signals(db_session, term="202701", crn="19417")
+
+    assert result.provenance is SignalSourceKind.historical_same_instructor_course
+    assert result.signals[0].source_identifier == "syllabus:latest-b"
+
+
+def test_conflicting_instructors_in_latest_state_remain_unresolved(
+    db_session: Session,
+) -> None:
+    section = _section(
+        db_session,
+        section_id=108,
+        term_id=1,
+        crn="19418",
+        instructor="Stale Instructor",
+    )
+    latest_at = NOW + timedelta(days=1)
+    _observe_instructor(
+        db_session,
+        section_id=section.id,
+        name="Instructor B",
+        observed_at=latest_at,
+    )
+    _observe_instructor(
+        db_session,
+        section_id=section.id,
+        name="Instructor C",
+        observed_at=latest_at,
+    )
+    _syllabus(
+        db_session,
+        document_id="conflicting-latest",
+        term_id=2,
+        crn="89040",
+        text="Attendance is required.",
+        instructor="Instructor B",
+    )
+
+    result = resolve_section_signals(db_session, term="202701", crn="19418")
+
+    assert result.provenance is SignalSourceKind.historical_same_course
+    assert result.instructor_match_confidence is None
+
+
+def test_latest_staff_observation_does_not_match_named_history(db_session: Session) -> None:
+    section = _section(
+        db_session,
+        section_id=109,
+        term_id=1,
+        crn="19419",
+        instructor="Leslaw Skrzypek",
+    )
+    _observe_instructor(
+        db_session,
+        section_id=section.id,
+        name="Staff",
+        observed_at=NOW + timedelta(days=1),
+    )
+    _syllabus(
+        db_session,
+        document_id="named-before-staff",
+        term_id=2,
+        crn="89041",
+        text="Attendance is required.",
+        instructor="Leslaw Skrzypek",
+    )
+
+    result = resolve_section_signals(db_session, term="202701", crn="19419")
+
+    assert result.provenance is SignalSourceKind.historical_same_course
+    assert result.instructor_match_confidence is None
 
 
 def test_historical_same_course_fallback(db_session: Session) -> None:

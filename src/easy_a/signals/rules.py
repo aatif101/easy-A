@@ -26,7 +26,7 @@ RULES: tuple[SignalRule, ...] = (
         "required",
         r"\b(?:attendance\s+(?:is\s+)?(?:required|mandatory)|mandatory\s+attendance|"
         r"attendance\s+will\s+be\s+taken|attendance\s+counts(?:\s+(?:for|toward))?|"
-        r"(?<!not\s)required.{0,80}\battendance)\b",
+        r"students?\s+(?:are\s+)?required\s+to\s+complete.{0,80}\bweekly\s+attendance)\b",
         0.98,
     ),
     SignalRule(
