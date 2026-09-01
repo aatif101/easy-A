@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import create_engine, inspect
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import UniqueConstraint, create_engine, inspect
 
 import easy_a.models  # noqa: F401
 from easy_a.db import Base
@@ -24,6 +23,7 @@ def test_model_metadata_can_create_all_tables_in_test_database() -> None:
         "seat_snapshots",
         "syllabi",
     }.issubset(table_names)
+    assert "section_id" not in Base.metadata.tables["grade_distributions"].c
 
 
 def test_feature_model_tables_and_identity_constraints_are_registered() -> None:

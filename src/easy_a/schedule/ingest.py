@@ -3,25 +3,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import column, select, table
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from easy_a.common.lookups import CoreDataLookupError, ensure_term, resolve_course_id
+from easy_a.common.terms import TermParseError
 from easy_a.models import SeatSnapshot, Section, SectionInstructor
 from easy_a.schedule.normalize import NormalizedSection, normalize_schedule_row
 from easy_a.schedule.parser import parse_schedule_html
 
 SCHEDULE_SOURCE = "usf_staff_schedule"
-
-# Developer 1 owns these tables. Lightweight SQL expressions keep this branch
-# runnable before their ORM models and migration are merged.
-TERMS = table("terms", column("id"), column("banner_code"))
-COURSES = table(
-    "courses",
-    column("id"),
-    column("subject"),
-    column("number"),
-    column("catalog_edition"),
-)
 
 
 class ScheduleIngestError(ValueError):
@@ -47,12 +38,12 @@ def ingest_schedule_html(
 ) -> ScheduleIngestResult:
     captured_at = observed_at or datetime.now(UTC)
     rows = [normalize_schedule_row(row) for row in parse_schedule_html(html)]
-    term_id = session.execute(
-        select(TERMS.c.id).where(TERMS.c.banner_code == term_code)
-    ).scalar_one_or_none()
-    if term_id is None:
-        raise ScheduleIngestError(f"Term {term_code} is not present in the terms table.")
-    inserted, updated = _upsert_sections(session, int(term_id), rows, captured_at, source)
+    try:
+        term = ensure_term(session, term_code)
+    except TermParseError as exc:
+        raise ScheduleIngestError(str(exc)) from exc
+
+    inserted, updated = _upsert_sections(session, term.id, rows, captured_at, source)
     session.flush()
     return ScheduleIngestResult(
         records_seen=len(rows),
@@ -73,7 +64,11 @@ def _upsert_sections(
     inserted = 0
     updated = 0
     for row in rows:
-        course_id = _resolve_course_id(session, row.subject, row.course_number)
+        try:
+            course_id = resolve_course_id(session, row.subject, row.course_number)
+        except CoreDataLookupError as exc:
+            raise ScheduleIngestError(str(exc)) from exc
+
         section = session.execute(
             select(Section).where(Section.term_id == term_id, Section.crn == row.crn)
         ).scalar_one_or_none()
@@ -113,18 +108,6 @@ def _upsert_sections(
         )
     session.flush()
     return inserted, updated
-
-
-def _resolve_course_id(session: Session, subject: str, number: str) -> int:
-    course_id = session.execute(
-        select(COURSES.c.id)
-        .where(COURSES.c.subject == subject, COURSES.c.number == number)
-        .order_by(COURSES.c.catalog_edition.desc())
-        .limit(1)
-    ).scalar_one_or_none()
-    if course_id is None:
-        raise ScheduleIngestError(f"Course {subject} {number} is not present in the courses table.")
-    return int(course_id)
 
 
 def _section_values(row: NormalizedSection) -> dict[str, object]:

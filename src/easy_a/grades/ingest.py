@@ -8,7 +8,8 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from easy_a.common.terms import TermParseError, parse_banner_term
+from easy_a.common.lookups import ensure_term
+from easy_a.common.terms import TermParseError
 from easy_a.grades.parser import (
     GradeWorkbookSchemaError,
     GradeWorkbookValidationError,
@@ -86,25 +87,6 @@ def ingest_grade_file(
     )
 
 
-def ensure_term(session: Session, term_code: str | int) -> Term:
-    term_info = parse_banner_term(term_code)
-    existing = session.execute(
-        select(Term).where(Term.banner_code == term_info.banner_code)
-    ).scalar_one_or_none()
-    if existing is not None:
-        return existing
-
-    term = Term(
-        banner_code=term_info.banner_code,
-        name=term_info.name,
-        year=term_info.year,
-        season=term_info.season.value,
-    )
-    session.add(term)
-    session.flush()
-    return term
-
-
 def upsert_grade_distributions(
     session: Session,
     term: Term,
@@ -155,7 +137,6 @@ def _new_grade_distribution(
         term_id=term.id,
         crn=record.crn,
         course_id=None,
-        section_id=None,
         section_number_raw=record.section_number_raw,
         section_suffix_raw=record.section_suffix_raw,
         campus_raw=record.campus_raw,

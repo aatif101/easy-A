@@ -60,3 +60,8 @@ def test_query_must_be_narrow_and_term_must_be_six_digits() -> None:
         ScheduleSearchQuery(term="202701")
     with pytest.raises(ValueError, match="six digits"):
         ScheduleSearchQuery(term="Spring 2027", subject="MAC")
+
+
+def test_query_rejects_empty_crn() -> None:
+    with pytest.raises(ValueError, match="CRN"):
+        ScheduleSearchQuery(term="202408", crn=" ")

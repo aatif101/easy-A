@@ -28,8 +28,14 @@ def resolve_historical_section(
     expected_subject: str | None = None,
     expected_course: str | None = None,
 ) -> HistoricalResolution:
+    normalized_crn = crn.strip()
+    if not normalized_crn:
+        raise ValueError("CRN cannot be empty.")
+
     candidates = [
-        normalize_schedule_row(row) for row in parse_schedule_html(html) if row.crn == crn
+        normalize_schedule_row(row)
+        for row in parse_schedule_html(html)
+        if row.crn == normalized_crn
     ]
     if not candidates:
         return HistoricalResolution(ResolutionOutcome.not_found)

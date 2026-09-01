@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from easy_a.schedule.resolver import ResolutionOutcome, resolve_historical_section
 
 FIXTURES = Path(__file__).parents[1] / "fixtures"
@@ -51,3 +53,8 @@ def test_expected_course_mismatch_does_not_fuzzy_match() -> None:
     )
     assert result.outcome is ResolutionOutcome.not_found
     assert result.reason is not None
+
+
+def test_empty_crn_is_rejected() -> None:
+    with pytest.raises(ValueError, match="CRN"):
+        resolve_historical_section(_fixture("schedule_current.html"), crn=" ")

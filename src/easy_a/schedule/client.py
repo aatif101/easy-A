@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 import httpx
 
+from easy_a.common.terms import normalize_banner_term_code
+
 BASE_URL = "https://usfweb.usf.edu"
 RESULTS_PATH = "/DSS/StaffScheduleSearch/StaffSearch/Results"
 DEFAULT_USER_AGENT = "Easy-A data pipeline (https://github.com/aatif101/easy-A)"
@@ -19,7 +21,13 @@ class ScheduleSearchQuery:
 
     def __post_init__(self) -> None:
         normalize_banner_term_code(self.term)
-        if self.crn is None and self.subject is None:
+        has_crn = self.crn is not None and bool(self.crn.strip())
+        has_subject = self.subject is not None and bool(self.subject.strip())
+        if self.crn is not None and not has_crn:
+            raise ValueError("CRN cannot be empty.")
+        if self.subject is not None and not has_subject:
+            raise ValueError("Subject cannot be empty.")
+        if not has_crn and not has_subject:
             raise ValueError("A narrow schedule search requires --crn or --subject.")
 
 
@@ -81,11 +89,3 @@ def build_form_data(query: ScheduleSearchQuery) -> dict[str, str]:
         "p_day_x": "no_val",
         "p_day": "no_val",
     }
-
-
-def normalize_banner_term_code(value: str | int) -> str:
-    """Validate the six-digit Banner term without owning Developer 1's term model."""
-    term_code = str(value).strip()
-    if len(term_code) != 6 or not term_code.isdigit():
-        raise ValueError(f"Banner term code must be six digits, got {value!r}.")
-    return term_code
