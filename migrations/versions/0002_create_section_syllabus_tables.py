@@ -19,6 +19,14 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    if op.get_bind().dialect.name == "postgresql":
+        op.alter_column(
+            "alembic_version",
+            "version_num",
+            existing_type=sa.String(length=32),
+            type_=sa.String(length=64),
+            existing_nullable=False,
+        )
     op.drop_column("grade_distributions", "section_id")
     op.create_table(
         "sections",
