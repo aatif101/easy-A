@@ -26,6 +26,11 @@ Developer 1 owns the catalog, historical grades, term normalization, and databas
 foundation. Developer 2 owns schedule, seats, instructors, and Simple Syllabus.
 Those pipelines will eventually join on `(term, CRN)`.
 
+The canonical grade-to-section join is `grade_distributions.term_id = sections.term_id`
+and `grade_distributions.crn = sections.crn`. Grade distributions intentionally do
+not store `section_id`, because CRNs are scoped by term and section rows may be
+re-ingested independently from historical grade rows.
+
 ## Local Setup
 
 Install `uv`, then create the virtual environment and install dependencies:
@@ -63,6 +68,24 @@ To create a new migration after model changes:
 ```powershell
 uv run alembic revision --autogenerate -m "describe change"
 ```
+
+Current migration chain:
+
+```text
+0001_create_data_core
+0002_create_section_syllabus_tables
+```
+
+## Narrow public-source commands
+
+```powershell
+uv run python scripts/ingest_schedule.py --term 202701 --campus T --subject MAC --course 1105
+uv run python scripts/resolve_historical_section.py --term 202408 --crn 89033 --subject MAC --course 1105
+uv run python scripts/ingest_syllabus.py --document-id bpvdotxa9
+```
+
+Schedule searches use the public form POST, and syllabus ingestion accepts one known
+document ID or URL at a time. Neither command is a broad crawler.
 
 ## Tests And Quality
 

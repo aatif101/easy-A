@@ -105,7 +105,6 @@ class GradeDistribution(Base):
     term_id: Mapped[int] = mapped_column(ForeignKey("terms.id"), nullable=False)
     crn: Mapped[str] = mapped_column(String(16), nullable=False)
     course_id: Mapped[int | None] = mapped_column(ForeignKey("courses.id"), nullable=True)
-    section_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     section_number_raw: Mapped[str] = mapped_column(String(32), nullable=False)
     section_suffix_raw: Mapped[str | None] = mapped_column(String(32), nullable=True)
     campus_raw: Mapped[str | None] = mapped_column(String(255), nullable=True)

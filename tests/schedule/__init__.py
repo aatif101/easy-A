@@ -1,1 +1,1 @@
-"""Schedule tests owned by Developer 2."""
+"""Schedule pipeline tests."""
