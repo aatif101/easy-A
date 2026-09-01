@@ -1,1 +1,1 @@
-"""Syllabi tests owned by Developer 2."""
+"""Simple Syllabus pipeline tests."""
