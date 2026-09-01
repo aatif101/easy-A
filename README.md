@@ -64,6 +64,17 @@ To create a new migration after model changes:
 uv run alembic revision --autogenerate -m "describe change"
 ```
 
+## Narrow public-source commands
+
+```powershell
+uv run python scripts/ingest_schedule.py --term 202701 --campus T --subject MAC --course 1105
+uv run python scripts/resolve_historical_section.py --term 202408 --crn 89033 --subject MAC --course 1105
+uv run python scripts/ingest_syllabus.py --document-id bpvdotxa9
+```
+
+Schedule searches use the public form POST, and syllabus ingestion accepts one known
+document ID or URL at a time. Neither command is a broad crawler.
+
 ## Tests And Quality
 
 ```powershell
