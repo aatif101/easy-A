@@ -11,7 +11,19 @@ from easy_a.analytics.queries import (
     get_current_section_historical_analytics,
     get_instructor_course_historical_outcome_stats,
 )
-from easy_a.models import GradeDistribution, SeatSnapshot, Section, SectionInstructor, Syllabus
+from easy_a.analytics.scoring import (
+    DEFAULT_GRADE_PRIOR_STRENGTH,
+    DEFAULT_WITHDRAWAL_PRIOR_STRENGTH,
+    bayesian_smooth,
+)
+from easy_a.models import (
+    Course,
+    GradeDistribution,
+    SeatSnapshot,
+    Section,
+    SectionInstructor,
+    Syllabus,
+)
 
 NOW = datetime(2026, 9, 1, tzinfo=UTC)
 
@@ -36,6 +48,119 @@ def test_professor_course_prior_uses_course_history(db_session: Session) -> None
     assert stats.prior_level is PriorLevel.course
     assert stats.grade_favorability_raw == 0.0
     assert stats.grade_favorability_smoothed > 0.80
+
+
+def test_zero_subject_grade_prior_remains_zero(db_session: Session) -> None:
+    _add_course(db_session, course_id=12, number="1114")
+    _add_grade(db_session, term_id=2, crn="88001", a=10)
+    _add_grade(db_session, term_id=2, crn="88002", course_id=12, f=100)
+    db_session.commit()
+
+    stats = get_course_historical_outcome_stats(
+        db_session,
+        "MAC",
+        "1105",
+        before_term_code="202701",
+    )
+
+    assert stats.prior_level is PriorLevel.subject
+    assert stats.grade_favorability_smoothed == pytest.approx(
+        bayesian_smooth(
+            observed=1.0,
+            n=10,
+            prior=0.0,
+            prior_strength=DEFAULT_GRADE_PRIOR_STRENGTH,
+        )
+    )
+
+
+def test_zero_subject_withdrawal_prior_remains_zero(db_session: Session) -> None:
+    _add_course(db_session, course_id=12, number="1114")
+    _add_grade(db_session, term_id=2, crn="88001", a=10, w=10)
+    _add_grade(db_session, term_id=2, crn="88002", course_id=12, a=100)
+    db_session.commit()
+
+    stats = get_course_historical_outcome_stats(
+        db_session,
+        "MAC",
+        "1105",
+        before_term_code="202701",
+    )
+
+    assert stats.prior_level is PriorLevel.subject
+    assert stats.withdrawal_rate_smoothed == pytest.approx(
+        bayesian_smooth(
+            observed=0.5,
+            n=20,
+            prior=0.0,
+            prior_strength=DEFAULT_WITHDRAWAL_PRIOR_STRENGTH,
+        )
+    )
+
+
+def test_target_course_data_is_excluded_from_subject_prior(db_session: Session) -> None:
+    _add_course(db_session, course_id=12, number="1114")
+    _add_grade(db_session, term_id=2, crn="88001", a=20)
+    _add_grade(db_session, term_id=2, crn="88002", course_id=12, c=100)
+    db_session.commit()
+
+    stats = get_course_historical_outcome_stats(
+        db_session,
+        "MAC",
+        "1105",
+        before_term_code="202701",
+    )
+
+    assert stats.prior_level is PriorLevel.subject
+    assert stats.grade_favorability_smoothed == pytest.approx(
+        bayesian_smooth(
+            observed=1.0,
+            n=20,
+            prior=0.5,
+            prior_strength=DEFAULT_GRADE_PRIOR_STRENGTH,
+        )
+    )
+
+
+def test_subject_with_only_target_course_falls_back_to_global(db_session: Session) -> None:
+    _add_grade(db_session, term_id=2, crn="88001", a=20)
+    _add_grade(db_session, term_id=2, crn="88002", course_id=11, f=100)
+    db_session.commit()
+
+    stats = get_course_historical_outcome_stats(
+        db_session,
+        "MAC",
+        "1105",
+        before_term_code="202701",
+    )
+
+    assert stats.prior_level is PriorLevel.global_
+
+
+def test_same_subject_comparison_course_can_influence_subject_prior(
+    db_session: Session,
+) -> None:
+    _add_course(db_session, course_id=12, number="1114")
+    _add_grade(db_session, term_id=2, crn="88001", a=20)
+    _add_grade(db_session, term_id=2, crn="88002", course_id=12, b=100)
+    db_session.commit()
+
+    stats = get_course_historical_outcome_stats(
+        db_session,
+        "MAC",
+        "1105",
+        before_term_code="202701",
+    )
+
+    assert stats.prior_level is PriorLevel.subject
+    assert stats.grade_favorability_smoothed == pytest.approx(
+        bayesian_smooth(
+            observed=1.0,
+            n=20,
+            prior=0.75,
+            prior_strength=DEFAULT_GRADE_PRIOR_STRENGTH,
+        )
+    )
 
 
 def test_staff_instructor_falls_back_to_course_level(db_session: Session) -> None:
@@ -224,6 +349,25 @@ def _add_grade(
     session.add(distribution)
     session.flush()
     return distribution
+
+
+def _add_course(
+    session: Session,
+    *,
+    course_id: int,
+    number: str,
+    subject: str = "MAC",
+) -> Course:
+    course = Course(
+        id=course_id,
+        subject=subject,
+        number=number,
+        title=f"Synthetic {subject} {number}",
+        catalog_edition="2026-2027",
+    )
+    session.add(course)
+    session.flush()
+    return course
 
 
 def _add_section(

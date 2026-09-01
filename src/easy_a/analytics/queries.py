@@ -56,7 +56,11 @@ def get_course_historical_outcome_stats(
     normalized_subject = subject.strip().upper()
     normalized_number = course_number.strip().upper()
     course_ids = _course_ids(session, normalized_subject, normalized_number)
-    subject_course_ids = _subject_course_ids(session, normalized_subject)
+    subject_course_ids = _subject_course_ids_excluding(
+        session,
+        normalized_subject,
+        excluded_course_ids=course_ids,
+    )
 
     course_aggregate = _aggregate_for_course_ids(
         session,
@@ -222,8 +226,16 @@ def _stats_with_course_subject_global_fallback(
         subject_withdrawal_prior = withdrawal_rate(subject_aggregate.weighted_counts)
         return compute_historical_outcome_stats(
             course_aggregate,
-            grade_prior=subject_grade_prior or global_grade_prior,
-            withdrawal_prior=subject_withdrawal_prior or global_withdrawal_prior,
+            grade_prior=(
+                subject_grade_prior
+                if subject_grade_prior is not None
+                else global_grade_prior
+            ),
+            withdrawal_prior=(
+                subject_withdrawal_prior
+                if subject_withdrawal_prior is not None
+                else global_withdrawal_prior
+            ),
             prior_level=(
                 PriorLevel.subject
                 if subject_grade_prior is not None or subject_withdrawal_prior is not None
@@ -386,12 +398,17 @@ def _course_ids(session: Session, subject: str, course_number: str) -> list[int]
     )
 
 
-def _subject_course_ids(session: Session, subject: str) -> list[int]:
-    return list(
-        session.execute(
-            select(Course.id).where(Course.subject == subject.strip().upper())
-        ).scalars()
-    )
+def _subject_course_ids_excluding(
+    session: Session,
+    subject: str,
+    *,
+    excluded_course_ids: Sequence[int],
+) -> list[int]:
+    excluded_course_id_set = set(excluded_course_ids)
+    stmt = select(Course.id).where(Course.subject == subject.strip().upper())
+    if excluded_course_id_set:
+        stmt = stmt.where(Course.id.not_in(excluded_course_id_set))
+    return list(session.execute(stmt).scalars())
 
 
 def _mapped_instructor_section_ids(session: Session, section_ids: list[int]) -> set[int]:
