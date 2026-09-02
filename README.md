@@ -87,6 +87,45 @@ uv run python scripts/ingest_syllabus.py --document-id bpvdotxa9
 Schedule searches use the public form POST, and syllabus ingestion accepts one known
 document ID or URL at a time. Neither command is a broad crawler.
 
+## Deterministic Syllabus Signals
+
+Sprint 2 extracts a narrow set of human-readable policy and course-format signals
+from already-stored syllabus text and schedule section notes. Extraction is
+deterministic and rules-based; it does not call an LLM or any model API.
+
+Every returned signal includes its type, normalized value, rule confidence, source
+kind and identifier, source term, extraction time, and a short exact evidence window
+of at most 240 characters. Categories without supported evidence are omitted rather
+than filled with a fabricated value.
+
+For a current section, source precedence is:
+
+1. current-term syllabus;
+2. current schedule section note, if it contains a supported signal;
+3. historical syllabus for the same course and conservatively resolved instructor;
+4. latest historical syllabus for the same course; or
+5. unavailable.
+
+Historical signals are explicitly labeled as historical and retain their source
+term. They are never silently combined with current statements. Instructor matching
+accepts exact normalized names, or a unique first-initial plus exact-surname match
+within the course history. Current instructors come only from the latest
+`observed_at` state; `Staff`, multiple conflicting instructors in that latest state,
+and ambiguous abbreviations do not receive an instructor match.
+
+Extract signals for one section already present in the database:
+
+```powershell
+uv run python scripts/extract_section_signals.py --term 202701 --crn 19410
+```
+
+Known limitations: rules cover only explicit phrases in the current rule set;
+unusual wording remains unknown, confidence scores describe rule specificity rather
+than calibrated probability, and the latest same-course syllabus is only a
+historical reference rather than evidence of current policy. Signal objects are
+computed at request time in Sprint 2; no persistent `syllabus_signals` or
+`section_rankings` table is created.
+
 ## Tests And Quality
 
 ```powershell
