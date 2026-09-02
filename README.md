@@ -6,9 +6,9 @@ V1 will eventually rank course sections using historical grade outcomes, withdra
 rates, syllabus signals, current seat availability, modality, General Education
 requirements, and professor information.
 
-This sprint is data-pipeline only. It intentionally does not include a frontend,
-API, authentication, deployment, RateMyProfessors integration, easiness scoring, or
-LLM syllabus extraction.
+The current Sprint 2 analytics work is still backend-only. It intentionally does
+not include a frontend, API, authentication, deployment, RateMyProfessors
+integration, LLM scoring, user accounts, or a persisted final rankings table.
 
 ## Development Status
 
@@ -20,6 +20,7 @@ Current branch work contains:
 - Banner term normalization helpers
 - Public catalog HTML client/parser/ingest layers
 - Local XLSX-only grade distribution parser/ingest layers
+- Historical grade analytics and a V1 historical easiness score
 - Offline tests using synthetic HTML and generated synthetic XLSX fixtures
 
 Developer 1 owns the catalog, historical grades, term normalization, and database
@@ -82,6 +83,7 @@ Current migration chain:
 uv run python scripts/ingest_schedule.py --term 202701 --campus T --subject MAC --course 1105
 uv run python scripts/resolve_historical_section.py --term 202408 --crn 89033 --subject MAC --course 1105
 uv run python scripts/ingest_syllabus.py --document-id bpvdotxa9
+uv run python scripts/analyze_course.py --term 202701 --subject MAC --course 1105
 ```
 
 Schedule searches use the public form POST, and syllabus ingestion accepts one known
@@ -163,6 +165,75 @@ For each section, `A + B + C + D + F + I + S + U + W + O` must equal
 `Total Grades`; invalid rows fail ingestion and are logged in `ingest_runs`.
 Percentage columns are informational source data and are not stored canonically.
 
+## Historical Analytics
+
+The analytics package computes historical outcome statistics from completed grade
+and withdrawal buckets already in the database. It does not create the final
+`section_rankings` table.
+
+The V1 grade favorability metric uses only completed letter grades:
+
+```text
+(4*A + 3*B + 2*C + 1*D + 0*F) / (4 * (A + B + C + D + F))
+```
+
+USF grade distribution exports provide only coarse `A`, `B`, `C`, `D`, and `F`
+buckets. They do not include plus/minus grades, so this metric stays a normalized
+favorability score rather than a transcript-style average.
+
+Withdrawal rate is computed separately as:
+
+```text
+W / Total Grades
+```
+
+when `Total Grades` is greater than zero. `I`, `S`, `U`, `W`, and `Other` are not
+included in the grade-favorability denominator.
+
+The historical easiness score is a transparent V1 composite:
+
+```text
+10 * (0.80 * smoothed_grade_favorability + 0.20 * (1 - smoothed_withdrawal_rate))
+```
+
+The result is clamped to `0` through `10`. It uses historical academic outcomes
+only. Syllabus signals, RateMyProfessors, seat availability, modality, and similar
+non-grade inputs do not affect this score.
+
+Small samples are regularized with a simple empirical-Bayes shrinkage:
+
+```text
+weight = n / (n + prior_strength)
+smoothed = weight * observed + (1 - weight) * prior
+```
+
+The default prior strengths are V1 regularization constants, not statistically
+optimal claims. Instructor-course history uses course-level history as its prior.
+Course-level history can fall back to subject-level or global history.
+
+Each result includes a confidence label based on effective sample size:
+
+```text
+low: effective_n < 60
+medium: 60 <= effective_n < 180
+high: effective_n >= 180
+```
+
+One-term histories are treated more conservatively. Confidence is a rough data
+coverage signal, not statistical certainty.
+
+Example analytics command:
+
+```powershell
+uv run python scripts/analyze_course.py `
+  --term 202701 `
+  --subject MAC `
+  --course 1105
+```
+
+Output includes current section CRN, instructor, historical easiness, historical
+withdrawal rate, confidence, effective sample size, and score source.
+
 ## Catalog Ingestion
 
 Catalog acquisition and parsing are separate. The parser can be tested offline with
@@ -191,3 +262,7 @@ Raw USF InfoCenter exports must not be committed to this repository.
 
 Do not commit authenticated-session data, credentials, cookies, `.env` files,
 internal-use USF data, or real InfoCenter `.xlsx` exports.
+
+Code correctness for parsing and scoring is separate from production data
+authorization. Production grade data still depends on the approved
+USF/public-records route.
