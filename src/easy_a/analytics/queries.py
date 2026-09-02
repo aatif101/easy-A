@@ -23,10 +23,9 @@ from easy_a.analytics.scoring import (
     compute_historical_outcome_stats,
     has_sufficient_instructor_course_evidence,
 )
+from easy_a.common.instructors import get_current_instructor_state, is_usable_instructor
 from easy_a.common.terms import normalize_banner_term_code
 from easy_a.models import Course, GradeDistribution, Section, SectionInstructor, Term
-
-STAFF_INSTRUCTOR_NAME = "staff"
 
 
 @dataclass(frozen=True)
@@ -172,9 +171,11 @@ def get_current_section_historical_analytics(
 
     rows: list[SectionHistoricalAnalytics] = []
     for section in sections:
-        instructor = _current_instructor(session, section.id)
+        instructor_state = get_current_instructor_state(session, section.id)
+        instructor = instructor_state.name
         stats = course_stats
-        if instructor is not None and is_usable_instructor(instructor):
+        if instructor_state.is_usable_for_scoring:
+            assert instructor is not None
             instructor_stats = get_instructor_course_historical_outcome_stats(
                 session,
                 subject,
@@ -191,14 +192,6 @@ def get_current_section_historical_analytics(
         rows.append(SectionHistoricalAnalytics(crn=section.crn, instructor=instructor, stats=stats))
 
     return rows
-
-
-def is_usable_instructor(instructor_name: str | None) -> bool:
-    if instructor_name is None:
-        return False
-    return instructor_name.strip().casefold() != STAFF_INSTRUCTOR_NAME and bool(
-        instructor_name.strip()
-    )
 
 
 def _stats_with_course_subject_global_fallback(
@@ -437,19 +430,3 @@ def _instructor_section_ids(
             )
         ).scalars()
     )
-
-
-def _current_instructor(session: Session, section_id: int) -> str | None:
-    instructors = (
-        session.execute(
-            select(SectionInstructor.name_raw)
-            .where(SectionInstructor.section_id == section_id)
-            .order_by(SectionInstructor.observed_at.desc(), SectionInstructor.id.desc())
-        )
-        .scalars()
-        .all()
-    )
-    for instructor in instructors:
-        if instructor.strip():
-            return instructor.strip()
-    return None

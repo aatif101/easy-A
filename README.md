@@ -21,6 +21,8 @@ Current branch work contains:
 - Public catalog HTML client/parser/ingest layers
 - Local XLSX-only grade distribution parser/ingest layers
 - Historical grade analytics and a V1 historical easiness score
+- Computed section ranking output that joins analytics, current section facts,
+  GenEd attributes, seats, modality, and deterministic signals
 - Offline tests using synthetic HTML and generated synthetic XLSX fixtures
 
 Developer 1 owns the catalog, historical grades, term normalization, and database
@@ -84,6 +86,8 @@ uv run python scripts/ingest_schedule.py --term 202701 --campus T --subject MAC 
 uv run python scripts/resolve_historical_section.py --term 202408 --crn 89033 --subject MAC --course 1105
 uv run python scripts/ingest_syllabus.py --document-id bpvdotxa9
 uv run python scripts/analyze_course.py --term 202701 --subject MAC --course 1105
+uv run python scripts/rank_section.py --term 202701 --crn 19410
+uv run python scripts/rank_course.py --term 202701 --subject MAC --course 1105
 ```
 
 Schedule searches use the public form POST, and syllabus ingestion accepts one known
@@ -127,6 +131,52 @@ than calibrated probability, and the latest same-course syllabus is only a
 historical reference rather than evidence of current policy. Signal objects are
 computed at request time in Sprint 2; no persistent `syllabus_signals` or
 `section_rankings` table is created.
+
+## Section Ranking Integration
+
+Sprint 2 integrates the merged historical analytics and deterministic signal
+systems into a computed, typed section-level ranking output in
+`easy_a.rankings`. It is still backend-only and intentionally does not add a
+frontend, FastAPI API, RateMyProfessors integration, LLM scoring, user accounts,
+or deployment.
+
+For one stored current section, the ranking service resolves the row by
+`(term, CRN)` and joins:
+
+- current `terms`, `sections`, and exact `courses` data;
+- the latest observed `section_instructors` state;
+- delivery method and current seat fields, preferring the latest
+  `seat_snapshots` row when one exists;
+- stored `course_attributes` GenEd code-label pairs;
+- historical easiness analytics from `grade_distributions`; and
+- resolved deterministic syllabus or section-note signals.
+
+The CLI prints JSON so downstream consumers can see the full provenance contract
+without an API:
+
+```powershell
+uv run python scripts/rank_section.py --term 202701 --crn 19410
+uv run python scripts/rank_course.py --term 202701 --subject MAC --course 1105
+```
+
+The top-level score fields are historical-only: `easiness_score`,
+`smoothed_withdrawal_rate`, `confidence_label`, `effective_n`, and
+`score_source` come from historical grade outcomes and the analytics fallback
+rules. Current seats, delivery method, section notes, syllabus signals, GenEd
+attributes, and future professor/RMP data do not influence easiness scoring.
+
+Each output keeps missing or uncertain data explicit rather than filling guesses:
+empty signal resolution is reported as `unavailable`, historical syllabus signals
+are marked `historical` with their source term, seat data says whether it came
+from a seat snapshot or canonical section fields, and GenEd attributes remain an
+empty list with unavailable provenance when no course attributes are stored.
+
+The ranking output is computed on demand. No `section_rankings` table or Alembic
+migration is added in Sprint 2 because the existing source tables already hold
+the canonical facts. If a future workflow needs cached, versioned ranking
+artifacts, that should be a derived table chained after
+`0002_create_section_syllabus_tables`; live seats, modality, and other source
+facts should remain in their source tables.
 
 ## Tests And Quality
 
