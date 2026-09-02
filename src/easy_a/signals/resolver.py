@@ -4,10 +4,11 @@ import re
 import unicodedata
 from dataclasses import dataclass
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from easy_a.models import Section, SectionInstructor, Syllabus, Term
+from easy_a.common.instructors import get_current_instructor_state
+from easy_a.models import Section, Syllabus, Term
 from easy_a.signals.extract import extract_signals
 from easy_a.signals.models import ResolvedSignalSet, SignalSourceKind
 
@@ -108,7 +109,7 @@ def resolve_section_signals(
         .order_by(Term.banner_code.desc(), Syllabus.fetched_at.desc(), Syllabus.id.desc())
     ).all()
     if history:
-        current_instructor = _current_instructor(session, section.id)
+        current_instructor = get_current_instructor_state(session, section.id).name
         instructor_resolution = resolve_instructor(
             current_instructor or "",
             [syllabus.instructor_raw for syllabus, _ in history if syllabus.instructor_raw],
@@ -168,30 +169,6 @@ def _from_syllabus(
         historical=historical,
         instructor_match_confidence=instructor_match_confidence,
     )
-
-
-def _current_instructor(session: Session, section_id: int) -> str | None:
-    latest_observed_at = session.scalar(
-        select(func.max(SectionInstructor.observed_at)).where(
-            SectionInstructor.section_id == section_id
-        )
-    )
-    if latest_observed_at is None:
-        return None
-    names = session.scalars(
-        select(SectionInstructor.name_raw).where(
-            SectionInstructor.section_id == section_id,
-            SectionInstructor.observed_at == latest_observed_at,
-        )
-    ).all()
-    unique = {
-        _normalize_name(name): name for name in names if _normalize_name(name)
-    }
-    if len(unique) != 1:
-        return None
-    return next(iter(unique.values()))
-
-
 def _name_parts(name: str) -> tuple[str, str] | None:
     normalized = _normalize_name(name)
     if not normalized or normalized == "staff":

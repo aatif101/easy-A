@@ -8,6 +8,10 @@ from openpyxl import Workbook
 from sqlalchemy.orm import Session
 
 from easy_a.analytics.confidence import ScoreSource
+from easy_a.analytics.queries import (
+    SectionHistoricalAnalytics,
+    get_current_section_historical_analytics,
+)
 from easy_a.grades.ingest import ingest_grade_file
 from easy_a.models import (
     CourseAttribute,
@@ -71,6 +75,119 @@ def test_staff_current_section_falls_back_to_course_analytics(db_session: Sessio
     assert ranking.modality.provenance.freshness is RankingFreshness.current
     assert ranking.seats_remaining == 7
     assert ranking.seats.provenance.source == "sections.current_seat_fields"
+
+
+def test_staff_old_named_instructor_latest_is_displayed_and_scored(
+    db_session: Session,
+) -> None:
+    _add_section(db_session, term_id=2, crn="89033", instructor="I. Rothstein")
+    _add_grade(db_session, term_id=2, crn="89033", a=80, b=20, w=5)
+    current = _add_section(db_session, term_id=1, crn="71001", instructor="Staff")
+    _observe_instructor(
+        db_session,
+        section_id=current.id,
+        name="I. Rothstein",
+        observed_at=NOW + timedelta(days=1),
+    )
+    db_session.commit()
+
+    ranking = rank_section(db_session, term="202701", crn="71001")
+    analytics_row = _analytics_row_for(db_session, crn="71001")
+
+    assert ranking.instructor == "I. Rothstein"
+    assert analytics_row.instructor == "I. Rothstein"
+    assert ranking.score_source is ScoreSource.instructor_course
+    assert analytics_row.stats.score_source is ScoreSource.instructor_course
+
+
+def test_old_instructor_a_latest_instructor_b_is_displayed_and_scored(
+    db_session: Session,
+) -> None:
+    _add_section(db_session, term_id=2, crn="89033", instructor="Instructor B")
+    _add_grade(db_session, term_id=2, crn="89033", a=80, b=20, w=5)
+    current = _add_section(db_session, term_id=1, crn="71002", instructor="Instructor A")
+    _observe_instructor(
+        db_session,
+        section_id=current.id,
+        name="Instructor B",
+        observed_at=NOW + timedelta(days=1),
+    )
+    db_session.commit()
+
+    ranking = rank_section(db_session, term="202701", crn="71002")
+    analytics_row = _analytics_row_for(db_session, crn="71002")
+
+    assert ranking.instructor == "Instructor B"
+    assert analytics_row.instructor == "Instructor B"
+    assert ranking.score_source is ScoreSource.instructor_course
+    assert analytics_row.stats.score_source is ScoreSource.instructor_course
+
+
+def test_ambiguous_latest_instructor_state_is_unresolved_and_course_scored(
+    db_session: Session,
+) -> None:
+    _add_section(db_session, term_id=2, crn="89033", instructor="Instructor B")
+    _add_grade(db_session, term_id=2, crn="89033", a=80, b=20, w=5)
+    current = _add_section(db_session, term_id=1, crn="71003", instructor="Instructor A")
+    latest_at = NOW + timedelta(days=1)
+    _observe_instructor(
+        db_session,
+        section_id=current.id,
+        name="Instructor B",
+        observed_at=latest_at,
+    )
+    _observe_instructor(
+        db_session,
+        section_id=current.id,
+        name="Instructor C",
+        observed_at=latest_at,
+    )
+    db_session.commit()
+
+    ranking = rank_section(db_session, term="202701", crn="71003")
+    analytics_row = _analytics_row_for(db_session, crn="71003")
+
+    assert ranking.instructor is None
+    assert analytics_row.instructor is None
+    assert ranking.instructor_provenance.detail == (
+        "ambiguous latest instructor state: Instructor B / Instructor C"
+    )
+    assert ranking.score_source is ScoreSource.course
+    assert analytics_row.stats.score_source is ScoreSource.course
+
+
+def test_latest_staff_is_displayed_but_uses_course_analytics(db_session: Session) -> None:
+    _add_section(db_session, term_id=2, crn="89033", instructor="I. Rothstein")
+    _add_grade(db_session, term_id=2, crn="89033", a=80, b=20, w=5)
+    current = _add_section(db_session, term_id=1, crn="71004", instructor="I. Rothstein")
+    _observe_instructor(
+        db_session,
+        section_id=current.id,
+        name="Staff",
+        observed_at=NOW + timedelta(days=1),
+    )
+    db_session.commit()
+
+    ranking = rank_section(db_session, term="202701", crn="71004")
+    analytics_row = _analytics_row_for(db_session, crn="71004")
+
+    assert ranking.instructor == "Staff"
+    assert analytics_row.instructor == "Staff"
+    assert ranking.score_source is ScoreSource.course
+    assert analytics_row.stats.score_source is ScoreSource.course
+
+
+def test_ranking_displayed_instructor_matches_analytics_resolved_instructor(
+    db_session: Session,
+) -> None:
+    _add_grade(db_session, term_id=2, crn="89033", a=30, b=10, w=4)
+    _add_section(db_session, term_id=1, crn="71005", instructor="Staff")
+    db_session.commit()
+
+    ranking = rank_section(db_session, term="202701", crn="71005")
+    analytics_row = _analytics_row_for(db_session, crn="71005")
+
+    assert ranking.instructor == analytics_row.instructor
 
 
 def test_named_instructor_with_sufficient_history_uses_instructor_course(
@@ -398,6 +515,35 @@ def _add_syllabus(
     session.add(syllabus)
     session.flush()
     return syllabus
+
+
+def _observe_instructor(
+    session: Session,
+    *,
+    section_id: int,
+    name: str,
+    observed_at: datetime,
+) -> None:
+    session.add(
+        SectionInstructor(
+            section_id=section_id,
+            name_raw=name,
+            name_normalized=name.lower(),
+            source="synthetic",
+            observed_at=observed_at,
+        )
+    )
+    session.flush()
+
+
+def _analytics_row_for(db_session: Session, *, crn: str) -> SectionHistoricalAnalytics:
+    rows = get_current_section_historical_analytics(
+        db_session,
+        term_code="202701",
+        subject="MAC",
+        course_number="1105",
+    )
+    return next(row for row in rows if row.crn == crn)
 
 
 def _write_grade_workbook(path: Path) -> None:

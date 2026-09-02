@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from easy_a.analytics.queries import get_current_section_historical_analytics
 from easy_a.analytics.scoring import HistoricalOutcomeStats, ScoreConfig
+from easy_a.common.instructors import CurrentInstructorStatus, get_current_instructor_state
 from easy_a.common.terms import normalize_banner_term_code
-from easy_a.models import Course, CourseAttribute, SeatSnapshot, Section, SectionInstructor, Term
+from easy_a.models import Course, CourseAttribute, SeatSnapshot, Section, Term
 from easy_a.rankings.models import (
     GenEdAttribute,
     HistoricalAnalyticsSummary,
@@ -152,41 +153,30 @@ def _latest_instructor_state(
     section: Section,
     term_code: str,
 ) -> tuple[str | None, RankingProvenance]:
-    latest_observed_at = session.scalar(
-        select(func.max(SectionInstructor.observed_at)).where(
-            SectionInstructor.section_id == section.id
-        )
-    )
-    if latest_observed_at is None:
+    instructor_state = get_current_instructor_state(session, section.id)
+    if instructor_state.status is CurrentInstructorStatus.no_observations:
         return None, RankingProvenance(
             freshness=RankingFreshness.unavailable,
             source="section_instructors",
             source_term=term_code,
             detail="no instructor observations are stored for this section",
         )
-
-    names = (
-        session.execute(
-            select(SectionInstructor.name_raw)
-            .where(
-                SectionInstructor.section_id == section.id,
-                SectionInstructor.observed_at == latest_observed_at,
-            )
-            .order_by(SectionInstructor.name_raw)
-        )
-        .scalars()
-        .all()
-    )
-    cleaned_names = tuple(dict.fromkeys(name.strip() for name in names if name.strip()))
-    if not cleaned_names:
+    if instructor_state.status is CurrentInstructorStatus.blank_latest_state:
         return None, RankingProvenance(
             freshness=RankingFreshness.unavailable,
             source="section_instructors",
             source_term=term_code,
             detail="latest instructor observation is blank",
         )
-
-    return " / ".join(cleaned_names), RankingProvenance(
+    if instructor_state.status is CurrentInstructorStatus.ambiguous_latest_state:
+        ambiguous_names = " / ".join(instructor_state.latest_names)
+        return None, RankingProvenance(
+            freshness=RankingFreshness.unavailable,
+            source="section_instructors",
+            source_term=term_code,
+            detail=f"ambiguous latest instructor state: {ambiguous_names}",
+        )
+    return instructor_state.name, RankingProvenance(
         freshness=RankingFreshness.current,
         source="section_instructors",
         source_term=term_code,
