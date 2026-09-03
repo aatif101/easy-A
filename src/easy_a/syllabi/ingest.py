@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from easy_a.common.lookups import CoreDataLookupError, ensure_term, resolve_course_id
-from easy_a.common.terms import TermParseError
+from easy_a.common.terms import TermParseError, normalize_banner_term_code
 from easy_a.models import Section, Syllabus
 from easy_a.syllabi.parser import ParsedSyllabus, parse_syllabus_html
 
@@ -33,6 +33,7 @@ def ingest_syllabus_html(
     view_url: str | None = None,
     organization: str | None = None,
     last_updated_at: datetime | None = None,
+    expected_term_code: str | int | None = None,
 ) -> SyllabusIngestResult:
     parsed = parse_syllabus_html(
         html,
@@ -41,6 +42,13 @@ def ingest_syllabus_html(
         organization=organization,
         last_updated_at=last_updated_at,
     )
+    if (
+        expected_term_code is not None
+        and parsed.term_code != normalize_banner_term_code(expected_term_code)
+    ):
+        raise SyllabusIngestError(
+            "Syllabus term does not match the refresh target term."
+        )
     captured_at = fetched_at or datetime.now(UTC)
     try:
         term = ensure_term(session, parsed.term_code)

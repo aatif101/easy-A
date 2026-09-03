@@ -3,11 +3,12 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from easy_a.models import Section, Syllabus
-from easy_a.syllabi.ingest import ingest_syllabus_html
+from easy_a.syllabi.ingest import SyllabusIngestError, ingest_syllabus_html
 
 FIXTURES = Path(__file__).parents[1] / "fixtures"
 
@@ -64,3 +65,17 @@ def test_syllabus_joins_by_term_and_crn_and_is_idempotent(db_session: Session) -
     assert syllabus.section_id != wrong_term.id
     # SQLite drops timezone metadata; PostgreSQL preserves the UTC-aware value.
     assert syllabus.fetched_at == datetime(2026, 9, 1, 13)
+
+
+def test_syllabus_refresh_rejects_document_from_another_term(db_session: Session) -> None:
+    html = (FIXTURES / "syllabus_enc_1101.html").read_text(encoding="utf-8")
+
+    with pytest.raises(SyllabusIngestError, match="does not match"):
+        ingest_syllabus_html(
+            db_session,
+            html,
+            document_id="bpvdotxa9",
+            expected_term_code="202701",
+        )
+
+    assert db_session.scalar(select(func.count()).select_from(Syllabus)) == 0
