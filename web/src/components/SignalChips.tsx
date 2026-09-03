@@ -1,5 +1,5 @@
 import type { SectionRanking } from "../types/rankings";
-import { signalLabel } from "../utils/rankings";
+import { signalLabel, signalSourceLabel } from "../utils/rankings";
 
 export function SignalChips({ ranking, compact = true }: { ranking: SectionRanking; compact?: boolean }) {
   if (ranking.signals.length === 0) {
@@ -9,6 +9,9 @@ export function SignalChips({ ranking, compact = true }: { ranking: SectionRanki
   const historical = ranking.signal_provenance.freshness === "historical";
   return (
     <div className="flex flex-wrap gap-1.5">
+      <span className={`rounded border px-2 py-0.5 text-xs font-bold ${historical ? "border-amber-400 bg-amber-100 text-amber-950" : "border-stone-300 bg-stone-100 text-stone-700"}`}>
+        {signalSourceLabel(ranking)}
+      </span>
       {visibleSignals.map((signal) => (
         <span
           className={`rounded border px-2 py-0.5 text-xs font-semibold ${
@@ -24,11 +27,6 @@ export function SignalChips({ ranking, compact = true }: { ranking: SectionRanki
       {compact && ranking.signals.length > 2 ? (
         <span className="px-1 py-0.5 text-xs font-semibold text-stone-500">
           +{ranking.signals.length - 2}
-        </span>
-      ) : null}
-      {historical ? (
-        <span className="rounded bg-amber-800 px-2 py-0.5 text-xs font-bold text-white">
-          Historical only
         </span>
       ) : null}
     </div>

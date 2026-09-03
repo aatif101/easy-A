@@ -2,13 +2,13 @@
 
 Easy-A is a course-intelligence tool for University of South Florida Tampa students.
 
-V1 will eventually rank course sections using historical grade outcomes, withdrawal
+V1 ranks course sections using historical grade outcomes, withdrawal
 rates, syllabus signals, current seat availability, modality, General Education
-requirements, and professor information.
+requirements, and current instructor assignments.
 
-The current Sprint 2 analytics work is still backend-only. It intentionally does
-not include a frontend, API, authentication, deployment, RateMyProfessors
-integration, LLM scoring, user accounts, or a persisted final rankings table.
+The local beta includes a FastAPI API and React frontend. It intentionally does
+not include authentication, deployment, RateMyProfessors integration, LLM scoring,
+user accounts, or a persisted final rankings table.
 
 ## Development Status
 
@@ -46,9 +46,9 @@ Copy `.env.example` to `.env` for local development and adjust values if needed.
 
 ## Frontend
 
-The Sprint 3 frontend is a React, TypeScript, Vite, and Tailwind CSS app under
-`web/`. It provides a responsive section-ranking table, client-side filters,
-and expandable policy and analytics details.
+The Sprint 4 frontend is a React, TypeScript, Vite, and Tailwind CSS app under
+`web/`. It provides a responsive section-ranking table, server-backed filters,
+pagination, and expandable policy and analytics details.
 
 ```powershell
 cd web
@@ -67,11 +67,11 @@ To use the real API, create `web/.env.local` and set:
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
-The typed client requests
-`GET /api/v1/rankings/search?term=<banner-term>` from that base URL and uses
-the `items` array from the paginated response. A configured API failure is
-shown as an error and is not silently replaced by mock data. Frontend quality
-commands are:
+The typed client loads terms, subjects, GenEd attributes, and delivery methods
+from the metadata endpoints, then sends selected filters to
+`GET /api/v1/rankings/search`. It uses the API's `items`, `total`, `limit`, and
+`offset` fields for results and pagination. A configured API failure is shown as
+an error and is not silently replaced by mock data. Frontend quality commands are:
 
 ```powershell
 npm test
@@ -82,6 +82,37 @@ npm run build
 
 This V1 has no authentication, accounts, RateMyProfessors data, LLM features,
 or deployment configuration.
+
+## Local Beta Smoke Test
+
+Terminal 1 — start PostgreSQL:
+
+```powershell
+docker compose up -d db
+```
+
+Terminal 2 — start the API from the repository root:
+
+```powershell
+uv run uvicorn easy_a.api.app:app --reload
+```
+
+Terminal 3 — start the frontend with the real API configured:
+
+```powershell
+cd web
+$env:VITE_API_BASE_URL = "http://localhost:8000"
+npm run dev
+```
+
+Verify that:
+
+- the term selector loads from API metadata;
+- searches for `MAC 1105` and `ENC 1101` work;
+- the open-seats and GenEd filters work;
+- a section detail panel opens;
+- historical signals are explicitly labeled;
+- unknown instructors, seats, modalities, and signals display safely.
 
 ## PostgreSQL
 
@@ -382,11 +413,12 @@ attributes, syllabus or section-note signals, and future professor/RMP fields do
 not affect the score. Historical signals are labeled historical and should not be
 presented as current policy.
 
-Aggregate USF InfoCenter grade-distribution data is approved by USF ODS for this
-project. Production-quality rankings still depend on a complete, correctly
-provenanced set of approved aggregate rows. Local development databases may be
-partial, synthetic, or missing historical coverage, so low-confidence and
-fallback scores should be treated as exploratory rather than definitive.
+USF ODS approved use of aggregate InfoCenter grade-distribution data for this
+project. This authorization does not imply USF endorsement of Easy-A.
+Production-quality rankings still depend on a complete, correctly provenanced set
+of approved aggregate rows. Local development databases may be partial, synthetic,
+or missing historical coverage, so low-confidence and fallback scores should be
+treated as exploratory rather than definitive.
 
 ## Tests And Quality
 
@@ -533,4 +565,6 @@ exports.
 Code correctness for parsing and scoring remains separate from source handling:
 operators are responsible for keeping raw authenticated exports outside the
 repository while the application stores only approved aggregate records and
-their derived statistics.
+their derived statistics. USF ODS approved use of aggregate InfoCenter
+grade-distribution data for this project; this does not imply USF endorsement of
+Easy-A, and the repository's data safety restrictions still apply.

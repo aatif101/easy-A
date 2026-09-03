@@ -81,8 +81,25 @@ export interface SectionRanking {
   section_provenance: RankingProvenance;
 }
 
+export type RankingSort =
+  | "easiness_desc"
+  | "easiness_asc"
+  | "withdrawal_asc"
+  | "seats_desc"
+  | "course";
+
 export interface RankingQuery {
   term: string;
+  subject?: string;
+  course_number?: string;
+  gened_code?: string;
+  delivery_method?: string;
+  seats_open?: boolean;
+  min_easiness?: number;
+  confidence?: ConfidenceLabel;
+  sort?: RankingSort;
+  limit: number;
+  offset: number;
 }
 
 export interface RankingsSearchResponse {
@@ -95,4 +112,34 @@ export interface RankingsSearchResponse {
 export type RankingLoader = (
   query: RankingQuery,
   signal?: AbortSignal,
-) => Promise<SectionRanking[]>;
+) => Promise<RankingsSearchResponse>;
+
+export interface TermMetadata {
+  term: string;
+  term_name: string;
+  year: number;
+  season: string;
+}
+
+export interface SubjectMetadata {
+  subject: string;
+}
+
+export interface GenEdAttributeMetadata {
+  code: string;
+  label: string;
+}
+
+export interface DeliveryMethodMetadata {
+  code: string;
+  label: string | null;
+}
+
+export interface RankingMetadata {
+  terms: TermMetadata[];
+  subjects: SubjectMetadata[];
+  genedAttributes: GenEdAttributeMetadata[];
+  deliveryMethods: DeliveryMethodMetadata[];
+}
+
+export type MetadataLoader = (signal?: AbortSignal) => Promise<RankingMetadata>;
