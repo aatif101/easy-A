@@ -44,6 +44,45 @@ uv sync
 
 Copy `.env.example` to `.env` for local development and adjust values if needed.
 
+## Frontend
+
+The Sprint 3 frontend is a React, TypeScript, Vite, and Tailwind CSS app under
+`web/`. It provides a responsive section-ranking table, client-side filters,
+and expandable policy and analytics details.
+
+```powershell
+cd web
+npm install
+npm run dev
+```
+
+For frontend-only development, leave `VITE_API_BASE_URL` unset. The app then
+uses clearly labeled synthetic fixtures covering Staff and named instructors,
+course and instructor-course scores, current and historical policy signals,
+missing signals and seats, and low-confidence analytics.
+
+To use the real API, create `web/.env.local` and set:
+
+```text
+VITE_API_BASE_URL=http://localhost:8000
+```
+
+The typed client requests
+`GET /api/v1/rankings/search?term=<banner-term>` from that base URL and uses
+the `items` array from the paginated response. A configured API failure is
+shown as an error and is not silently replaced by mock data. Frontend quality
+commands are:
+
+```powershell
+npm test
+npm run lint
+npm run typecheck
+npm run build
+```
+
+This V1 has no authentication, accounts, RateMyProfessors data, LLM features,
+or deployment configuration.
+
 ## PostgreSQL
 
 Start PostgreSQL 16 locally:
