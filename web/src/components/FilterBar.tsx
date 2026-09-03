@@ -1,69 +1,88 @@
-import type { Dispatch, SetStateAction } from "react";
-
+import type { RankingMetadata } from "../types/rankings";
 import type { RankingFilters } from "../utils/rankings";
 
 interface FilterBarProps {
   filters: RankingFilters;
-  setFilters: Dispatch<SetStateAction<RankingFilters>>;
+  metadata: RankingMetadata;
+  onFiltersChange: (filters: RankingFilters) => void;
   term: string;
-  setTerm: (term: string) => void;
+  onTermChange: (term: string) => void;
 }
 
-const selectClass =
+const controlClass =
   "mt-1.5 w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm text-ink shadow-sm transition focus:border-spruce focus:outline-none focus:ring-2 focus:ring-spruce/20";
 
-export function FilterBar({ filters, setFilters, term, setTerm }: FilterBarProps) {
+export function FilterBar({
+  filters,
+  metadata,
+  onFiltersChange,
+  term,
+  onTermChange,
+}: FilterBarProps) {
   const update = <Key extends keyof RankingFilters>(key: Key, value: RankingFilters[Key]) => {
-    setFilters((current) => ({ ...current, [key]: value }));
+    onFiltersChange({ ...filters, [key]: value });
   };
 
   return (
     <section
       aria-label="Course ranking filters"
-      className="sticky top-0 z-20 border-y border-rule bg-paper/95 px-4 py-4 shadow-sm backdrop-blur md:px-6"
+      className="z-20 border-y border-rule bg-paper/95 px-4 py-4 shadow-sm backdrop-blur md:px-6 lg:sticky lg:top-0"
     >
       <div className="mx-auto grid max-w-[1500px] gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8">
         <label className="filter-label">
           Term
-          <select className={selectClass} value={term} onChange={(event) => setTerm(event.target.value)}>
-            <option value="202701">Spring 2027</option>
-            <option value="202608">Fall 2026</option>
+          <select className={controlClass} value={term} onChange={(event) => onTermChange(event.target.value)}>
+            {metadata.terms.map((item) => (
+              <option key={item.term} value={item.term}>{item.term_name} ({item.term})</option>
+            ))}
+          </select>
+        </label>
+
+        <label className="filter-label">
+          Subject
+          <select className={controlClass} value={filters.subject} onChange={(event) => update("subject", event.target.value)}>
+            <option value="">All subjects</option>
+            {metadata.subjects.map(({ subject }) => <option key={subject} value={subject}>{subject}</option>)}
           </select>
         </label>
 
         <label className="filter-label sm:col-span-2">
-          Subject or course
+          Course code
           <input
-            className={selectClass}
+            aria-describedby="course-search-help"
+            autoCapitalize="characters"
+            className={controlClass}
             type="search"
-            value={filters.search}
-            placeholder="Try MAC 1105 or College Algebra"
-            onChange={(event) => update("search", event.target.value)}
+            value={filters.courseSearch}
+            placeholder="MAC 1105 or 1105"
+            onChange={(event) => update("courseSearch", event.target.value)}
           />
+          <span className="mt-1 block normal-case tracking-normal text-stone-500" id="course-search-help">Exact subject/course lookup</span>
         </label>
 
-        <label className="filter-label">
+        <label className="filter-label sm:col-span-2 lg:col-span-1">
           GenEd
-          <select className={selectClass} value={filters.gened} onChange={(event) => update("gened", event.target.value as RankingFilters["gened"])}>
-            <option value="all">All courses</option>
-            <option value="yes">GenEd only</option>
-            <option value="no">Not GenEd</option>
+          <select className={controlClass} value={filters.genedCode} onChange={(event) => update("genedCode", event.target.value)}>
+            <option value="">All attributes</option>
+            {metadata.genedAttributes.map(({ code, label }) => (
+              <option key={`${code}:${label}`} value={code}>{code} — {label}</option>
+            ))}
           </select>
         </label>
 
-        <label className="filter-label">
+        <label className="filter-label sm:col-span-2 lg:col-span-1">
           Modality
-          <select className={selectClass} value={filters.modality} onChange={(event) => update("modality", event.target.value as RankingFilters["modality"])}>
-            <option value="all">All formats</option>
-            <option value="classroom">Classroom</option>
-            <option value="hybrid">Hybrid</option>
-            <option value="online">Online</option>
+          <select className={controlClass} value={filters.deliveryMethod} onChange={(event) => update("deliveryMethod", event.target.value)}>
+            <option value="">All formats</option>
+            {metadata.deliveryMethods.map(({ code, label }) => (
+              <option key={code} value={code}>{label ?? "Unknown label"} ({code})</option>
+            ))}
           </select>
         </label>
 
         <label className="filter-label">
           Confidence
-          <select className={selectClass} value={filters.confidence} onChange={(event) => update("confidence", event.target.value as RankingFilters["confidence"])}>
+          <select className={controlClass} value={filters.confidence} onChange={(event) => update("confidence", event.target.value as RankingFilters["confidence"])}>
             <option value="all">All levels</option>
             <option value="high">High</option>
             <option value="medium">Medium</option>
@@ -73,10 +92,11 @@ export function FilterBar({ filters, setFilters, term, setTerm }: FilterBarProps
 
         <label className="filter-label">
           Sort by
-          <select className={selectClass} value={filters.sort} onChange={(event) => update("sort", event.target.value as RankingFilters["sort"])}>
-            <option value="easiness">Easiness: high to low</option>
-            <option value="withdrawal">W rate: low to high</option>
-            <option value="seats">Open seats</option>
+          <select className={controlClass} value={filters.sort} onChange={(event) => update("sort", event.target.value as RankingFilters["sort"])}>
+            <option value="easiness_desc">Easiness: high to low</option>
+            <option value="easiness_asc">Easiness: low to high</option>
+            <option value="withdrawal_asc">W rate: low to high</option>
+            <option value="seats_desc">Open seats</option>
             <option value="course">Course code</option>
           </select>
         </label>
@@ -94,6 +114,7 @@ export function FilterBar({ filters, setFilters, term, setTerm }: FilterBarProps
           <label className="flex w-full items-center gap-3 text-sm font-semibold text-ink xl:max-w-md">
             <span className="whitespace-nowrap">Minimum easiness</span>
             <input
+              aria-valuetext={`${filters.minimumEasiness.toFixed(1)} out of 10`}
               className="h-2 w-full accent-spruce"
               type="range"
               min="0"

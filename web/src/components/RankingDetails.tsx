@@ -1,7 +1,9 @@
 import type { SectionRanking } from "../types/rankings";
 import {
   formatPercent,
+  instructorLabel,
   scoreSourceLabel,
+  seatSourceLabel,
   signalLabel,
   signalSourceLabel,
 } from "../utils/rankings";
@@ -17,7 +19,7 @@ export function RankingDetails({ ranking, id }: { ranking: SectionRanking; id: s
         <div>
           <p className="eyebrow">{ranking.subject} {ranking.course_number} · CRN {ranking.crn}</p>
           <h3 className="mt-1 font-display text-2xl font-bold text-ink">{ranking.course_title}</h3>
-          <p className="mt-1 text-sm text-stone-600">{ranking.instructor ?? "Staff"} · {ranking.modality.delivery_label ?? "Unknown modality"}</p>
+          <p className="mt-1 break-words text-sm text-stone-600">{instructorLabel(ranking)} · {ranking.modality.delivery_label ?? "Unknown modality"}</p>
         </div>
         {historicalSignals ? (
           <span className="w-fit rounded-sm border border-amber-400 bg-amber-50 px-3 py-1 text-xs font-extrabold uppercase tracking-wide text-amber-950">
@@ -30,12 +32,13 @@ export function RankingDetails({ ranking, id }: { ranking: SectionRanking; id: s
         <div><dt>Easiness</dt><dd>{ranking.easiness_score.toFixed(1)} / 10</dd></div>
         <div><dt>W rate</dt><dd>{formatPercent(ranking.smoothed_withdrawal_rate)}</dd></div>
         <div><dt>Effective sample</dt><dd>{Math.round(ranking.effective_n)} grades</dd></div>
-        <div><dt>Confidence</dt><dd><ConfidenceBadge value={ranking.confidence_label} /></dd></div>
+        <div><dt>Confidence</dt><dd><ConfidenceBadge value={ranking.confidence_label} />{ranking.confidence_label === "low" ? <span className="mt-1 block text-xs font-semibold text-amber-900">Based on limited historical data.</span> : null}</dd></div>
         <div><dt>Score source</dt><dd>{scoreSourceLabel(ranking.score_source)}</dd></div>
         <div><dt>Seats</dt><dd><SeatBadge ranking={ranking} /></dd></div>
         <div><dt>Enrollment</dt><dd>{ranking.seats.enrollment ?? "Unknown"} / {ranking.seats.capacity ?? "Unknown"}</dd></div>
         <div><dt>Waitlist seats</dt><dd>{ranking.seats.wait_seats_available ?? "Unknown"}</dd></div>
       </dl>
+      <p className="mt-4 text-xs font-semibold text-stone-600">{seatSourceLabel(ranking)}{ranking.seats.provenance.detail ? ` — ${ranking.seats.provenance.detail}` : ""}</p>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.5fr_1fr]">
         <div>
@@ -53,7 +56,10 @@ export function RankingDetails({ ranking, id }: { ranking: SectionRanking; id: s
                   </div>
                   <p className="mt-2 border-l-2 border-brass/60 pl-3 text-sm leading-relaxed text-stone-700">“{signal.evidence}”</p>
                   {signal.freshness === "historical" ? (
-                    <p className="mt-2 text-xs font-semibold text-amber-900">Historical syllabus reference · {signal.source_term}</p>
+                    <div className="mt-2 text-xs font-semibold text-amber-900">
+                      <p>Historical syllabus reference · {signal.source_term}</p>
+                      <p className="mt-1 font-normal">This policy comes from a prior term and may have changed.</p>
+                    </div>
                   ) : null}
                 </li>
               ))}

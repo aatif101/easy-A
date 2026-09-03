@@ -1,73 +1,55 @@
-import type { ConfidenceLabel, RankingSignal, SectionRanking } from "../types/rankings";
+import type {
+  ConfidenceLabel,
+  RankingSignal,
+  RankingSort,
+  SectionRanking,
+} from "../types/rankings";
 
 export interface RankingFilters {
-  search: string;
-  gened: "all" | "yes" | "no";
-  modality: "all" | "classroom" | "hybrid" | "online";
+  subject: string;
+  courseSearch: string;
+  genedCode: string;
+  deliveryMethod: string;
   openSeatsOnly: boolean;
   minimumEasiness: number;
   confidence: "all" | ConfidenceLabel;
-  sort: "easiness" | "withdrawal" | "seats" | "course";
+  sort: RankingSort;
 }
 
 export const initialFilters: RankingFilters = {
-  search: "",
-  gened: "all",
-  modality: "all",
+  subject: "",
+  courseSearch: "",
+  genedCode: "",
+  deliveryMethod: "",
   openSeatsOnly: false,
   minimumEasiness: 0,
   confidence: "all",
-  sort: "easiness",
+  sort: "easiness_desc",
 };
 
-const modalityGroup = (ranking: SectionRanking): Exclude<RankingFilters["modality"], "all"> => {
-  const method = ranking.modality.delivery_method;
-  if (method === "AD" || method === "PD") return "online";
-  if (method === "HB") return "hybrid";
-  return "classroom";
+export interface ParsedCourseSearch {
+  subject?: string;
+  courseNumber?: string;
+}
+
+export const parseCourseSearch = (value: string): ParsedCourseSearch => {
+  const normalized = value.trim().toUpperCase();
+  if (!normalized) return {};
+  const combined = normalized.match(/^([A-Z]{2,4})\s*-?\s*([0-9][0-9A-Z]{2,4})$/);
+  if (combined) return { subject: combined[1], courseNumber: combined[2] };
+  if (/^[A-Z]{2,4}$/.test(normalized)) return { subject: normalized };
+  if (/^[0-9][0-9A-Z]{2,4}$/.test(normalized)) return { courseNumber: normalized };
+  return {};
 };
 
-export const filterAndSortRankings = (
-  rankings: SectionRanking[],
-  filters: RankingFilters,
-): SectionRanking[] => {
-  const search = filters.search.trim().toLocaleLowerCase();
-  const filtered = rankings.filter((ranking) => {
-    const searchable = [
-      ranking.subject,
-      ranking.course_number,
-      ranking.course_title,
-      ranking.instructor ?? "Staff",
-      ranking.crn,
-    ]
-      .join(" ")
-      .toLocaleLowerCase();
-    return (
-      (!search || searchable.includes(search)) &&
-      (filters.gened === "all" ||
-        (filters.gened === "yes") === (ranking.gened_attributes.length > 0)) &&
-      (filters.modality === "all" || modalityGroup(ranking) === filters.modality) &&
-      (!filters.openSeatsOnly || (ranking.seats_remaining ?? 0) > 0) &&
-      ranking.easiness_score >= filters.minimumEasiness &&
-      (filters.confidence === "all" || ranking.confidence_label === filters.confidence)
-    );
-  });
-
-  return filtered.toSorted((left, right) => {
-    if (filters.sort === "withdrawal") {
-      return left.smoothed_withdrawal_rate - right.smoothed_withdrawal_rate;
-    }
-    if (filters.sort === "seats") {
-      return (right.seats_remaining ?? -1) - (left.seats_remaining ?? -1);
-    }
-    if (filters.sort === "course") {
-      return `${left.subject} ${left.course_number}`.localeCompare(
-        `${right.subject} ${right.course_number}`,
-      );
-    }
-    return right.easiness_score - left.easiness_score;
-  });
-};
+export const hasActiveFilters = (filters: RankingFilters): boolean =>
+  filters.subject !== "" ||
+  filters.courseSearch.trim() !== "" ||
+  filters.genedCode !== "" ||
+  filters.deliveryMethod !== "" ||
+  filters.openSeatsOnly ||
+  filters.minimumEasiness > 0 ||
+  filters.confidence !== "all";
 
 export const formatPercent = (value: number): string => `${(value * 100).toFixed(1)}%`;
 
@@ -102,6 +84,25 @@ export const scoreSourceLabel = (source: SectionRanking["score_source"]): string
     global: "Global fallback",
   };
   return labels[source];
+};
+
+export const instructorLabel = (ranking: SectionRanking): string => {
+  const instructor = ranking.instructor?.trim();
+  if (instructor) return instructor;
+  const detail = ranking.instructor_provenance.detail?.toLowerCase() ?? "";
+  if (detail.includes("ambiguous")) return "Ambiguous / unavailable";
+  if (detail.includes("blank") || ranking.instructor_provenance.freshness === "current") {
+    return "Staff";
+  }
+  return "Unknown";
+};
+
+export const seatSourceLabel = (ranking: SectionRanking): string => {
+  if (ranking.seats.provenance.freshness === "unavailable") return "Seat data unavailable";
+  if (ranking.seats.provenance.source === "seat_snapshots") {
+    return "Latest observed seat data · seat snapshot";
+  }
+  return "Latest observed seat data · stored section record";
 };
 
 export const signalSourceLabel = (ranking: SectionRanking): string => {
