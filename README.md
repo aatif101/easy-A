@@ -159,6 +159,54 @@ uv run python scripts/rank_section.py --term 202701 --crn 19410
 uv run python scripts/rank_course.py --term 202701 --subject MAC --course 1105
 ```
 
+## FastAPI API
+
+Sprint 3 exposes the computed ranking service through a thin FastAPI app. It does
+not add authentication, accounts, deployment infrastructure, RateMyProfessors,
+LLM scoring, or a persisted rankings table.
+
+Run the API locally after syncing dependencies and applying migrations:
+
+```powershell
+uv run uvicorn easy_a.api.app:app --reload
+```
+
+The app reads `DATABASE_URL` for the SQLAlchemy connection. Development CORS is
+restricted to local frontend origins by default:
+`http://localhost:5173,http://127.0.0.1:5173`. Override it with a comma-separated
+`EASY_A_ALLOWED_FRONTEND_ORIGINS` value when needed.
+
+Endpoints:
+
+- `GET /health` returns `{"status":"ok"}`.
+- `GET /api/v1/rankings/section?term=202701&crn=19410` ranks one stored section.
+- `GET /api/v1/rankings/course?term=202701&subject=MAC&course_number=1105`
+  ranks all stored sections for one course.
+- `GET /api/v1/rankings/search?term=202701&gened_code=SMEL&seats_open=true`
+  searches stored current sections, computes rankings for candidates, applies
+  filters, and returns `items`, `total`, `limit`, and `offset`.
+- `GET /api/v1/metadata/terms`
+- `GET /api/v1/metadata/subjects`
+- `GET /api/v1/metadata/gened-attributes`
+- `GET /api/v1/metadata/delivery-methods`
+
+Sample requests:
+
+```powershell
+curl "http://127.0.0.1:8000/health"
+curl "http://127.0.0.1:8000/api/v1/rankings/section?term=202701&crn=19410"
+curl "http://127.0.0.1:8000/api/v1/rankings/course?term=202701&subject=MAC&course_number=1105"
+curl "http://127.0.0.1:8000/api/v1/rankings/search?term=202701&sort=easiness_desc&limit=25"
+curl "http://127.0.0.1:8000/api/v1/metadata/gened-attributes"
+```
+
+Search filters are intentionally V1-simple: candidate sections come from the
+canonical term/course/section tables, the existing ranking service computes each
+candidate, and derived filters such as open seats, minimum easiness, and
+confidence are applied to those computed outputs. Default `limit` is `50`; max
+`limit` is `200`. Supported sort values are `easiness_desc`, `easiness_asc`,
+`withdrawal_asc`, `seats_desc`, and `course`.
+
 The top-level score fields are historical-only: `easiness_score`,
 `smoothed_withdrawal_rate`, `confidence_label`, `effective_n`, and
 `score_source` come from historical grade outcomes and the analytics fallback
@@ -177,6 +225,17 @@ the canonical facts. If a future workflow needs cached, versioned ranking
 artifacts, that should be a derived table chained after
 `0002_create_section_syllabus_tables`; live seats, modality, and other source
 facts should remain in their source tables.
+
+API ranking caveats match the computed service caveats: easiness uses historical
+grade outcomes and withdrawal rates only. Current seats, delivery method, GenEd
+attributes, syllabus or section-note signals, and future professor/RMP fields do
+not affect the score. Historical signals are labeled historical and should not be
+presented as current policy.
+
+Production-quality ranking data still depends on an approved and complete grade
+distribution source. Local development databases may be partial, synthetic, or
+missing historical coverage, so low-confidence and fallback scores should be
+treated as exploratory rather than definitive.
 
 ## Tests And Quality
 
