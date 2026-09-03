@@ -167,12 +167,29 @@ Live schedule requests must remain narrow by providing a subject or CRN. Live
 syllabus refresh accepts one or more `--syllabus-document` IDs or public URLs;
 file mode accepts repeatable `--syllabus-file DOCUMENT_ID=HTML` mappings.
 
-The term is always required, including when a grade file is supplied. The
-workbook filename is never used as term metadata. Remote acquisition completes
-before its database transaction begins. Each ingestion stage has its own
-transaction, schedule reruns update canonical `(term, CRN)` sections while
-appending seat and instructor observations, and the final quality report runs
-only after successful stage commits.
+The term is always required, including when a grade file is supplied.
+`--grade-file` belongs to exactly the `--term` supplied on that command. The
+workbook does not encode a trusted term, and its filename is never used as term
+metadata. Operators must import historical grade workbooks with their actual
+historical Banner term. For example, never load a Fall 2024 export under Spring
+2027 merely because Spring 2027 is the current ranking term. Run that grade-only
+historical import with its real term instead:
+
+```powershell
+uv run python scripts/refresh_data.py `
+  --term 202408 `
+  --grade-file C:\private\fall-2024-infocenter-grades.xlsx `
+  --skip-catalog `
+  --skip-schedule `
+  --skip-syllabi
+```
+
+Remote acquisition completes before its database transaction begins. Each
+ingestion stage has its own transaction: a successful stage commits, while a
+failed stage rolls back without undoing previously completed stages. Schedule
+reruns update canonical `(term, CRN)` sections while appending seat and
+instructor observations, and the final quality report runs only after successful
+stage commits.
 
 The refresh summary reports the target term, distinct courses represented by
 target-term sections, canonical sections, instructor observations and seat
@@ -381,9 +398,11 @@ uv run mypy src migrations scripts tests
 
 ## Grade Distribution Ingestion
 
-USF InfoCenter grade exports are parsed from local `.xlsx` files only. The workbook
-does not contain the academic term, so `--term` is required and filenames are never
-used to infer term metadata.
+USF InfoCenter grade exports are parsed from local `.xlsx` files only. The
+workbook does not encode a trusted academic term, so `--term` is required and
+filenames are never used to infer term metadata. The file must be imported under
+the actual Banner term represented by its rows, even when a different term is
+currently being ranked.
 
 ```powershell
 uv run python scripts/ingest_grades.py `

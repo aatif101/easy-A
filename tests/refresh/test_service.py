@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import pytest
 from openpyxl import Workbook
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session, sessionmaker
@@ -12,15 +13,18 @@ from easy_a.db import Base
 from easy_a.models import (
     Course,
     GradeDistribution,
+    IngestRun,
     SeatSnapshot,
     Section,
     SectionInstructor,
     Syllabus,
+    Term,
 )
 from easy_a.refresh import (
     CatalogInput,
     GradeInput,
     RefreshConfig,
+    RefreshStageError,
     ScheduleInput,
     SourceMode,
     SyllabusFileInput,
@@ -106,6 +110,71 @@ def test_rerun_preserves_canonical_sections_and_appends_snapshots(tmp_path: Path
         assert session.scalar(select(func.count()).select_from(Syllabus)) == 1
 
 
+def test_failing_catalog_ingest_rolls_back_its_partial_mutations(tmp_path: Path) -> None:
+    factory = _empty_factory()
+    catalog_path = tmp_path / "invalid-catalog.html"
+    catalog_path.write_text("<html><body>No course record</body></html>", encoding="utf-8")
+    config = RefreshConfig(
+        term="202701",
+        catalog=CatalogInput(
+            source=SourceMode.file,
+            catalog_edition="2026-2027",
+            file_path=catalog_path,
+        ),
+    )
+
+    with pytest.raises(RefreshStageError, match="catalog stage failed"):
+        refresh_data(config, session_factory=factory)
+
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Term)) == 1
+        assert session.scalar(select(func.count()).select_from(IngestRun)) == 0
+        assert session.scalar(select(func.count()).select_from(Course)) == 0
+
+
+def test_failing_grade_ingest_rolls_back_its_partial_mutations(tmp_path: Path) -> None:
+    factory = _empty_factory()
+    grade_path = tmp_path / "invalid-grades.xlsx"
+    _write_grade_workbook(grade_path, total_grades=999)
+    config = RefreshConfig(term="202701", grades=GradeInput(file_path=grade_path))
+
+    with pytest.raises(RefreshStageError, match="grades stage failed"):
+        refresh_data(config, session_factory=factory)
+
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Term)) == 1
+        assert session.scalar(select(func.count()).select_from(IngestRun)) == 0
+        assert session.scalar(select(func.count()).select_from(GradeDistribution)) == 0
+
+
+def test_completed_catalog_stage_remains_committed_when_grades_fail(tmp_path: Path) -> None:
+    factory = _empty_factory()
+    catalog_path = tmp_path / "catalog.html"
+    catalog_path.write_text(_catalog_html(), encoding="utf-8")
+    grade_path = tmp_path / "invalid-grades.xlsx"
+    _write_grade_workbook(grade_path, total_grades=999)
+    config = RefreshConfig(
+        term="202701",
+        catalog=CatalogInput(
+            source=SourceMode.file,
+            catalog_edition="2026-2027",
+            file_path=catalog_path,
+        ),
+        grades=GradeInput(file_path=grade_path),
+    )
+
+    with pytest.raises(RefreshStageError, match="grades stage failed"):
+        refresh_data(config, session_factory=factory)
+
+    with factory() as session:
+        ingest_runs = session.scalars(select(IngestRun)).all()
+        assert session.scalar(select(func.count()).select_from(Course)) == 1
+        assert len(ingest_runs) == 1
+        assert ingest_runs[0].source == "usf_catalog"
+        assert ingest_runs[0].status == "succeeded"
+        assert session.scalar(select(func.count()).select_from(GradeDistribution)) == 0
+
+
 def _offline_refresh(tmp_path: Path) -> tuple[sessionmaker[Session], RefreshConfig]:
     catalog_path = tmp_path / "catalog.html"
     catalog_path.write_text(_catalog_html(), encoding="utf-8")
@@ -117,13 +186,7 @@ def _offline_refresh(tmp_path: Path) -> tuple[sessionmaker[Session], RefreshConf
     syllabus_path = tmp_path / "syllabus.html"
     syllabus_path.write_text(_syllabus_html(), encoding="utf-8")
 
-    engine = create_engine(
-        "sqlite+pysqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(engine)
-    factory = sessionmaker(bind=engine, expire_on_commit=False)
+    factory = _empty_factory()
     config = RefreshConfig(
         term="202701",
         catalog=CatalogInput(
@@ -140,6 +203,16 @@ def _offline_refresh(tmp_path: Path) -> tuple[sessionmaker[Session], RefreshConf
         stale_after=timedelta(days=7),
     )
     return factory, config
+
+
+def _empty_factory() -> sessionmaker[Session]:
+    engine = create_engine(
+        "sqlite+pysqlite:///:memory:",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    return sessionmaker(bind=engine, expire_on_commit=False)
 
 
 def _catalog_html() -> str:
@@ -167,7 +240,7 @@ def _syllabus_html() -> str:
     """
 
 
-def _write_grade_workbook(path: Path) -> None:
+def _write_grade_workbook(path: Path, *, total_grades: int = 10) -> None:
     workbook = Workbook()
     worksheet = workbook.active
     assert worksheet is not None
@@ -195,7 +268,7 @@ def _write_grade_workbook(path: Path) -> None:
             None,
             0,
             None,
-            10,
+            total_grades,
         ]
     )
     workbook.save(path)

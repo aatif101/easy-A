@@ -41,7 +41,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--schedule-crn")
     parser.add_argument("--skip-schedule", action="store_true")
 
-    parser.add_argument("--grade-file", type=Path)
+    parser.add_argument(
+        "--grade-file",
+        type=Path,
+        help=(
+            "Aggregate grade workbook for exactly --term; the workbook does not supply "
+            "a trusted term."
+        ),
+    )
     parser.add_argument("--skip-grades", action="store_true")
 
     parser.add_argument("--syllabus-source", choices=_SOURCE_CHOICES)

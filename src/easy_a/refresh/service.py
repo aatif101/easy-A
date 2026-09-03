@@ -9,11 +9,9 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from easy_a.catalog.client import fetch_catalog_html
 from easy_a.catalog.ingest import CatalogIngestResult, ingest_catalog_html
-from easy_a.catalog.parser import CatalogParseError
 from easy_a.common.lookups import ensure_term
 from easy_a.db import get_session_factory
 from easy_a.grades.ingest import GradeIngestResult, ingest_grade_file
-from easy_a.grades.parser import GradeWorkbookSchemaError, GradeWorkbookValidationError
 from easy_a.models import GradeDistribution, Section, Syllabus, Term
 from easy_a.quality.checks import run_quality_checks
 from easy_a.refresh.models import (
@@ -146,14 +144,8 @@ def _refresh_catalog(
         assert source.file_path is not None
         html = _read_html(source.file_path, "catalog")
 
-    with factory() as session:
-        try:
-            result = ingest_catalog_html(session, html, source.catalog_edition)
-        except CatalogParseError:
-            session.commit()
-            raise
-        session.commit()
-        return result
+    with factory.begin() as session:
+        return ingest_catalog_html(session, html, source.catalog_edition)
 
 
 def _refresh_schedule(
@@ -188,14 +180,8 @@ def _refresh_grades(
 ) -> GradeIngestResult:
     if not file_path.is_file():
         raise ValueError("Configured grade file is not a readable file.")
-    with factory() as session:
-        try:
-            result = ingest_grade_file(session, term, file_path)
-        except (GradeWorkbookSchemaError, GradeWorkbookValidationError):
-            session.commit()
-            raise
-        session.commit()
-        return result
+    with factory.begin() as session:
+        return ingest_grade_file(session, term, file_path)
 
 
 def _refresh_syllabi(
