@@ -85,6 +85,13 @@ export interface RankingQuery {
   term: string;
 }
 
+export interface RankingsSearchResponse {
+  items: SectionRanking[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export type RankingLoader = (
   query: RankingQuery,
   signal?: AbortSignal,

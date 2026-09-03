@@ -1,5 +1,5 @@
 import { syntheticRankings } from "../fixtures/rankings";
-import type { RankingLoader, SectionRanking } from "../types/rankings";
+import type { RankingLoader, RankingsSearchResponse } from "../types/rankings";
 
 const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, "");
 
@@ -11,7 +11,7 @@ export const fetchRankings: RankingLoader = async ({ term }, signal) => {
     return syntheticRankings.filter((ranking) => ranking.term === term);
   }
 
-  const url = new URL(`${apiBaseUrl}/rankings`);
+  const url = new URL(`${apiBaseUrl}/api/v1/rankings/search`);
   url.searchParams.set("term", term);
   const response = await fetch(url, {
     headers: { Accept: "application/json" },
@@ -20,5 +20,6 @@ export const fetchRankings: RankingLoader = async ({ term }, signal) => {
   if (!response.ok) {
     throw new Error(`Ranking request failed with status ${response.status}.`);
   }
-  return (await response.json()) as SectionRanking[];
+  const searchResponse = (await response.json()) as RankingsSearchResponse;
+  return searchResponse.items;
 };

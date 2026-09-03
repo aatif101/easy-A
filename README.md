@@ -67,9 +67,11 @@ To use the real API, create `web/.env.local` and set:
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
-The typed client requests `GET /rankings?term=<banner-term>` from that base URL.
-A configured API failure is shown as an error and is not silently replaced by
-mock data. Frontend quality commands are:
+The typed client requests
+`GET /api/v1/rankings/search?term=<banner-term>` from that base URL and uses
+the `items` array from the paginated response. A configured API failure is
+shown as an error and is not silently replaced by mock data. Frontend quality
+commands are:
 
 ```powershell
 npm test
