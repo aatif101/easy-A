@@ -118,6 +118,100 @@ Current migration chain:
 0002_create_section_syllabus_tables
 ```
 
+## Real-Data Refresh
+
+USF ODS has approved aggregate USF InfoCenter grade-distribution data for this
+project. The approval covers aggregate section outcomes only: Easy-A does not
+store student-level records or personally identifiable information. The
+application may use derived aggregate statistics after preserving the source
+provenance and an explicit Banner term on every imported grade row.
+
+Apply migrations, then use the refresh command to coordinate whichever sources
+are available for the target term. This file-backed example is suitable for a
+repeatable offline or operator-supplied refresh:
+
+```powershell
+uv run python scripts/refresh_data.py `
+  --term 202701 `
+  --catalog-source file `
+  --catalog-edition 2026-2027 `
+  --catalog-file C:\local\catalog.html `
+  --schedule-source file `
+  --schedule-file C:\local\schedule.html `
+  --grade-file C:\private\infocenter-grades.xlsx `
+  --syllabus-source file `
+  --syllabus-file bpvdotxa9=C:\local\syllabus.html
+```
+
+Live public catalog and schedule acquisition can be mixed with omitted private
+or unavailable inputs:
+
+```powershell
+uv run python scripts/refresh_data.py `
+  --term 202701 `
+  --catalog-source live `
+  --catalog-edition 2026-2027 `
+  --catalog-url https://cloud.usf.edu/academic-programs/details/prefix/MAC/code/1105 `
+  --schedule-source live `
+  --schedule-campus T `
+  --schedule-subject MAC `
+  --schedule-course 1105 `
+  --skip-grades `
+  --skip-syllabi
+```
+
+No data source is mandatory. Omitting a source leaves that stage out, and the
+explicit `--skip-catalog`, `--skip-schedule`, `--skip-grades`, and
+`--skip-syllabi` switches let an operator temporarily disable configured stages.
+Live schedule requests must remain narrow by providing a subject or CRN. Live
+syllabus refresh accepts one or more `--syllabus-document` IDs or public URLs;
+file mode accepts repeatable `--syllabus-file DOCUMENT_ID=HTML` mappings.
+
+The term is always required, including when a grade file is supplied. The
+workbook filename is never used as term metadata. Remote acquisition completes
+before its database transaction begins. Each ingestion stage has its own
+transaction, schedule reruns update canonical `(term, CRN)` sections while
+appending seat and instructor observations, and the final quality report runs
+only after successful stage commits.
+
+The refresh summary reports the target term, distinct courses represented by
+target-term sections, canonical sections, instructor observations and seat
+snapshots added by this run, stored target-term grade rows and syllabi, and
+quality error and warning counts. Exit status is `0` when the refresh and quality
+checks succeed, `1` when ingestion succeeds but quality errors are present, and
+`2` when an ingestion stage fails.
+
+## Data Quality
+
+Run the quality checks independently for any stored term:
+
+```powershell
+uv run python scripts/check_data_quality.py --term 202701
+uv run python scripts/check_data_quality.py --term 202701 --stale-after-days 14 --json
+```
+
+The report checks duplicate `(term, CRN)` sections, grade bucket totals, orphan
+grade and instructor rows, impossible seat values, unknown delivery methods,
+ambiguous current instructors, stale schedule observations, missing historical
+analytics coverage, and low-confidence rankings. Staleness is configurable and
+is reported as a warning rather than treated as invalid data. Human-readable
+output looks like:
+
+```text
+Term: 202701
+Sections: 46
+Errors: 0
+Warnings: 8
+Info: 3
+
+WARN ambiguous_instructor CRN 12345 [section:17]: Latest instructor observation contains multiple names: Instructor A / Instructor B
+WARN low_confidence_ranking CRN 19410 [section:21]: Computed historical ranking confidence is low.
+INFO no_historical_analytics CRN 13173 [section:19]: Section has no historical grade analytics coverage.
+```
+
+The quality command exits nonzero only when at least one error-level finding is
+present. Warnings and informational coverage gaps do not fail the command.
+
 ## Narrow public-source commands
 
 ```powershell
@@ -271,17 +365,18 @@ attributes, syllabus or section-note signals, and future professor/RMP fields do
 not affect the score. Historical signals are labeled historical and should not be
 presented as current policy.
 
-Production-quality ranking data still depends on an approved and complete grade
-distribution source. Local development databases may be partial, synthetic, or
-missing historical coverage, so low-confidence and fallback scores should be
-treated as exploratory rather than definitive.
+Aggregate USF InfoCenter grade-distribution data is approved by USF ODS for this
+project. Production-quality rankings still depend on a complete, correctly
+provenanced set of approved aggregate rows. Local development databases may be
+partial, synthetic, or missing historical coverage, so low-confidence and
+fallback scores should be treated as exploratory rather than definitive.
 
 ## Tests And Quality
 
 ```powershell
 uv run pytest
 uv run ruff check .
-uv run mypy src tests scripts
+uv run mypy src migrations scripts tests
 ```
 
 ## Grade Distribution Ingestion
@@ -406,11 +501,17 @@ globally unique because the same code can appear with different labels.
 
 ## Data Safety
 
-Raw USF InfoCenter exports must not be committed to this repository.
+USF ODS approval permits aggregate grade-distribution data and derived aggregate
+statistics to be used by Easy-A. It does not permit storing student-level data or
+PII. Every ingested grade row must retain its explicit term and source provenance.
 
-Do not commit authenticated-session data, credentials, cookies, `.env` files,
-internal-use USF data, or real InfoCenter `.xlsx` exports.
+Raw source exports must never be committed to GitHub. The repository ignores
+`.xlsx`, `.xls`, `data/`, and `research/raw/`; tests generate synthetic workbooks
+only in temporary directories. Do not commit authenticated-session data,
+credentials, cookies, `.env` files, internal-use USF data, or real InfoCenter
+exports.
 
-Code correctness for parsing and scoring is separate from production data
-authorization. Production grade data still depends on the approved
-USF/public-records route.
+Code correctness for parsing and scoring remains separate from source handling:
+operators are responsible for keeping raw authenticated exports outside the
+repository while the application stores only approved aggregate records and
+their derived statistics.
