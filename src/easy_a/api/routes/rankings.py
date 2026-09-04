@@ -102,7 +102,7 @@ def _rank_candidate_sections(
     normalized_delivery_method = _optional_upper(delivery_method)
 
     stmt = (
-        select(Section.crn)
+        select(Course.subject, Course.number, Section.crn)
         .join(Term, Section.term_id == Term.id)
         .join(Course, Section.course_id == Course.id)
         .where(Term.banner_code == term)
@@ -118,11 +118,10 @@ def _rank_candidate_sections(
     if normalized_delivery_method is not None:
         stmt = stmt.where(func.upper(Section.delivery_method) == normalized_delivery_method)
 
-    crns = list(
-        session.execute(
-            stmt.distinct().order_by(Course.subject, Course.number, Section.crn)
-        ).scalars()
+    rows = session.execute(
+        stmt.distinct().order_by(Course.subject, Course.number, Section.crn)
     )
+    crns = [row.crn for row in rows]
     rankings: list[SectionRanking] = []
     for crn in crns:
         try:
