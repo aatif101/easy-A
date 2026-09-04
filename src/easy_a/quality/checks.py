@@ -133,7 +133,6 @@ def check_seat_values(
     for label, value in (
         ("capacity", values.capacity),
         ("enrollment", values.enrollment),
-        ("seats_remaining", values.seats_remaining),
         ("wait_seats_available", values.wait_seats_available),
     ):
         if value is not None and value < 0:
@@ -157,9 +156,8 @@ def check_seat_values(
         and remaining is not None
         and capacity >= 0
         and enrollment >= 0
-        and remaining >= 0
     ):
-        expected_remaining = max(capacity - enrollment, 0)
+        expected_remaining = capacity - enrollment
         if remaining != expected_remaining:
             findings.append(
                 QualityFinding(

@@ -180,7 +180,7 @@ def _offline_refresh(tmp_path: Path) -> tuple[sessionmaker[Session], RefreshConf
     catalog_path.write_text(_catalog_html(), encoding="utf-8")
     schedule_path = tmp_path / "schedule.html"
     schedule_html = (FIXTURES / "schedule_current.html").read_text(encoding="utf-8")
-    schedule_path.write_text(schedule_html.replace("<td>-17</td>", "<td>0</td>"), encoding="utf-8")
+    schedule_path.write_text(schedule_html, encoding="utf-8")
     grade_path = tmp_path / "grades.xlsx"
     _write_grade_workbook(grade_path)
     syllabus_path = tmp_path / "syllabus.html"

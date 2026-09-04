@@ -96,6 +96,30 @@ def test_impossible_and_inconsistent_seat_values_are_errors() -> None:
     assert all(finding.severity == "error" for finding in impossible + inconsistent)
 
 
+def test_negative_but_consistent_remaining_seats_are_allowed() -> None:
+    findings = check_seat_values(
+        SeatValues(capacity=30, enrollment=47, seats_remaining=-17, wait_seats_available=0),
+        term="202408",
+        crn="12345",
+        source_record="seat_snapshot:1",
+    )
+
+    assert findings == []
+
+
+def test_negative_inconsistent_remaining_seats_are_an_error() -> None:
+    findings = check_seat_values(
+        SeatValues(capacity=30, enrollment=47, seats_remaining=-16, wait_seats_available=0),
+        term="202408",
+        crn="12345",
+        source_record="seat_snapshot:1",
+    )
+
+    assert [finding.check_id for finding in findings] == ["inconsistent_seat_count"]
+    assert findings[0].severity == "error"
+    assert "expected -17, observed -16" in findings[0].message
+
+
 def test_unknown_delivery_method_is_a_warning(db_session: Session) -> None:
     db_session.add(_section(crn="12345", delivery_method="XX"))
 

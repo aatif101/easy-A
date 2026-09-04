@@ -275,49 +275,52 @@ def _extract_labeled_value(root: Tag | BeautifulSoup, labels: Iterable[str]) -> 
 
 
 def _extract_attribute_text(root: Tag | BeautifulSoup) -> str | None:
-    labeled_value = _extract_labeled_value(
+    heading = _find_heading_containing(root, "course attributes")
+    if heading is not None:
+        fragments: list[str] = []
+        for sibling in heading.next_siblings:
+            if isinstance(sibling, Tag) and sibling.name in {"h1", "h2", "h3", "h4"}:
+                break
+            if not isinstance(sibling, Tag):
+                continue
+            if sibling.name == "table":
+                for row in sibling.find_all("tr"):
+                    if not isinstance(row, Tag):
+                        continue
+                    cells = _direct_cell_texts(row)
+                    if len(cells) >= 2:
+                        fragments.append(" ".join(cells[1:]))
+                    elif cells:
+                        fragments.append(cells[0])
+            else:
+                fragments.append(_node_text(sibling))
+
+        text = _clean_text("\n".join(fragment for fragment in fragments if fragment))
+        if text:
+            return text
+
+    return _extract_labeled_value(
         root,
         ("Course Attributes", "Course Attributes(s)", "Attribute(s)", "Attributes"),
     )
-    if labeled_value:
-        return labeled_value
-
-    heading = _find_heading_containing(root, "course attributes")
-    if heading is None:
-        return None
-
-    fragments: list[str] = []
-    for sibling in heading.next_siblings:
-        if isinstance(sibling, Tag) and sibling.name in {"h1", "h2", "h3", "h4"}:
-            break
-        if not isinstance(sibling, Tag):
-            continue
-        if sibling.name == "table":
-            for row in sibling.find_all("tr"):
-                if not isinstance(row, Tag):
-                    continue
-                cells = _direct_cell_texts(row)
-                if len(cells) >= 2:
-                    fragments.append(" ".join(cells[1:]))
-                elif cells:
-                    fragments.append(cells[0])
-        else:
-            fragments.append(_node_text(sibling))
-
-    text = _clean_text("\n".join(fragment for fragment in fragments if fragment))
-    return text or None
 
 
 def _find_heading_containing(root: Tag | BeautifulSoup, needle: str) -> Tag | None:
-    for heading in root.find_all(["h1", "h2", "h3", "h4", "strong"]):
-        if isinstance(heading, Tag) and needle in _node_text(heading).lower():
-            return heading
+    for heading in root.find_all(["h1", "h2", "h3", "h4", "strong", "b"]):
+        if not isinstance(heading, Tag) or needle not in _node_text(heading).lower():
+            continue
+        if heading.name in {"strong", "b"} and isinstance(heading.parent, Tag):
+            return heading.parent
+        return heading
     return None
 
 
 def _strip_inline_label(text: str, labels: tuple[str, ...]) -> str | None:
     for label in labels:
-        pattern = re.compile(rf"^{re.escape(label)}\s*:?\s*(?P<value>.+)$", re.IGNORECASE)
+        pattern = re.compile(
+            rf"^{re.escape(label)}(?:\s*:\s*|\s+)(?P<value>.+)$",
+            re.IGNORECASE,
+        )
         match = pattern.match(text)
         if match is not None:
             return _clean_text(match.group("value"))
