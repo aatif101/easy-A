@@ -22,6 +22,39 @@ COURSEBLOCK_HTML = """
 </html>
 """
 
+COURSE_PAGE_WITH_LIVE_ATTRIBUTES_HTML = """
+<html>
+  <body>
+    <div class="catalog-course-detail">
+      <h1>MAC 1105: College Algebra</h1>
+      <table><tr><th>Credit Hours:</th><td>3</td></tr></table>
+      <p><b>Course Attributes(s)\r\n</b></p>
+      <table class="detail">
+        <tbody>
+          <tr>
+            <th>One USF</th>
+            <td>
+              General Education Core Mathematics (SGEM),
+              State GE Core Math (SGEM),
+              State Computation Requirement (6AM)
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </body>
+</html>
+"""
+
+COURSE_PAGE_WITHOUT_ATTRIBUTES_HTML = """
+<html>
+  <body>
+    <h1>MAC 1105: College Algebra</h1>
+    <table><tr><th>Credit Hours:</th><td>3</td></tr></table>
+  </body>
+</html>
+"""
+
 
 @pytest.fixture
 def session() -> Iterator[Session]:
@@ -63,3 +96,30 @@ def test_catalog_ingest_is_idempotent_for_unchanged_course(session: Session) -> 
     assert second.records_updated == 0
     assert len(courses) == 1
     assert len(attributes) == 1
+
+
+def test_catalog_ingest_backfills_live_attributes_and_preserves_repeated_codes(
+    session: Session,
+) -> None:
+    first = ingest_catalog_html(
+        session,
+        COURSE_PAGE_WITHOUT_ATTRIBUTES_HTML,
+        catalog_edition="2026-2027",
+    )
+    second = ingest_catalog_html(
+        session,
+        COURSE_PAGE_WITH_LIVE_ATTRIBUTES_HTML,
+        catalog_edition="2026-2027",
+    )
+
+    attributes = (
+        session.execute(select(CourseAttribute).order_by(CourseAttribute.id)).scalars().all()
+    )
+
+    assert first.records_inserted == 1
+    assert second.records_updated == 1
+    assert [(attribute.attribute_code, attribute.attribute_label) for attribute in attributes] == [
+        ("SGEM", "General Education Core Mathematics"),
+        ("SGEM", "State GE Core Math"),
+        ("6AM", "State Computation Requirement"),
+    ]
