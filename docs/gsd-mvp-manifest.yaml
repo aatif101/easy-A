@@ -1,5 +1,16 @@
+# Ingestion manifest for /gsd-ingest-docs --manifest docs/gsd-mvp-manifest.yaml
+# type drives conflict precedence: ADR > SPEC > PRD > DOC
+# precedence: lower number = higher precedence (explicit here to remove ambiguity)
 docs:
-  - path: docs/final-mvp-plan.md
-    type: PRD
+  - path: docs/gsd-core-mvp-prompt.md
+    type: ADR
+    precedence: 0
   - path: docs/final-mvp-ui-spec.md
     type: SPEC
+    precedence: 1
+  - path: docs/final-mvp-plan.md
+    type: PRD
+    precedence: 2
+  - path: docs/live-source-drift-2026-09-01.md
+    type: DOC
+    precedence: 3
