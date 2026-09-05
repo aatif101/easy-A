@@ -1,0 +1,5 @@
+docs:
+  - path: docs/final-mvp-plan.md
+    type: PRD
+  - path: docs/final-mvp-ui-spec.md
+    type: SPEC
