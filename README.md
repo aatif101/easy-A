@@ -628,7 +628,7 @@ uv run python scripts/refresh_seats.py --term 202701 --subject MAC --course 1105
 uv run python scripts/refresh_seats.py --term 202701 --crn 13173
 ```
 
-Coverage refresh fetches each target's catalog metadata and schedule sequentially,
+Coverage refresh fetches each target's catalog metadata and Tampa schedule sequentially,
 reports section counts returned in this pass, missing targets, and quality findings.
 Seat refresh uses the existing Staff Schedule Search client and schedule ingestion:
 it appends snapshots and instructor observations and updates canonical schedule fields
@@ -640,7 +640,7 @@ term that belongs to a configured target. Filters narrow the configured list.
 
 Each invocation performs one pass in a database transaction. Source/network/parser
 failures abort and roll back the pass; they are not treated as empty results. Responses
-outside the requested course/CRN scope are rejected. A valid empty schedule response
+outside the requested Tampa/course/CRN scope are rejected. A valid empty schedule response
 reports zero refreshed sections and preserves older section rows and observations.
 No daemon, polling loop, parallel scraper, protection bypass, or automatic retry is added.
 An external scheduler may invoke seat refresh every **5–10 minutes** for this small beta
