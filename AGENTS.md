@@ -1,22 +1,75 @@
 # Agent Instructions — Easy-A
 
-Entry point for any AI coding agent working in this repository.
+Entry point for any AI coding agent working in this repository. Everything needed for ordinary
+continuation is in the repo — you should not need prior conversation context.
 
-## What this project is
+## Read first, in this order
+
+1. **`AGENTS.md`** (this file) — constraints and orientation
+2. **`.planning/STATE.md`** — current position and the next action
+3. **`.planning/PROJECT.md`** — scope, decisions, open questions
+4. **`.planning/ROADMAP.md`** — phase sequence and backlog
+5. **`README.md`** — as needed, for commands and local setup
+
+## Current state
 
 Easy-A is a **working application**, not a prototype and not a greenfield build. FastAPI backend,
 React/TypeScript frontend, PostgreSQL, real Spring 2027 schedule ingestion, real historical grade
-imports, and a validated real-data beta covering `MAC 1105` and `ENC 1101`.
+imports, configurable course coverage, and seat freshness classification.
 
-**Current planning phase: Sprint 5** — broader configurable course coverage, near-live seat
-freshness, and deployment-safe configuration.
+| | |
+|---|---|
+| Baseline | `origin/main` = `180afe0b8faf72a70c297e4c3d4af40c8c3b15a0` |
+| Sprint 5 | **Complete** — merged via PR #14 and PR #15. Do not re-plan or re-implement it. |
+| Now | **Real-data expansion validation** — validate the five configured Spring 2027 targets against real ingestion |
+| Next | Hosted beta — deployment, CI, performance measurement, observability, operator runbook |
 
-## Start here
+Fetch and verify current `origin/main` before planning rather than trusting the SHA above.
 
-**`.planning/STATE.md`** — current position, next action, open questions, and the constraints that
-matter. One file, written to orient a cold start. Read it first.
+### Test baseline
 
-`README.md` is accurate about what runs today. `.planning/` is authoritative for what comes next.
+Measured 2026-09-08 at `180afe0`: **191 Python passed / 1 skipped**, **78 frontend passed**.
+
+The skip is the PostgreSQL integration test, which skips when `EASY_A_TEST_POSTGRES_URL` is
+unset. PostgreSQL integration coverage exists but most of the suite still runs on SQLite — do not
+describe it as a PostgreSQL suite.
+
+### Configured course targets
+
+`config/course_targets.toml`, catalog edition 2026-2027:
+
+| Subject | Number | Status |
+|---------|--------|--------|
+| MAC | 1105 | Previously validated |
+| ENC | 1101 | Previously validated |
+| AMH | 2020 | Configured, **not validated** |
+| PSY | 2012 | Configured, **not validated** |
+| BSC | 1005 | Configured, **not validated** |
+
+**Configuration is not coverage.** Do not claim a target is covered until real ingestion
+validates it.
+
+## Hard constraints
+
+- **No scoring rewrite without explicit approval.** The historical easiness score — its
+  grade/withdrawal composition, Bayesian shrinkage, confidence labels, and course /
+  instructor-course fallback — is the baseline.
+- **No email alerts yet.** Candidate later phase. Do not add subscriber, watch, outbox or
+  email-provider work.
+- **No RMP yet.** Candidate later phase. And whenever it is picked up: no scraping, no bulk
+  crawler, no imported ratings or review content.
+- **No LLM or AI features.**
+- **No fabricated data or coverage.** Every figure carries a real source and a date. Report what
+  failed rather than omitting it.
+- **Never commit raw grade export files.** The repo stores derived aggregates and provenance.
+- **Narrow, bounded requests to USF public sources.** No broad crawling.
+- **Preserve term + CRN identity**, source provenance and deduplication. Grade rows are unique by
+  term/CRN/**source**; duplicate exports must not double-count.
+- **Seats, GenEd, modality and syllabus signals must not affect scoring.**
+- **Verify `origin/main` by fetch**; work from a branch or worktree descended from it. Do not
+  check out, merge or fast-forward a local `main` you have not verified.
+
+Full set: `D-01`..`D-19` in the `.planning/PROJECT.md` `<decisions>` block.
 
 ## Repository layout for context
 
@@ -24,65 +77,47 @@ matter. One file, written to orient a cold start. Read it first.
 |---|---|
 | `.planning/STATE.md` | Where the project is; what to do next |
 | `.planning/PROJECT.md` | Scope, constraints, decisions, open questions |
-| `.planning/REQUIREMENTS.md` | Sprint 5 scope, next, and deferred candidate phases |
-| `.planning/ROADMAP.md` | Sprint 5 → hosted beta, plus a backlog of candidate later phases |
-| `.planning/codebase/` | What the code **is** — 7 evidence-backed maps |
-| `.planning/phases/_superseded/` | Planning built on a roadmap that no longer applies. Do not execute. Its `01-RESEARCH.md` still holds real measurements. |
-| `docs/*.md` | Handoff **proposals** from an earlier conversation. Input, not approved scope. |
+| `.planning/REQUIREMENTS.md` | Complete / current / next / deferred requirements with evidence |
+| `.planning/ROADMAP.md` | Sprint 5 (complete) → validation → hosted beta, plus backlog |
+| `.planning/codebase/` | Codebase maps — **dated 2026-09-05 at `06634490`, pre-Sprint-5**; useful for structure, stale on specifics |
+| `.planning/phases/_superseded/` | Planning from a roadmap that no longer applies. Do not execute. |
+| `docs/*.md` | **Archival proposals.** Not approved scope — see below. |
 
-## Hard constraints
+## The `docs/` handoff files are proposals, not scope
 
-**Do not check out, merge, or fast-forward local `main`.** `refs/heads/main` is at `d880d3c` and
-the primary checkout sits on it with untracked files present. `origin/main` is at `06634490`. Work
-from branches or worktrees descended from `origin/main`.
+`docs/final-mvp-plan.md`, `docs/final-mvp-ui-spec.md` and `docs/gsd-core-mvp-prompt.md` are
+proposals from an earlier planning conversation. Despite the "LOCKED RULES" heading in the third,
+four of their claims are **not adopted**: email alerts as required scope, verified RMP links as
+required scope, a grade-only scoring rewrite, and all offered USF Tampa sections as launch scope.
 
-**Preserve the existing scoring model.** The historical easiness score — its grade/withdrawal
-composition, Bayesian shrinkage, confidence labels, and course / instructor-course fallback — is
-the current baseline. A scoring rewrite is **not** approved scope. Seats, modality, GenEd and
-syllabus signals must not influence the score.
+They are typed `DOC` at low precedence in `docs/gsd-mvp-manifest.yaml` and carry `type: doc`
+frontmatter so a future `/gsd-ingest-docs` run cannot promote them over current planning. Do not
+restore them to ADR/PRD/SPEC.
 
-**Do not treat the handoff documents as approved scope.** `docs/final-mvp-plan.md`,
-`docs/final-mvp-ui-spec.md` and `docs/gsd-core-mvp-prompt.md` are proposals. Despite the
-"LOCKED RULES" heading in the third, four of their claims are **not adopted**: email seat alerts
-as required scope, verified RMP links as required scope, a grade-only scoring rewrite, and all
-offered USF Tampa sections as launch scope.
+## Still-open issues
 
-**Do not pull deferred work into the current sequence.** Seat alerts and RMP integration are
-candidate later phases. Do not add subscriber, watch, outbox or email-provider work.
+Real and unresolved. Do not paper over them, and do not treat them as licence to redesign:
 
-**Never fabricate evidence.** Every displayed number must be a real observed outcome with a
-visible denominator, a named source and a timestamp. When evidence is absent, say so. This applies
-to your work too: do not invent data coverage, source permissions, credential access, or
-deployment completion. Coverage is claimed only after it is actually ingested and validated.
+- **Ranking search cost at broader coverage** — `GET /api/v1/rankings/search` ranks sections
+  before slicing pagination. Measure during validation.
+- **Blank grade-cell / suppression semantics** — `src/easy_a/grades/parser.py` converts every
+  blank cell to `0` with no suppression path. Needs a real or sample InfoCenter export nobody
+  currently has.
+- **Broader real-data coverage is unvalidated** — three of five configured targets have never
+  been ingested.
+- **Deployment host and domain** not yet supplied.
 
-**Bounded source access.** Requests to USF public sources stay narrow and bounded, matching
-existing practice. No broad crawling. No scraping.
-
-The full constraint set is `D-01` through `D-18` in the `.planning/PROJECT.md` `<decisions>` block.
-
-## Known baseline observations
-
-Real and verified. Do not paper over them, and do not treat them as licence to redesign:
-
-- `web/src/api/rankings.ts` silently serves synthetic fixtures when `VITE_API_BASE_URL` is unset —
-  a misconfigured deploy renders plausible fake course data (Sprint 5, REQ-CONFIG-01)
-- Two seat sources of truth — canonical `Section` columns vs. `SeatSnapshot` rows — with a
-  fallback that can make a stale column look current (Sprint 5, REQ-SEAT-01)
-- `course_id` is null on grade import; grade rows are unique by term/CRN/**source**, so duplicate
-  exports double-count without explicit source selection
-- `GET /api/v1/rankings/search` ranks every section in the term before slicing pagination
-- `src/easy_a/grades/parser.py` converts every blank cell to `0` with no suppression path —
-  resolving this needs a real InfoCenter export nobody currently has
-- Python tests run on SQLite while deployment targets PostgreSQL 16; migrations are never applied
-  in tests. Baseline: **166 Python + 19 frontend passing** (measured 2026-09-08).
+Fixed in Sprint 5, do **not** re-plan: silent frontend fixture fallback, missing seat freshness
+contract, absent PostgreSQL integration coverage, hard-coded Spring 2027 term preference.
 
 ## Workflow
 
 This repo uses GSD. Planning artifacts live in `.planning/`, not `.gsd/`.
 
 - `/gsd-progress` — check state and get the next action
-- `/gsd-plan-phase N` — plan a phase before implementing it
+- `/gsd-plan-phase 1` — plan Phase 1 (Real-Data Expansion Validation). **Not Sprint 5**, which is
+  already implemented and merged.
 - `/gsd-execute-phase N` — execute a planned phase
 
-If you are not running GSD, still read `.planning/STATE.md` and `.planning/ROADMAP.md` before
-changing code, and keep `STATE.md` accurate when you finish.
+If you are not running GSD, read `.planning/STATE.md` and `.planning/ROADMAP.md` before changing
+code, and keep `STATE.md` accurate when you finish.

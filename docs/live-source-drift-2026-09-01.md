@@ -1,3 +1,7 @@
+---
+type: doc
+---
+
 # Narrow Live Source Drift Check — 2026-09-01
 
 Scope: Spring 2027 (`202701`), Tampa (`T`), `MAC 1105` and `ENC 1101` only.

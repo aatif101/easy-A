@@ -1,16 +1,42 @@
 # Ingestion manifest for /gsd-ingest-docs --manifest docs/gsd-mvp-manifest.yaml
-# type drives conflict precedence: ADR > SPEC > PRD > DOC
-# precedence: lower number = higher precedence (explicit here to remove ambiguity)
+#
+# AUTHORITATIVE CURRENT SCOPE:
+#   .planning/PROJECT.md, .planning/REQUIREMENTS.md,
+#   .planning/ROADMAP.md, and .planning/STATE.md
+# are authoritative current scope. The documents listed below are archival/proposal
+# inputs and must not override them.
+#
+# WHY EVERY ENTRY IS TYPE `DOC` WITH LOW PRECEDENCE:
+# These are proposals from an earlier planning conversation, not confirmed decisions.
+# An earlier ingest classified docs/gsd-core-mvp-prompt.md as a precedence-0 ADR because
+# it carries a "LOCKED RULES" heading, and that promoted four claims into the planning
+# set as though they were confirmed scope. None was:
+#   - email seat alerts as required scope
+#   - verified RateMyProfessors links as required scope
+#   - a grade-only scoring rewrite replacing the existing model
+#   - "all offered USF Tampa sections" as launch scope
+# Typing them all as DOC with high precedence integers (lower number = higher precedence,
+# so 10-13 ranks below anything else) means a future /gsd-ingest-docs run reads them as
+# background context and cannot re-promote that scope over current planning.
+#
+# GSD Core has no dedicated "archival" or "non-authoritative" document flag; type DOC plus
+# an explicit low precedence is the supported mechanism. Each document additionally carries
+# `type: doc` frontmatter and a "STATUS: PROPOSAL — NOT CONFIRMED SCOPE" banner, so the
+# classifier reaches the same conclusion even if this manifest is not passed.
+#
+# Do not restore any of these to ADR/PRD/SPEC, and do not lower their precedence numbers,
+# without an explicit decision recorded in .planning/PROJECT.md.
+
 docs:
-  - path: docs/gsd-core-mvp-prompt.md
-    type: ADR
-    precedence: 0
   - path: docs/final-mvp-ui-spec.md
-    type: SPEC
-    precedence: 1
+    type: DOC
+    precedence: 10
   - path: docs/final-mvp-plan.md
-    type: PRD
-    precedence: 2
+    type: DOC
+    precedence: 11
+  - path: docs/gsd-core-mvp-prompt.md
+    type: DOC
+    precedence: 12
   - path: docs/live-source-drift-2026-09-01.md
     type: DOC
-    precedence: 3
+    precedence: 13

@@ -1,9 +1,10 @@
 # Easy-A
 
-> **Scope note:** This README describes the **current local beta**, which is accurate for what
-> runs today. Planning for the work ahead lives in [`.planning/`](.planning/) — current planning
-> phase is **Sprint 5**: broader configurable course coverage, near-live seat freshness, and
-> deployment-safe configuration. RateMyProfessors links and seat alerts are candidate later
+> **Scope note:** Sections below describe the application as it has grown; some predate Sprint 5.
+> Planning for the work ahead lives in [`.planning/`](.planning/). **Sprint 5 is complete** —
+> configurable course coverage, seat freshness, and deployment-safe frontend configuration are
+> merged. Current activity is **real-data expansion validation** for the configured Spring 2027
+> targets, then hosted beta. RateMyProfessors links and seat alerts remain candidate later
 > phases, not current scope. For current position start at
 > [`.planning/STATE.md`](.planning/STATE.md); AI agents start at [`AGENTS.md`](AGENTS.md).
 
@@ -642,7 +643,7 @@ failures abort and roll back the pass; they are not treated as empty results. Re
 outside the requested course/CRN scope are rejected. A valid empty schedule response
 reports zero refreshed sections and preserves older section rows and observations.
 No daemon, polling loop, parallel scraper, protection bypass, or automatic retry is added.
-An external scheduler may invoke seat refresh every **5�10 minutes** for this small beta
+An external scheduler may invoke seat refresh every **5–10 minutes** for this small beta
 set, with non-overlapping runs. This is a suggested interval, not a verified upstream
 rate limit. Adjust it to source guidance and operational observations. Alerts and
 notifications are not yet implemented.

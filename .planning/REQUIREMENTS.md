@@ -1,101 +1,115 @@
 # Requirements: Easy-A
 
 Requirements for the sequence forward from the current working baseline. Easy-A is an existing
-application with a validated real-data beta, not a greenfield build.
+application with real ingestion, configurable course coverage and seat freshness — not a
+greenfield build.
 
-**Current planning phase: Sprint 5.**
+**Current baseline: `origin/main` = `180afe0`.** Sprint 5 is merged and complete.
+**Current activity: real-data expansion validation.**
 
 ## How requirements are classified
 
 | Class | Meaning |
 |-------|---------|
 | Current baseline | Already working. Preserved, not rebuilt. |
-| Sprint 5 | Active scope now. |
-| Next | Hosted beta scope, after Sprint 5. |
-| Later / optional | Candidate later phases. Not committed, not required for beta. |
+| Complete | Delivered and merged. Kept for traceability. |
+| Current | Active scope now. |
+| Next | Hosted beta scope. |
+| Later / optional | Candidate later phases. Not committed. |
 
-Coverage figures are **coverage expansion targets subject to validation**. No requirement here
-claims coverage that has not been ingested and verified.
+Coverage figures are **coverage expansion targets subject to validation**. Configuring a course
+target is not the same as having validated coverage for it.
 
 ---
 
 ## Current baseline (preserved, not rebuilt)
 
-These describe what already works. They are the platform, not scope. Changing them is out of
-scope unless a requirement below says otherwise.
-
-- **BASE-01 — Existing scoring model.** The historical easiness score stays as-is: the current
+- **BASE-01 — Existing scoring model.** The historical easiness score stays as-is: current
   grade/withdrawal composition, Bayesian shrinkage, confidence labels, and course /
-  instructor-course fallback behavior. No rewrite is planned or approved. See the optional
-  methodology review in the backlog.
+  instructor-course fallback behavior. **No rewrite without explicit approval.**
 - **BASE-02 — Score isolation.** Seats, modality, GenEd and syllabus signals do not influence the
-  score. Changing seat data must not change a historical score. This property already holds and
-  must be preserved.
+  score. Changing seat data must not change a historical score.
 - **BASE-03 — Ingestion pipelines.** Catalog, schedule, syllabi and grades, each shaped
   `client.py → parser.py → ingest.py → cli.py`, orchestrated by `src/easy_a/refresh/service.py`.
 - **BASE-04 — Grade provenance and deduplication.** Grade rows carry source hashes and are unique
   by term/CRN/source. Explicit source selection prevents duplicate exports from double-counting.
-  This safety property must remain intact through any coverage expansion.
+  Must remain intact through coverage expansion. **Never commit raw grade export files.**
 - **BASE-05 — Deterministic signal extraction.** Nine supported syllabus policy categories with
   provenance and short evidence quotes. Rules-based, no model calls.
-- **BASE-06 — Test and quality baseline.** 166 Python tests and 19 frontend tests passing
-  (measured 2026-09-08). ruff, mypy `strict = true`, ESLint and `tsc -b` all clean. Preserve this
-  passing baseline; update tests when semantics genuinely change.
+- **BASE-06 — Test and quality baseline.** See "Current test baseline" below.
 - **BASE-07 — Existing stack.** Python 3.12 / FastAPI / SQLAlchemy / Alembic / PostgreSQL 16 and
   React / TypeScript / Vite / Tailwind, in this repository. No rewrite, no separate product.
 
+### Current test baseline
+
+Measured on the merged branch at `180afe0` on 2026-09-08:
+
+| Suite | Result | Notes |
+|-------|--------|-------|
+| Python (`uv run pytest -q`) | **191 passed, 1 skipped** | The skip is the PostgreSQL integration test, which skips when `EASY_A_TEST_POSTGRES_URL` is unset |
+| Python with PostgreSQL configured | 192 passed (reported in PR #14) | Requires `EASY_A_TEST_POSTGRES_URL` |
+| Frontend (`npm test` in `web/`) | **78 passed** | 5 test files |
+| Quality gates | ruff, mypy `strict = true`, ESLint, `tsc -b`, build — all passing | |
+
+**Do not describe the whole Python suite as running on PostgreSQL.** Most tests still use
+SQLite; PostgreSQL integration coverage exists for the behavior most exposed to the dialect gap
+and skips silently when the environment variable is absent.
+
 ---
 
-## Sprint 5 requirements (current scope)
+## Complete — Sprint 5 (merged, PR #14 + PR #15)
 
-- [ ] **REQ-COVERAGE-01**: Course coverage is configurable rather than hard-coded.
-  *Acceptance*: A target-course mechanism drives which courses are ingested and served. Widening
-  coverage beyond the validated `MAC 1105` + `ENC 1101` beta requires a configuration change, not
-  a code change. Coverage actually achieved is recorded with real counts and named terms after
-  ingestion — never claimed in advance. Sections whose grade history, instructor name or syllabus
-  is unavailable are still listed, with the unavailability stated explicitly.
+Kept for traceability. Verified present in code at `180afe0`.
 
-- [ ] **REQ-SEAT-01**: Seat information carries visible observation age.
-  *Acceptance*: Each section exposes its latest known seat count, availability state, and the
-  time of the last **successful** observation, distinguishable from the last attempt. A failed or
-  partial request must not advance the success timestamp, must not fabricate a zero count, and
-  must not present stale data as current. Waitlist capacity stays separate from available seats.
-  Negative remaining-seat values from the source are handled as over-capacity, not as a negative
-  "available" badge — upstream genuinely emits these (CRN `19410` published `190/207/-17`).
-  Frontend surfaces observation age with a text label, not color alone.
+- [x] **REQ-COVERAGE-01**: Course coverage is configurable rather than hard-coded. ✓ **Complete.**
+  `src/easy_a/refresh/targets.py` loads validated targets from `config/course_targets.toml`;
+  `target_cli.py` and `src/easy_a/refresh/coverage.py` drive one-pass coverage refresh. Five
+  targets are configured. *Configuration is not validated coverage — see REQ-COVERAGE-02.*
 
-- [ ] **REQ-SEAT-02**: A seat-only refresh workflow exists.
-  *Acceptance*: Seat availability can be refreshed without re-running the full ingestion
-  pipeline. Refresh cadence is configurable. Requests to USF public sources stay bounded and
-  narrow, consistent with existing practice — no broad crawling. Failure to refresh is visible
-  rather than silent.
-  *Note*: This requirement covers refresh and freshness only. Notifying anyone about a seat
-  change is a candidate later phase, not part of this requirement.
+- [x] **REQ-SEAT-01**: Seat information carries visible observation age. ✓ **Complete.**
+  `src/easy_a/schedule/freshness.py` provides `SeatFreshness`, `classify_observation` and
+  `snapshot_freshness`; freshness fields are exposed through the API; the frontend renders seat
+  freshness with relative observation timestamps (`web/src/components/SeatBadge.tsx`,
+  `web/src/utils/time.ts`).
 
-- [ ] **REQ-CONFIG-01**: Production configuration cannot silently serve synthetic data.
-  *Acceptance*: `web/src/api/rankings.ts` currently returns synthetic fixtures when
-  `VITE_API_BASE_URL` is unset, so a misconfigured production deploy renders plausible fake course
-  data. A production build with no configured API base URL must fail visibly instead. Fixtures
-  remain available but explicitly opt-in for development and tests. The hard-coded Spring 2027
-  term preference is replaced by explicit configuration.
+- [x] **REQ-SEAT-02**: A seat-only refresh workflow exists. ✓ **Complete.**
+  `scripts/refresh_seats.py` refreshes seat availability without re-running full ingestion.
+  *Refresh and freshness only — notifying anyone about a seat change remains a candidate later
+  phase.*
 
-- [ ] **REQ-TEST-01**: PostgreSQL integration coverage where practical.
-  *Acceptance*: All 166 Python tests currently run on `sqlite+pysqlite:///:memory:` while the
-  deployment target is PostgreSQL 16, and Alembic migrations are never applied in tests
-  (`Base.metadata.create_all` is used instead). Add integration coverage that runs against
-  PostgreSQL 16 for the behavior most at risk from the dialect gap — queries, migrations, and
-  concurrent access. Partial progress is acceptable; the existing baseline must still pass.
+- [x] **REQ-CONFIG-01**: Production configuration cannot silently serve synthetic data.
+  ✓ **Complete.** `web/src/api/rankings.ts` now requires an explicit opt-in: with
+  `VITE_API_BASE_URL` unset and `VITE_USE_MOCK_DATA` not `"true"`, it throws
+  *"API configuration unavailable: set VITE_API_BASE_URL or explicitly enable
+  VITE_USE_MOCK_DATA=true for synthetic development data."* A non-absolute URL is also rejected.
+
+- [◐] **REQ-TEST-01**: PostgreSQL integration coverage where practical. **Partially complete.**
+  `tests/refresh/test_postgres_coverage.py` provides PostgreSQL-specific integration coverage and
+  calls `pytest.skip("Set EASY_A_TEST_POSTGRES_URL to run PostgreSQL integration")` when the
+  environment variable is absent. So: PostgreSQL integration coverage **exists**, is **not**
+  exercised by default, and the bulk of the suite still runs on SQLite. Widening it is
+  worthwhile but not currently scheduled work.
+
+---
+
+## Current — real-data expansion validation
+
+- [ ] **REQ-COVERAGE-02**: Configured coverage is validated against real data before it is claimed.
+  *Acceptance*: Run real ingestion for the configured Spring 2027 (`202701`) Tampa targets —
+  `MAC 1105`, `ENC 1101`, `AMH 2020`, `PSY 2012`, `BSC 1005` — and record, from that run:
+  actual section counts per course; catalog availability per target; GenEd attribute coverage;
+  seat freshness behavior across a refresh cycle; named-instructor coverage versus `Staff`;
+  historical grade coverage by term per course; quality-pipeline findings; and measured search
+  performance at the widened coverage.
+  Every figure must carry the run date and scope. Targets that fail to resolve, or that have no
+  historical grade data, are reported as such rather than omitted. The result states plainly
+  which targets are validated and which are not. `MAC 1105` and `ENC 1101` are the previously
+  validated pair; the other three are configured but unvalidated.
+  Requests to USF public sources stay narrow and bounded. Do not commit raw grade export files.
 
 ---
 
 ## Next — hosted beta
-
-- [ ] **REQ-COVERAGE-02**: Broader real-data coverage is validated before it is claimed.
-  *Acceptance*: Report actual ingested coverage with real counts, named historical grade terms,
-  and stated exclusions. Search performance is measured at the broader coverage level rather than
-  extrapolated from the two-course beta — `GET /api/v1/rankings/search` currently ranks every
-  section in the term before slicing pagination, issuing roughly six queries per section, so
-  broader coverage needs measurement rather than assumption.
 
 - [ ] **REQ-OPS-01**: The hosted beta is deployable, observable and reproducible.
   *Acceptance*: Minimal, portable deployment configuration — no provider-specific infrastructure.
@@ -107,57 +121,60 @@ scope unless a requirement below says otherwise.
 
 ## Later / optional — candidate later phases
 
-Not committed. Not required for the hosted beta. Recorded so the thinking is not lost.
+Not committed. Not required for the hosted beta.
 
 - **REQ-ALERT-01 (candidate later phase)**: Seat availability notifications. Appropriate only
-  after near-live seat refresh works and the hosted beta is stable. Would require verified email
-  ownership, a durable worker independent of any browser session, polling shared across
-  subscribers, and a persisted outbox with idempotency and bounded retries. Provider acceptance
-  is not inbox receipt. **Do not add subscriber, watch, outbox or email-provider work to the
-  current execution sequence.**
+  after the hosted beta is stable. Would need verified email ownership, a durable worker
+  independent of any browser session, polling shared across subscribers, and a persisted outbox
+  with idempotency and bounded retries. **Do not add subscriber, watch, outbox or email-provider
+  work to the current execution sequence.**
 
 - **REQ-RMP-01 (candidate later phase)**: A verified "View on Rate My Professors" profile link.
-  Deferred until after hosted beta and core data stability; not a blocker for the beta. Whenever
-  it is picked up: no scraping, no bulk crawler, and no imported ratings, review counts, review
-  text, tags or summaries — a verified link only.
+  Deferred until after hosted beta and core data stability; not a blocker. Whenever picked up:
+  no scraping, no bulk crawler, no imported ratings, review counts, review text, tags or
+  summaries — a verified link only.
 
 - **Methodology review (optional research item)**: An evidence-backed review of how the existing
-  score behaves with little or no grade history, and whether confidence labelling communicates
-  that honestly. Not active implementation scope. Any change would need documented evidence and
-  matching methodology and test updates.
+  score behaves with little or no grade history. Not active implementation scope. Any change
+  needs documented evidence and matching methodology and test updates.
 
 ---
 
-## Evidence-backed observations to respect
+## Observations
 
-These came out of codebase mapping and Phase 1 research. They are findings worth honoring, not
-product requirements on their own.
+### Fixed in Sprint 5 (historical — do not re-plan these)
 
-| Observation | Evidence | Why it matters |
+| Observation | Status |
+|-------------|--------|
+| Frontend silently served fixtures when `VITE_API_BASE_URL` was unset | **Fixed in Sprint 5** — explicit `VITE_USE_MOCK_DATA` opt-in; unset config now throws |
+| No seat freshness contract | **Fixed in Sprint 5** — `src/easy_a/schedule/freshness.py` plus API fields and UI |
+| No PostgreSQL-specific integration coverage | **Fixed in Sprint 5 (partially)** — exists, skips without `EASY_A_TEST_POSTGRES_URL` |
+| Frontend hard-coded a Spring 2027 term preference | **Fixed in Sprint 5** — term selection is configuration-driven |
+
+### Still open
+
+| Observation | Evidence | Where it lands |
 |-------------|----------|----------------|
-| Production must not silently fall back to synthetic fixtures | `web/src/api/rankings.ts` serves 287 lines of fixtures when `VITE_API_BASE_URL` is unset | Covered by REQ-CONFIG-01 |
-| PostgreSQL integration tests are valuable | `.planning/codebase/TESTING.md`: SQLite-only, migrations never applied | Covered by REQ-TEST-01 |
-| Search performance must be measured at broader coverage | `GET /api/v1/rankings/search` ranks all sections before pagination, ~6 queries per section | Covered by REQ-COVERAGE-02 |
-| Seat observation timestamps and freshness should be explicit | Two seat sources of truth — canonical `Section` columns (`src/easy_a/schedule/ingest.py`) and `SeatSnapshot` rows — with a fallback in `src/easy_a/rankings/service.py` that can make a stale column look current | Covered by REQ-SEAT-01 |
-| Grade source deduplication and provenance must stay safe | Grade rows unique by term/CRN/**source**; `course_id` initialized to null on import | BASE-04; watch during coverage expansion |
-| No fabricated data | Project-wide principle | Applies to coverage claims, seat states and scores alike |
-| The existing stack should be preserved | BASE-07 | No rewrite |
-| Untracked local work must be protected | `refs/heads/main` is at `d880d3c` with untracked `web/` (verified to contain only `dist/` and `node_modules/`, no source); `origin/main` is at `06634490` | Work from branches or worktrees descended from `origin/main` |
+| Ranking search may be expensive at broader coverage | `GET /api/v1/rankings/search` ranks sections before slicing pagination | Measure in Phase 1 (REQ-COVERAGE-02) |
+| Blank grade-cell / suppression semantics unresolved | `src/easy_a/grades/parser.py` converts every blank cell to `0` with no suppression path | Needs a real or sample InfoCenter export; owner holds ODS/registrar access |
+| Broader real-data coverage is not yet validated | Three of five configured targets have never been ingested | Phase 1 is exactly this |
+| `course_id` null on grade import; term/CRN/**source** dedup | Grade import behavior | Watch during expansion (BASE-04) |
+| Named-instructor coverage is unmeasured beyond two courses | Two-course sample showed all `Staff` | Measured in Phase 1 |
 
 ---
 
 ## Out of scope
 
-- LLM or AI features of any kind — no AI summaries, AI scoring, or predicted personal grades
+- LLM or AI features of any kind
 - Scraping any source, or importing RMP review content
 - Auth, accounts, or a user-profile product
 - Payments, SMS, browser push, native apps
-- Automatic registration — the product links to official USF registration and never automates it
+- Automatic registration
 - Multi-university expansion
-- Provider-specific deployment infrastructure beyond minimal, portable preparation
-- A scoring methodology rewrite
+- Provider-specific deployment infrastructure
+- A scoring methodology rewrite without explicit approval
+- Committing raw grade export files
 
 ---
-*Last updated: 2026-09-08 — re-scoped to the actual Sprint 5 sequence. Alerts, RMP and a scoring
-rewrite were previously recorded as required scope; they are candidate later phases or optional
-research, and the existing scoring model is preserved as the baseline.*
+*Last updated: 2026-09-08 — Sprint 5 marked complete against merged code at `180afe0`; test
+baseline re-measured; current activity is real-data expansion validation.*

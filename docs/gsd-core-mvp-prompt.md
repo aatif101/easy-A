@@ -1,3 +1,7 @@
+---
+type: doc
+---
+
 # Ready-to-paste GSD Core prompt
 
 > **STATUS: PROPOSAL — NOT CONFIRMED SCOPE (annotated 2026-09-08).**

@@ -1,3 +1,7 @@
+---
+type: doc
+---
+
 # Easy-A final MVP UI contract
 
 > **STATUS: PROPOSAL — NOT CONFIRMED SCOPE (annotated 2026-09-08).**
