@@ -345,3 +345,16 @@ def test_refresh_cli_explicit_quality_scope(
     assert "Missing targets: 5" in output
     assert "warning: target_missing_sections:" in output
     assert "warning: stale_seat_observation:" in output
+
+
+def test_refresh_requests_tampa_and_rejects_other_campuses(db_session: Session) -> None:
+    config = load_targets()
+
+    def search(query: ScheduleSearchQuery) -> str:
+        assert query.campus == "T"
+        return schedule(query).replace("<td>Tampa</td>", "<td>St. Petersburg</td>")
+
+    with pytest.raises(ValueError, match="Tampa/course/CRN scope"):
+        refresh_targets(db_session, term="202701", config=config, subject="MAC", search=search)
+    assert not list(db_session.scalars(select(SeatSnapshot)))
+    assert not list(db_session.scalars(select(Section)))

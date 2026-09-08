@@ -136,16 +136,17 @@ def refresh_targets(
             )
             continue
         query = ScheduleSearchQuery(
-            term=term, subject=target.subject, course=target.number, crn=crn
+            term=term, campus="T", subject=target.subject, course=target.number, crn=crn
         )
         html = search(query)
         rows = parse_schedule_html(html)
         if any(
             (r.subject, r.course_number) != (target.subject, target.number)
+            or r.campus.strip() != "Tampa"
             or (crn is not None and r.crn != crn)
             for r in rows
         ):
-            raise ValueError("Schedule response exceeded the requested course/CRN scope.")
+            raise ValueError("Schedule response exceeded the requested Tampa/course/CRN scope.")
         if len({r.crn for r in rows}) != len(rows):
             raise ValueError("Schedule response contains duplicate CRNs.")
         result = ingest_schedule_html(
