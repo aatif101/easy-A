@@ -201,9 +201,11 @@ resolves. Binding UI/API/calculation detail lives in `.planning/intel/constraint
 
 - [ ] **REQ-LAUNCH-01** *(derived — plan section 7, Phase 1)*: A launch coverage manifest defines
   the declared scope before implementation proceeds.
-  *Acceptance*: Define USF Tampa, supported registration term(s), supported subjects/courses,
-  grade terms, default term, and refresh cadence. Include all intended courses in that declared
-  scope; do not call a two-course fixture demo a finished campus product. Publish exclusions and
+  *Acceptance*: User-confirmed launch scope (2026-09-08): all offered USF Tampa sections in
+  Spring 2027 (`202701`), the only supported and default registration term. Enumerate every
+  offered subject/course; record actual historical grade terms and refresh cadence. Samples
+  validate acquisition before full expansion; do not call a two-course fixture demo a finished
+  campus product. Missing evidence does not exclude a section. Publish exclusions and
   missing historical coverage. Do not invent actual imported semesters or coverage percentages
   before inspecting available data. Historical-only terms must not automatically become selectable
   registration targets. Must also inventory named-instructor coverage (OQ-02) and current-term

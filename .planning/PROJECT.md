@@ -137,6 +137,11 @@ point-in-time observations from a two-course sample, not campus-wide facts. See 
 
 ## Constraints
 
+- **Launch scope (user-confirmed, 2026-09-08):** All offered USF Tampa sections for Spring 2027
+  (`202701`) only. Samples validate acquisition before full expansion; they do not restrict launch.
+  Missing grade history, instructor names, RMP verification, or syllabi must not exclude sections.
+  Historical source terms remain distinct from the supported registration term. Reuse completed
+  onboarding and existing specifications; investigate only remaining gaps or stale evidence.
 - **Baseline (confirmed by user, 2026-09-08; OQ-01 resolved)**: All implementation stays in
   worktrees descended from `origin/main`, fetched and verified on 2026-09-08 at
   `06634490de5c765bdc7b55e4f439476b0e4fa0f7`. Continue Phase 1 planning on
@@ -220,10 +225,10 @@ scope questions must be answered with evidence before the phase that depends on 
 | ID | Question | Blocks | Resolve by |
 |----|----------|--------|------------|
 | OQ-01 (resolved) | User confirmed: keep implementation in worktrees off `origin/main`; leave local `main` and its untracked `web/` and handoff docs alone until developer 1 merges. Continue Phase 1 planning on the onboarding branch, in the same PR. Fresh fetch confirmed `origin/main` = `06634490`; current worktree ancestry verified. | None for Phase 1 planning; primary checkout remains protected | Resolved 2026-09-08 |
-| OQ-02 | How many sections in the *intended* launch scope have named instructors rather than `Staff`? All five sampled `MAC 1105` and all 41 sampled `ENC 1101` Spring 2027 Tampa sections showed `Staff`. If that generalizes, REQ-RMP-01 and professor-specific grade evidence have near-zero real coverage at launch and Phase 3's "a verified profile opens the correct professor/university" exit criterion is unprovable with real data. Options: choose launch subjects that include named instructors, **or** explicitly accept course-only evidence plus "Verified RMP link unavailable" as the launch-normal state and restate Phase 3's exit criterion. Do not silently narrow scope to whichever courses happen to have RMP matches. | Phase 3 exit criterion; Phase 1 coverage manifest | Phase 1 (inventory during REQ-LAUNCH-01) |
+| OQ-02 | How many of all offered Tampa Spring 2027 sections have named instructors rather than `Staff`? The two-course sample found none; campus-wide coverage is unmeasured. The user has chosen complete listings regardless of evidence: use eligible course-only history and explicit unavailability when professor evidence is absent. Inventory named assignments and restate Phase 3 real-example acceptance against actual evidence without weakening identity verification or narrowing scope. | Phase 3 exit criterion; Phase 1 coverage manifest | Phase 1 (inventory during REQ-LAUNCH-01) |
 | OQ-03 | Is current-term syllabus availability generally as thin as the sample suggests? No Spring 2027 syllabus was found for either sampled course; matching public library results were Fall 2026 only. If it generalizes, the **historical-source path is primary, not a fallback**, and the "syllabus link exists but no chip extracted" state is a primary acceptance case for Phase 3 rather than an edge case. Building and testing the current-syllabus branch first would leave actual launch behavior least exercised. | Phase 3 test ordering and acceptance cases | Phase 1 |
 | OQ-04 | Exact baseline test count. The PRD records 166 Python / 19 frontend passing at `06634490`; `.planning/codebase/TESTING.md` records ~154 Python at `894da473`. ADR-16 locks "preserve the existing passing baseline", so the true number matters as a regression reference. | Phase 1 exit ("baseline checks recorded") | Phase 1 |
-| OQ-05 | External dependencies not yet supplied (ADR-17): real approved grade export files and their actual terms, exact launch term/subject scope, deployment host and domain, email provider account and sender-domain DNS, and a designated test inbox. Each is a named dependency, not a task that can be silently skipped. | Phases 5, 7, 8 | Identify in Phase 1; resolve before the dependent phase |
+| OQ-05 | External dependencies not yet supplied (ADR-17): real approved grade export files and their actual terms, deployment host and domain, email provider account and sender-domain DNS, and a designated test inbox. Launch scope is resolved: all USF Tampa offerings for Spring 2027 only. Each remaining dependency must have an owner and blocked acceptance item. | Phases 5, 7, 8 | Identify in Phase 1; resolve before the dependent phase |
 
 ## Key Decisions
 
