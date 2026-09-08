@@ -64,7 +64,7 @@ def test_multiple_coverage_refresh_and_missing(db_session: Session) -> None:
     rows = refresh_targets(db_session, term="202701", config=config, search=search, observed_at=NOW)
     assert [r.section_count for r in rows] == [2, 2, 0, 0, 0]
     assert queried == ["MAC", "ENC"]
-    report = run_quality_checks(db_session, "202701", as_of=NOW)
+    report = run_quality_checks(db_session, "202701", as_of=NOW, targets=config.targets)
     assert sum(f.check_id == "target_missing_catalog" for f in report.findings) == 3
     assert sum(f.check_id == "target_missing_sections" for f in report.findings) == 3
     metadata = coverage_metadata(db_session, "202701", config.targets)
@@ -137,7 +137,9 @@ def test_seats_append_preserve_identity_grades_syllabus_and_score(db_session: Se
     assert syllabus.content_text == "Unchanged syllabus"
     assert before.historical_analytics == after.historical_analytics
     assert before.seats.enrollment != after.seats.enrollment
-    report = run_quality_checks(db_session, "202701", as_of=NOW + timedelta(hours=1))
+    report = run_quality_checks(
+        db_session, "202701", as_of=NOW + timedelta(hours=1), targets=config.targets
+    )
     assert any(
         f.check_id == "stale_seat_observation" and f.severity == "warning" for f in report.findings
     )
@@ -296,3 +298,50 @@ def test_cli_source_failure_rolls_back(
         main(["--term", "202701"])
     assert not list(db_session.scalars(select(SeatSnapshot)))
     assert not list(db_session.scalars(select(Section)))
+
+
+@pytest.mark.parametrize("coverage", [True, False], ids=["coverage", "seats"])
+def test_refresh_cli_explicit_quality_scope(
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    coverage: bool,
+) -> None:
+    from functools import partial
+
+    from sqlalchemy.orm import sessionmaker
+
+    from easy_a.refresh.target_cli import main
+
+    config = load_targets()
+    refresh_targets(
+        db_session,
+        term="202701",
+        config=config,
+        search=schedule,
+        subject="MAC",
+        observed_at=NOW - timedelta(days=365),
+    )
+    db_session.commit()
+    monkeypatch.setattr(
+        "easy_a.refresh.target_cli.get_session_factory",
+        lambda: sessionmaker(bind=db_session.get_bind()),
+    )
+    # A valid empty response preserves old observations, so stale-seat warnings still apply.
+    monkeypatch.setattr(
+        "easy_a.schedule.client.StaffScheduleClient.search",
+        lambda self, query: (FIXTURES / "schedule_not_found.html").read_text(),
+    )
+
+    def catalog(url: str) -> str:
+        parts = url.split("/")
+        return f"<h1>{parts[-3]} {parts[-1]}: Synthetic course</h1>"
+
+    monkeypatch.setattr(
+        "easy_a.refresh.target_cli.refresh_targets", partial(refresh_targets, catalog_fetch=catalog)
+    )
+    assert main(["--term", "202701"], coverage=coverage) == 0
+    output = capsys.readouterr().out
+    assert "Missing targets: 5" in output
+    assert "warning: target_missing_sections:" in output
+    assert "warning: stale_seat_observation:" in output

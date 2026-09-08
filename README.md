@@ -631,9 +631,12 @@ presence, stored section count, latest observed schedule timestamp, and
 `observed`/`missing` status. `observed` means stored observations exist, not that the
 source currently offers those sections. Use timestamps and the refresh command's
 per-pass counts to assess recency. No deletion or inferred cancellation is performed.
-Quality checks warn about targets missing catalog metadata, targets without stored
+When explicitly supplied targets (as both refresh commands do), quality checks warn
+about targets missing catalog metadata, targets without stored
 sections, and seat snapshots older than the configured stale threshold. No migration
-is required.
+is required. Generic `run_quality_checks(..., targets=None)` and `check_data_quality.py`
+do not load target configuration or run these registration coverage/seat freshness checks;
+they retain existing schedule and historical quality checks.
 
 Offline unit tests use injected source functions. To also run the PostgreSQL integration
 test, set `EASY_A_TEST_POSTGRES_URL` to a test database URL with schema-creation
