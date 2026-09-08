@@ -69,6 +69,10 @@ answered by evidence rather than assumption.
 **Requirements**: REQ-LAUNCH-01
 **Also establishes**: REQ-EVID-01 / REQ-EVID-02 state definitions, REQ-UI-01 component and state
 contract, REQ-OPS-01 source and provisioning planning
+**Confirmed scope (2026-09-08)**: All offered USF Tampa sections, Spring 2027 (`202701`) only.
+Samples validate acquisition before a complete subject/section reconciliation; unavailable
+grades, instructor names, verified profiles, or syllabi must not remove sections from scope.
+Reuse completed onboarding, maps and source specifications; investigate only remaining gaps.
 **Success Criteria** (what must be TRUE):
   1. A published launch coverage manifest names USF Tampa, the supported registration term(s),
      the supported subjects/courses, the grade terms, the default term and the refresh cadence —
@@ -104,14 +108,25 @@ not block seat work, but it remains a grade-launch dependency.
   - **RMP / instructor coverage risk.** All five sampled Spring 2027 Tampa `MAC 1105` sections and
     all 41 sampled `ENC 1101` sections show instructor `Staff`. This is a two-course sample, not a
     campus-wide fact. If it generalizes, verified RMP links and professor-specific grade evidence
-    have near-zero launch coverage. Either choose launch subjects with named instructors **or**
-    explicitly accept course-only evidence plus "Verified RMP link unavailable" as the
-    launch-normal state. Do not silently narrow scope to whichever courses happen to have matches.
+    have near-zero launch coverage. The user has confirmed all Tampa offerings: retain every
+    section and show course-only evidence where eligible plus "Verified RMP link unavailable"
+    when verification is absent. Inventory actual coverage and condition Phase 3 real-example
+    acceptance on that evidence. Do not narrow scope to courses with matches.
   - **Current-term syllabus risk.** No Spring 2027 syllabus was found for either sampled course;
     matching public library results were Fall 2026 only. If this generalizes, the historical-source
     path is **primary**, not a fallback, and "syllabus link exists but no chip extracted" is a
     primary Phase 3 acceptance case rather than an edge case.
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Record the confirmed implementation baseline and write the method v2 reproducibility contract
+- [ ] 01-02-PLAN.md — Build the bounded subject-enumeration inventory and run it to answer OQ-02 with counts
+- [ ] 01-03-PLAN.md — Probe the syllabus search surface and answer OQ-03 with a bounded, labelled pass
+- [ ] 01-04-PLAN.md — Write the UI/API state contract, verify requirement coverage, and register external dependencies
+- [ ] 01-05-PLAN.md — Publish the launch coverage manifest and restate the Phase 3 exit criterion
+
+**Waves**: 1 → plans 01 and 02 in parallel; 2 → plans 03 and 04 in parallel; 3 → plan 05.
+Plans 02, 03 and 05 carry blocking human checkpoints and are not autonomous.
 **UI hint**: yes
 
 ### Phase 2: Honest Grade Evidence, API Through UI
@@ -383,7 +398,7 @@ Phases 2, 3 and 4 have no hard dependency on each other and may run in parallel 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Baseline, Scope and Contracts | 0/TBD | Not started | - |
+| 1. Baseline, Scope and Contracts | 0/5 | Planned | - |
 | 2. Honest Grade Evidence, API Through UI | 0/TBD | Not started | - |
 | 3. Verified RMP and Policy Sources | 0/TBD | Not started | - |
 | 4. Fresh Seats and Scheduled Observation | 0/TBD | Not started | - |
