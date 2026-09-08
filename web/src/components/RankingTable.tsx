@@ -63,7 +63,7 @@ export function RankingTable({ rankings, rankOffset, expandedCrn, onToggle }: Ra
                       <td><strong className={`font-display text-xl ${ranking.confidence_label === "low" ? "text-stone-700" : "text-spruce"}`}>{ranking.easiness_score.toFixed(1)}</strong><span className="text-xs text-stone-500"> / 10</span></td>
                       <td className="font-mono text-sm">{formatPercent(ranking.smoothed_withdrawal_rate)}</td>
                       <td><ConfidenceBadge value={ranking.confidence_label} />{ranking.confidence_label === "low" ? <span className="mt-1 flex items-center text-[11px] font-semibold text-amber-800">Low confidence <InfoTip label="Based on limited historical data." /></span> : null}</td>
-                      <td><SeatBadge ranking={ranking} /></td>
+                      <td className="min-w-40 max-w-48"><SeatBadge ranking={ranking} /></td>
                       <td className="max-w-36 text-sm">{ranking.modality.delivery_label ?? "Unknown"}</td>
                       <td className="max-w-60">{ranking.gened_attributes.length ? <ul className="space-y-1">{ranking.gened_attributes.map((item) => <li className="break-words text-xs text-stone-600" key={`${item.code}:${item.label}`}><strong className="font-mono text-spruce">{item.code}</strong> · {item.label}</li>)}</ul> : <span className="text-sm text-stone-500">Unavailable</span>}</td>
                       <td className="max-w-64"><SignalChips ranking={ranking} /></td>
@@ -81,12 +81,12 @@ export function RankingTable({ rankings, rankOffset, expandedCrn, onToggle }: Ra
         </div>
       </div>
 
-      <div className="grid gap-3 lg:hidden" aria-label="Course ranking cards">
+      <div className="grid grid-cols-1 gap-3 lg:hidden" aria-label="Course ranking cards">
         {rankings.map((ranking, index) => {
           const expanded = ranking.crn === expandedCrn;
           const detailsId = `mobile-details-${ranking.crn}`;
           return (
-            <article className="rounded-lg border border-rule bg-white shadow-ledger" key={ranking.crn}>
+            <article className="min-w-0 rounded-lg border border-rule bg-white shadow-ledger" key={ranking.crn}>
               <button className="w-full p-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-spruce" type="button" aria-expanded={expanded} aria-controls={detailsId} onClick={() => onToggle(ranking.crn)}>
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0"><span className="font-mono text-[11px] font-bold text-stone-400">#{String(rankOffset + index + 1).padStart(2, "0")} · CRN {ranking.crn}</span><h2 className="mt-1 break-words font-display text-xl font-bold text-ink">{ranking.subject} {ranking.course_number}</h2><p className="break-words text-sm text-stone-600">{ranking.course_title}</p><p className="mt-1 break-words text-sm font-semibold text-stone-700">{instructorLabel(ranking)}</p></div>

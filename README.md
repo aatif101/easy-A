@@ -56,16 +56,25 @@ npm install
 npm run dev
 ```
 
-For frontend-only development, leave `VITE_API_BASE_URL` unset. The app then
-uses clearly labeled synthetic fixtures covering Staff and named instructors,
-course and instructor-course scores, current and historical policy signals,
-missing signals and seats, and low-confidence analytics.
+Set frontend variables in `web/.env.local` (see `web/.env.example`):
 
-To use the real API, create `web/.env.local` and set:
+| Mode | VITE_USE_MOCK_DATA | VITE_API_BASE_URL |
+| --- | --- | --- |
+| Local synthetic fixtures | `true` | Optional |
+| Local real API | `false` | `http://localhost:8000` |
+| Hosted beta | `false` | Explicit hosted HTTPS API base URL |
 
-```text
-VITE_API_BASE_URL=http://localhost:8000
-```
+Only the exact value `true` enables labeled synthetic fixtures, even if an API
+URL is also present. Otherwise an absolute HTTP(S) API URL is required. Missing
+configuration and API failures are visible errors; neither falls back to fixtures.
+This applies to development and production builds alike.
+
+Vite embeds these public variables at build time: set them before `npm run build`
+and rebuild when they change. Serve `web/dist` with any static host. Never put
+secrets, database URLs, or credentials in `VITE_*` variables. For hosted beta,
+configure the API's `EASY_A_ALLOWED_FRONTEND_ORIGINS` to include the exact frontend
+origin (scheme, host, port). The browser must be able to reach the API; HTTPS
+frontends require HTTPS APIs. No hosting provider is required.
 
 The typed client loads terms, subjects, GenEd attributes, and delivery methods
 from the metadata endpoints, then sends selected filters to
@@ -79,6 +88,26 @@ npm run lint
 npm run typecheck
 npm run build
 ```
+
+The default term is the newest API metadata term. Subject options are API-driven;
+full course codes (including suffixes such as `CHM 2045L`) take priority over the
+Subject selector. Results stay server-paginated in pages of 50; no full catalog
+is loaded. Empty searches do not establish whether a course is offered or covered.
+
+`web/src/utils/time.ts` provides independent relative and absolute time formatters.
+It accepts ISO timestamps with an explicit timezone, returns `Unavailable` for
+missing/invalid input, permits an injected millisecond clock, and formats absolute
+times in UTC. Future timestamps clamp to `just now`; older values use minutes,
+hours, or days. Rows, cards, and expanded details display `seats.freshness` as
+provided by the backend and use `seats.observed_at` for relative text and an
+absolute UTC tooltip. The frontend does not calculate freshness thresholds.
+Stale counts remain visible, null counts stay unavailable, negative counts show
+over-enrollment, and waitlist spots are labeled separately from registration seats.
+
+The client also loads `/api/v1/metadata/coverage?term=<term>` once per selected
+term. Exact configured-course searches can show missing catalog or missing
+section observations. Absent targets do not block arbitrary searches, and coverage
+failures are announced with a retry while ranking search remains available.
 
 This V1 has no authentication, accounts, RateMyProfessors data, LLM features,
 or deployment configuration.
@@ -102,6 +131,7 @@ Terminal 3 — start the frontend with the real API configured:
 ```powershell
 cd web
 $env:VITE_API_BASE_URL = "http://localhost:8000"
+$env:VITE_USE_MOCK_DATA = "false"
 npm run dev
 ```
 

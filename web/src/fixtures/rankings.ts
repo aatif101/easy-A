@@ -1,5 +1,7 @@
 import type {
   ConfidenceLabel,
+  CourseCoverage,
+  SeatFreshness,
   Freshness,
   RankingProvenance,
   RankingSignal,
@@ -41,6 +43,9 @@ interface FixtureOptions {
   deliveryMethod: string;
   seatsRemaining: number | null;
   capacity?: number;
+  seatFreshness?: SeatFreshness;
+  observedMinutesAgo?: number;
+  waitlist?: number;
   easiness: number;
   withdrawalRate: number;
   confidence: ConfidenceLabel;
@@ -90,10 +95,13 @@ const makeRanking = (options: FixtureOptions): SectionRanking => {
     },
     seats_remaining: options.seatsRemaining,
     seats: {
+      observed_at: options.seatsRemaining === null ? null : new Date(Date.now() - (options.observedMinutesAgo ?? 4) * 60_000).toISOString(),
+      freshness: options.seatsRemaining === null ? "unavailable" : options.seatFreshness ?? "fresh",
+      age_seconds: options.seatsRemaining === null ? null : (options.observedMinutesAgo ?? 4) * 60,
       capacity: options.seatsRemaining === null ? null : capacity,
       enrollment,
       seats_remaining: options.seatsRemaining,
-      wait_seats_available: options.seatsRemaining === null ? null : 0,
+      wait_seats_available: options.seatsRemaining === null ? null : options.waitlist ?? 0,
       provenance: current("seat_snapshots"),
     },
     gened_attributes: options.gened ?? [],
@@ -194,6 +202,8 @@ export const syntheticRankings: SectionRanking[] = [
     modality: "Classroom 1–49%",
     deliveryMethod: "CL",
     seatsRemaining: 4,
+    seatFreshness: "aging",
+    observedMinutesAgo: 18,
     easiness: 8.7,
     withdrawalRate: 0.041,
     confidence: "high",
@@ -230,6 +240,9 @@ export const syntheticRankings: SectionRanking[] = [
     modality: "All Online 100%",
     deliveryMethod: "AD",
     seatsRemaining: 3,
+    seatFreshness: "stale",
+    observedMinutesAgo: 42,
+    waitlist: 4,
     easiness: 7.8,
     withdrawalRate: 0.064,
     confidence: "medium",
@@ -261,7 +274,7 @@ export const syntheticRankings: SectionRanking[] = [
     instructor: "Taylor Brooks",
     modality: "All Online 100%",
     deliveryMethod: "AD",
-    seatsRemaining: 19,
+    seatsRemaining: -2,
     easiness: 9.1,
     withdrawalRate: 0.028,
     confidence: "low",
@@ -284,4 +297,15 @@ export const syntheticRankings: SectionRanking[] = [
     effectiveN: 22,
     scoreSource: "global",
   }),
+];
+
+
+export const syntheticCoverage: CourseCoverage[] = [
+  ...Array.from(new Set(syntheticRankings.map((item) => `${item.subject} ${item.course_number}`))).map((code): CourseCoverage => {
+    const [subject, course_number] = code.split(" ");
+    const sections = syntheticRankings.filter((item) => item.subject === subject && item.course_number === course_number);
+    return { subject, course_number, catalog_present: true, section_count: sections.length, latest_observed_at: sections[0].seats.observed_at, status: "observed" };
+  }),
+  { subject: "CHM", course_number: "2045L", catalog_present: true, section_count: 0, latest_observed_at: null, status: "missing" },
+  { subject: "PHY", course_number: "2048", catalog_present: false, section_count: 0, latest_observed_at: null, status: "missing" },
 ];
