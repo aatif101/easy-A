@@ -137,10 +137,14 @@ point-in-time observations from a two-course sample, not campus-wide facts. See 
 
 ## Constraints
 
-- **Baseline (chosen)**: All implementation proceeds on branches or worktrees descended from
-  `origin/main` = `06634490de5c765bdc7b55e4f439476b0e4fa0f7`. This planning work ran at
-  `894da473d2e2eefa5dc4797b1f598dd63cf2c15f` in worktree
-  `.claude/worktrees/gsd-onboard-774626`, a descendant of `06634490`. — ADR-13 requires starting
+- **Baseline (confirmed by user, 2026-09-08; OQ-01 resolved)**: All implementation stays in
+  worktrees descended from `origin/main`, fetched and verified on 2026-09-08 at
+  `06634490de5c765bdc7b55e4f439476b0e4fa0f7`. Continue Phase 1 planning on
+  `claude/gsd-onboard-774626` in `.claude/worktrees/gsd-onboard-774626`, keeping its planning
+  commits in the same PR as onboarding. Before this resolution, the branch was at
+  `1653f2b3f276e7e7aac746f816a452be0fde73c2`; ancestry from `origin/main` was verified.
+  Fetch and inspect current `origin/main` before subsequent planning, reconciling newer changes
+  as required by ADR-13. — ADR-13 requires starting
   from current main, and `06634490` (PR #12) is the audited commit that already includes FastAPI,
   the React frontend, real-data refresh and quality checks.
 - **Do not overwrite untracked local work**: `refs/heads/main` is still
@@ -148,7 +152,9 @@ point-in-time observations from a two-course sample, not campus-wide facts. See 
   `C:/Users/smati/VS Code Projects/easy-A` is on it, and `git status` there reports untracked
   `web/` plus untracked copies of the four handoff documents. `web/` is untracked at `d880d3c`
   but tracked at `06634490`. — Any checkout, merge or fast-forward onto local `main` can destroy
-  untracked user work. This condition is **live, not resolved**. See OQ-01.
+  untracked user work. **Leave local `main` and its untracked files alone until developer 1
+  merges.** OQ-01 resolves where implementation happens; it does not clean up the primary
+  checkout or authorize an automatic checkout/merge/fast-forward after that merge.
 - **Tech stack**: Preserve Python/FastAPI/SQLAlchemy/Alembic/PostgreSQL and
   React/TypeScript/Vite/Tailwind; work in this repository — ADR-01 forbids a rewrite or a
   separate product.
@@ -207,13 +213,13 @@ Full text: `.planning/intel/decisions.md`.
 
 ## Open Questions
 
-Unresolved as of roadmap creation. OQ-01 through OQ-03 are the three WARNINGs from
-`.planning/INGEST-CONFLICTS.md` and are **Phase 1 scope decisions, not settled facts**. Each must
-be answered with evidence before the phase that depends on it is planned.
+OQ-01 was resolved by the user on 2026-09-08. OQ-02 through OQ-05 remain open.
+OQ-01 through OQ-03 originated as WARNINGs in `.planning/INGEST-CONFLICTS.md`; the remaining
+scope questions must be answered with evidence before the phase that depends on them is planned.
 
 | ID | Question | Blocks | Resolve by |
 |----|----------|--------|------------|
-| OQ-01 | Local `main` is still `d880d3c` with untracked `web/` and untracked handoff docs. Does the user want it fast-forwarded to `origin/main` (after preserving untracked work), or is "all implementation stays in a worktree descended from `06634490`" the accepted answer? The recorded baseline above assumes the latter; it has not been confirmed by the user. | Any operation touching local `main` | Phase 1 |
+| OQ-01 (resolved) | User confirmed: keep implementation in worktrees off `origin/main`; leave local `main` and its untracked `web/` and handoff docs alone until developer 1 merges. Continue Phase 1 planning on the onboarding branch, in the same PR. Fresh fetch confirmed `origin/main` = `06634490`; current worktree ancestry verified. | None for Phase 1 planning; primary checkout remains protected | Resolved 2026-09-08 |
 | OQ-02 | How many sections in the *intended* launch scope have named instructors rather than `Staff`? All five sampled `MAC 1105` and all 41 sampled `ENC 1101` Spring 2027 Tampa sections showed `Staff`. If that generalizes, REQ-RMP-01 and professor-specific grade evidence have near-zero real coverage at launch and Phase 3's "a verified profile opens the correct professor/university" exit criterion is unprovable with real data. Options: choose launch subjects that include named instructors, **or** explicitly accept course-only evidence plus "Verified RMP link unavailable" as the launch-normal state and restate Phase 3's exit criterion. Do not silently narrow scope to whichever courses happen to have RMP matches. | Phase 3 exit criterion; Phase 1 coverage manifest | Phase 1 (inventory during REQ-LAUNCH-01) |
 | OQ-03 | Is current-term syllabus availability generally as thin as the sample suggests? No Spring 2027 syllabus was found for either sampled course; matching public library results were Fall 2026 only. If it generalizes, the **historical-source path is primary, not a fallback**, and the "syllabus link exists but no chip extracted" state is a primary acceptance case for Phase 3 rather than an edge case. Building and testing the current-syllabus branch first would leave actual launch behavior least exercised. | Phase 3 test ordering and acceptance cases | Phase 1 |
 | OQ-04 | Exact baseline test count. The PRD records 166 Python / 19 frontend passing at `06634490`; `.planning/codebase/TESTING.md` records ~154 Python at `894da473`. ADR-16 locks "preserve the existing passing baseline", so the true number matters as a regression reference. | Phase 1 exit ("baseline checks recorded") | Phase 1 |
@@ -228,10 +234,10 @@ be answered with evidence before the phase that depends on it is planned.
 |----------|-----------|---------|
 | Preserve the source PRD's 8 delivery phases and dependency graph verbatim | `docs/final-mvp-plan.md` section 7 and ADR-15 agree one-to-one on the sequence, and ADR-15 is locked. GSD's default `standard` granularity (4-6 phases) was deliberately not applied — compressing would drop dependency edges the source states explicitly. | — Pending |
 | Treat the eight phases as ONE milestone | The PRD states plainly: "These are delivery phases, not multiple MVPs." | — Pending |
-| Record the implementation baseline as `origin/main` `06634490`, worked from descendant worktrees | Satisfies ADR-13 without touching local `main`, and this planning work already ran that way at `894da473`. Recorded as an assumption pending OQ-01. | ⚠️ Revisit (OQ-01) |
+| Keep implementation in worktrees off `origin/main`; keep Phase 1 planning on the onboarding branch | User confirmed this strategy on 2026-09-08. Fresh fetch verified `06634490` and the current worktree's ancestry. Leave local `main` and untracked work alone until developer 1 merges; planning stays in the onboarding PR. | Confirmed; OQ-01 resolved |
 | Keep the three uses of "60" as independently testable rules | `.planning/INGEST-CONFLICTS.md` INFO 3: the ADR's summary phrase "a 60-outcome professor-history threshold" is lossy. The professor-history threshold, the reference-mean threshold and the Limited/Moderate label boundary are three different rules that happen to share a number — plus `k=60` is a fourth. See REQUIREMENTS.md "Threshold rules". | — Pending |
 | Subject/corpus data supplies `mu` only, never a displayed score | Resolves the apparent ADR-02 vs PRD-section-3 tension by precedence (INFO 2). When no measured reference qualifies, the adjusted score is unavailable with reason "Reference data unavailable" — never 0.75 or any hard-coded mean. | — Pending |
 | PostgreSQL integration tests and CI are net-new builds, not modifications | `.planning/codebase/TESTING.md` (SQLite-only, migrations never applied) and `CONCERNS.md` (no `.github/`, no CI config anywhere) both confirm nothing exists to modify. | — Pending |
 
 ---
-*Last updated: 2026-09-08 after document ingest and initial roadmap creation*
+*Last updated: 2026-09-08 after user confirmation and verification of the OQ-01 worktree strategy*

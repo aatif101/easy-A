@@ -14,6 +14,12 @@ None.
 
 ### WARNINGS (3)
 
+Resolution update (2026-09-08): OQ-01 is resolved by explicit user confirmation: implementation
+stays in worktrees off `origin/main`, with Phase 1 planning on the onboarding branch in the same
+PR. Leave local `main` and untracked files alone until developer 1 merges. Fresh fetch and ancestry
+checks confirmed the baseline; see PROJECT.md. The original ingest findings below are retained
+as history. The first warning no longer blocks planning; its protection of local work still applies.
+
 [WARNING] Stale local main with untracked work is still live, contrary to the ingest premise
   Found: docs/final-mvp-plan.md section 2 states the user's local `main` was `d880d3c2bd31158c2392725e5c203ac92b2088fa` with an untracked `web/` directory, and instructs "Do not treat that older local checkout as the current product, overwrite local work, or copy its built frontend over source on current main." docs/gsd-core-mvp-prompt.md repeats this as locked decision ADR-13. Repository inspection during synthesis found `refs/heads/main` is still `d880d3c2bd31158c2392725e5c203ac92b2088fa`, the worktree `C:/Users/smati/VS Code Projects/easy-A` is checked out on `main` at that commit, `git status` there reports `?? web/`, and `web/` is untracked at `d880d3c` but tracked at `06634490de5c765bdc7b55e4f439476b0e4fa0f7`.
   Impact: The ingest task described this as known staleness that was already resolved, and suggested INFO severity. That premise does not hold. Local `main` has not advanced and the untracked `web/` still exists. Any later phase that assumes the condition is resolved, or that checks out or merges onto local `main`, can destroy untracked user work. The plan section 2 warning is current guidance, not a historical note.

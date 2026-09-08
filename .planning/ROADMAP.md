@@ -91,12 +91,16 @@ contract, REQ-OPS-01 source and provisioning planning
 formulas reproducible; UI screens and failure states specified. An unavailable grade export does
 not block seat work, but it remains a grade-launch dependency.
 **Scope decisions carried in, NOT resolved facts** (from `.planning/INGEST-CONFLICTS.md`):
-  - **Baseline hazard is live.** `refs/heads/main` is still
+  - **OQ-01 resolved, 2026-09-08.** The user confirmed implementation stays in worktrees off
+    `origin/main`; leave local `main` and untracked work alone until developer 1 merges.
+    Phase 1 planning stays on `claude/gsd-onboard-774626`, in the same PR as onboarding.
+    Fresh fetch verified `origin/main` at `06634490` and current worktree ancestry.
+    **The primary checkout remains protected.** `refs/heads/main` is still
     `d880d3c2bd31158c2392725e5c203ac92b2088fa`, the user's primary checkout is on it, and `web/`
     is untracked there (tracked at `06634490`). This ingest ran at `894da473` in a worktree
     descended from `origin/main` = `06634490de5c765bdc7b55e4f439476b0e4fa0f7`. PROJECT.md records
-    that descendant-worktree baseline as the working assumption. **Do not overwrite untracked
-    local work.** Confirm or change the baseline here, do not inherit it silently.
+    that descendant-worktree baseline as the confirmed decision. **Do not overwrite untracked
+    local work.** Exact baseline test counts remain open under OQ-04.
   - **RMP / instructor coverage risk.** All five sampled Spring 2027 Tampa `MAC 1105` sections and
     all 41 sampled `ENC 1101` sections show instructor `Staff`. This is a two-course sample, not a
     campus-wide fact. If it generalizes, verified RMP links and professor-specific grade evidence

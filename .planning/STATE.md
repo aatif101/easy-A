@@ -25,8 +25,8 @@ of producing a plausible-looking score.
 Phase: 1 of 8 (Baseline, Scope and Contracts)
 Plan: 0 of TBD in current phase
 Status: Ready to plan
-Last activity: 2026-09-08 — Ingested 4 handoff documents, mapped codebase, wrote PROJECT.md,
-REQUIREMENTS.md and ROADMAP.md. No implementation performed.
+Last activity: 2026-09-08 — Resolved OQ-01 with the user's confirmed worktree strategy;
+fetched origin/main and verified current worktree ancestry. No implementation performed.
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -55,6 +55,10 @@ Progress: [░░░░░░░░░░] 0%
 `docs/gsd-core-mvp-prompt.md`. Most load-bearing for Phase 1 planning:
 
 - D-ADR-13: start from current `origin/main` in a safe branch/worktree; preserve untracked work
+- OQ-01 resolved (user confirmation, 2026-09-08): implementation stays in worktrees off
+  `origin/main` (freshly fetched at `06634490`). Leave local `main` and its untracked files
+  alone until developer 1 merges. Continue Phase 1 planning on `claude/gsd-onboard-774626`
+  in this worktree, keeping planning commits in the same PR as onboarding.
 - D-ADR-15: eight delivery outcomes in sequence — one milestone, not eight MVPs
 - D-ADR-02 / D-ADR-03: grade ease is grade-only; a prior may adjust real evidence, never replace it
 - D-ADR-12 (locked *default* set): k=60, 20-outcome score floor, 60-outcome professor threshold,
@@ -71,14 +75,10 @@ None yet.
 
 ### Blockers/Concerns
 
-Five open questions carried into Phase 1 (full text: PROJECT.md "Open Questions"). The first
-three are the WARNINGs from `.planning/INGEST-CONFLICTS.md` — **scope decisions, not resolved
-facts**:
-
-- **OQ-01 (live hazard)**: `refs/heads/main` is still `d880d3c` with untracked `web/` and untracked
-  handoff docs; the user's primary checkout is on it. Recorded baseline is `origin/main` =
-  `06634490`, worked from descendant worktrees (this planning ran at `894da473`). Not yet
-  confirmed by the user. **Do not check out, merge or fast-forward local `main`.**
+Four open questions remain for Phase 1 (full text: PROJECT.md "Open Questions"). OQ-01 is
+resolved and no longer blocks planning. The primary checkout remains at `d880d3c` with untracked
+work: **do not check out, merge or fast-forward local `main`.** OQ-02 and OQ-03 remain unresolved
+scope decisions from `.planning/INGEST-CONFLICTS.md`:
 - **OQ-02**: All sampled Spring 2027 Tampa sections show instructor `Staff` (5 MAC 1105 + 41
   ENC 1101). Threatens REQ-RMP-01 coverage and Phase 3's exit criterion. Inventory named-instructor
   coverage in Phase 1 before restating that criterion.
@@ -104,8 +104,8 @@ null on grade import (Phase 2), silent frontend fixture fallback (Phase 6).
 ## Session Continuity
 
 Last session: 2026-09-08
-Stopped at: Four planning documents written from ingested intel. No phase planned, executed or
-implemented.
+Stopped at: OQ-01 resolved and Phase 1 planning unblocked on the onboarding branch.
+No phase planned, executed or implemented.
 Resume file: None
-Next action: `/gsd-plan-phase 1` — but resolve OQ-01 with the user first; it governs where all
-implementation happens.
+Next action: `/gsd-plan-phase 1` on `claude/gsd-onboard-774626` in the current worktree.
+Keep Phase 1 planning commits in the same PR as onboarding; no further OQ-01 confirmation needed.
