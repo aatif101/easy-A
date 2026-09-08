@@ -19,8 +19,8 @@ imports, configurable course coverage, and seat freshness classification.
 
 | | |
 |---|---|
-| Baseline | `origin/main` = `180afe0b8faf72a70c297e4c3d4af40c8c3b15a0` |
-| Sprint 5 | **Complete** — merged via PR #14 and PR #15. Do not re-plan or re-implement it. |
+| Baseline | `origin/main` = `62fb2f189c8cac67a1500863f080e0f638469df1` |
+| Sprint 5 | **Complete** — merged via PR #14 and PR #15, with a Tampa scope restriction in PR #16. Do not re-plan or re-implement it. |
 | Now | **Real-data expansion validation** — validate the five configured Spring 2027 targets against real ingestion |
 | Next | Hosted beta — deployment, CI, performance measurement, observability, operator runbook |
 
@@ -28,7 +28,7 @@ Fetch and verify current `origin/main` before planning rather than trusting the 
 
 ### Test baseline
 
-Measured 2026-09-08 at `180afe0`: **191 Python passed / 1 skipped**, **78 frontend passed**.
+Measured 2026-09-08 at `62fb2f1`: **192 Python passed / 1 skipped**, **78 frontend passed**.
 
 The skip is the PostgreSQL integration test, which skips when `EASY_A_TEST_POSTGRES_URL` is
 unset. PostgreSQL integration coverage exists but most of the suite still runs on SQLite — do not

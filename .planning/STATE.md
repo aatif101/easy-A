@@ -19,7 +19,7 @@ See: .planning/PROJECT.md (updated 2026-09-08)
 a named source and a timestamp — and when the evidence does not exist, the product says so instead
 of producing a plausible-looking result.
 
-**Current baseline:** `origin/main` = `180afe0b8faf72a70c297e4c3d4af40c8c3b15a0`
+**Current baseline:** `origin/main` = `62fb2f189c8cac67a1500863f080e0f638469df1`
 
 **Current focus:** Phase 1 — Real-data expansion validation
 
@@ -69,11 +69,11 @@ Easy-A is a working application. FastAPI backend, React/TypeScript frontend, Pos
 Spring 2027 schedule ingestion, real historical grade imports, configurable course coverage, seat
 freshness classification, GenEd metadata, and a data-quality pipeline.
 
-**Measured test baseline (2026-09-08, merged branch at `180afe0`):**
+**Measured test baseline (2026-09-08, merged branch at `62fb2f1`):**
 
 | Suite | Result |
 |-------|--------|
-| Python `uv run pytest -q` | 191 passed, 1 skipped |
+| Python `uv run pytest -q` | 192 passed, 1 skipped |
 | Frontend `npm test` (in `web/`) | 78 passed |
 
 The single skip is the PostgreSQL integration test, which skips when `EASY_A_TEST_POSTGRES_URL`
@@ -134,7 +134,7 @@ approved later.
 ## Session Continuity
 
 Last session: 2026-09-08
-Stopped at: Planning docs synchronized with merged Sprint 5 code at `180afe0`. No phase planned
+Stopped at: Planning docs synchronized with merged Sprint 5 code at `62fb2f1`. No phase planned
 under the current roadmap; no application code changed.
 Resume file: None
 Next action: run the real-data expansion validation pass described above. If you want GSD to

@@ -8,7 +8,7 @@ Read order: `AGENTS.md` → `.planning/STATE.md` → `.planning/PROJECT.md` →
 
 Five things that matter most, repeated here because they are easy to get wrong:
 
-1. **Sprint 5 is complete** — merged via PR #14 and PR #15 at `origin/main` = `180afe0`. Do not
+1. **Sprint 5 is complete** — merged via PR #14 and PR #15 at `origin/main` = `62fb2f1`. Do not
    re-plan or re-implement it. Current activity is **real-data expansion validation** for the five
    configured Spring 2027 targets; hosted beta comes after.
 2. **This is a working application**, not a greenfield build. `README.md` describes what runs
@@ -23,5 +23,5 @@ Five things that matter most, repeated here because they are easy to get wrong:
 5. **Verify `origin/main` by fetch** and work from a branch or worktree descended from it. Do not
    check out, merge or fast-forward a local `main` you have not verified.
 
-Test baseline (2026-09-08 at `180afe0`): 191 Python passed / 1 skipped, 78 frontend passed. The
+Test baseline (2026-09-08 at `62fb2f1`): 192 Python passed / 1 skipped, 78 frontend passed. The
 skip needs `EASY_A_TEST_POSTGRES_URL`; most of the suite still runs on SQLite.

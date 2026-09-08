@@ -13,8 +13,8 @@ on the frontend. It has real Spring 2027 schedule ingestion, real historical gra
 configurable course coverage, seat freshness classification, GenEd metadata and a data-quality
 pipeline. The API and frontend have been smoke-tested end to end.
 
-**Current baseline: `origin/main` = `180afe0b8faf72a70c297e4c3d4af40c8c3b15a0`** (Sprint 5 merged
-via PR #14 and PR #15).
+**Current baseline: `origin/main` = `62fb2f189c8cac67a1500863f080e0f638469df1`** (Sprint 5 merged via PR #14 and
+PR #15; Tampa scope restriction via PR #16).
 
 **Sprint 5 is complete. Current activity: real-data expansion validation.**
 
@@ -28,7 +28,7 @@ plausible-looking result.
 
 ### Current baseline (working today)
 
-<!-- Verified against merged code at origin/main = 180afe0 and the test baseline measured
+<!-- Verified against merged code at origin/main = 62fb2f1 and the test baseline measured
      2026-09-08. The codebase map (.planning/codebase/) dates from 2026-09-05 at commit
      06634490 — historical baseline evidence, predating Sprint 5. This is the platform, not
      scope. -->
@@ -55,7 +55,9 @@ plausible-looking result.
   `scripts/refresh_seats.py`
 - ✓ Coverage metadata endpoint — `GET /api/v1/metadata/coverage`
 - ✓ Explicit mock opt-in — unset `VITE_API_BASE_URL` throws rather than serving fixtures
-- ✓ **191 Python passed / 1 skipped and 78 frontend passed** (measured 2026-09-08 at `180afe0`;
+- ✓ Tampa-only scope enforcement in coverage refresh — `campus="T"` pinned in the schedule query,
+  non-Tampa rows rejected (PR #16)
+- ✓ **192 Python passed / 1 skipped and 78 frontend passed** (measured 2026-09-08 at `62fb2f1`;
   the skip is the PostgreSQL integration test, which needs `EASY_A_TEST_POSTGRES_URL`)
 - ✓ Strict quality gates: ruff (`B,C4,E,F,I,SIM,UP`), mypy `strict = true`, ESLint + `tsc -b`
 
@@ -109,14 +111,14 @@ status" below — those documents are proposals, and several of their claims are
 
 **What exists now vs what comes next:**
 
-| Area | Exists at `180afe0` | Next |
+| Area | Exists at `62fb2f1` | Next |
 |------|---------------------|------|
 | Backend platform | FastAPI app factory, DI, schemas, domain services, ORM, Alembic | Deployment config (Phase 2) |
 | Course coverage | Configurable targets; 5 courses configured | **Validate 3 unvalidated targets against real data (Phase 1)** |
 | Scoring | Historical easiness score, shrinkage, confidence labels, fallback | **Unchanged — preserved as baseline** |
 | Seats | Freshness classification, seat-only refresh, API fields, freshness UI | — |
 | Frontend | Explicit mock opt-in, pagination hardening, coverage UX, relative timestamps | — |
-| Tests | 191 passed / 1 skipped Python, 78 frontend; PostgreSQL integration present but skippable | Widen PostgreSQL coverage (unscheduled) |
+| Tests | 192 passed / 1 skipped Python, 78 frontend; PostgreSQL integration present but skippable | Widen PostgreSQL coverage (unscheduled) |
 | CI | Nothing — no `.github/` directory | Net-new, Phase 2 |
 | Deployment | `docker-compose.yml` provisions PostgreSQL only | Minimal, portable (Phase 2) |
 
@@ -177,7 +179,7 @@ Treat it as input, never as an approved requirement.
   composition, Bayesian shrinkage, confidence labels, and course / instructor-course fallback
   behavior all stay. Seats, modality, GenEd and syllabus signals must not influence the score.
 - **Baseline and branch safety**: `origin/main` is
-  `180afe0b8faf72a70c297e4c3d4af40c8c3b15a0`. Fetch and verify current `origin/main` before
+  `62fb2f189c8cac67a1500863f080e0f638469df1`. Fetch and verify current `origin/main` before
   planning rather than trusting a recorded SHA. Work from branches or worktrees descended from it.
   A local checkout may lag behind `origin/main` and may hold untracked work — **do not check out,
   merge or fast-forward a local `main` you did not verify.**
@@ -216,12 +218,12 @@ Treat it as input, never as an approved requirement.
 - **D-09 [locked]:** Bounded, narrow requests to USF public sources. No broad crawling.
 - **D-10 [locked]:** Fetch and verify current `origin/main` before planning; work from branches or worktrees descended from it. Preserve untracked local work; do not check out, merge or fast-forward a local `main` you did not verify.
 - **D-11 [locked]:** Use GSD Core's `.planning/` structure, not GSD2 `.gsd/` conventions.
-- **D-12 [locked]:** Preserve the passing test baseline (191 Python passed / 1 skipped, 78 frontend, measured 2026-09-08 at `180afe0`) and update tests when semantics genuinely change. PostgreSQL integration coverage exists but skips without `EASY_A_TEST_POSTGRES_URL`; most of the suite still runs on SQLite.
+- **D-12 [locked]:** Preserve the passing test baseline (192 Python passed / 1 skipped, 78 frontend, measured 2026-09-08 at `62fb2f1`) and update tests when semantics genuinely change. PostgreSQL integration coverage exists but skips without `EASY_A_TEST_POSTGRES_URL`; most of the suite still runs on SQLite.
 - **D-13 [locked]:** Never invent data coverage, source permissions, credential access or deployment completion. Identify missing external dependencies early and name an owner. Do not purchase services.
 
 ### Current sprint scope
 
-- **D-14 [complete]:** Sprint 5 delivered configurable course targets, one-pass coverage refresh, seat-only refresh, seat freshness classification and API fields, a coverage metadata endpoint, explicit frontend mock opt-in, pagination hardening, freshness UX and PostgreSQL integration coverage. Merged via PR #14 and PR #15 at `180afe0`.
+- **D-14 [complete]:** Sprint 5 delivered configurable course targets, one-pass coverage refresh, seat-only refresh, seat freshness classification and API fields, a coverage metadata endpoint, explicit frontend mock opt-in, pagination hardening, freshness UX and PostgreSQL integration coverage. Merged via PR #14 and PR #15 at `62fb2f1`.
 - **D-15 [current-scope]:** Current activity is real-data expansion validation for the five configured Spring 2027 targets. It excludes a scoring rewrite, email alerts, auth/accounts, RMP, LLM features, and provider-specific deployment infrastructure.
 - **D-19 [locked]:** Never commit raw grade export files.
 
@@ -238,7 +240,7 @@ Treat it as input, never as an approved requirement.
 | ID | Question | Blocks | Resolve by |
 |----|----------|--------|------------|
 | OQ-01 (resolved) | Where does implementation happen? Resolved 2026-09-08: branches and worktrees descended from current `origin/main`, verified by fetch rather than a recorded SHA. Do not check out, merge or fast-forward an unverified local `main`. | Nothing | Resolved |
-| OQ-02 (resolved) | Exact test baseline. Re-measured 2026-09-08 at `180afe0`: **191 Python passed / 1 skipped, 78 frontend passed**. The skip is the PostgreSQL integration test, which needs `EASY_A_TEST_POSTGRES_URL`. Supersedes the pre-Sprint-5 figure of 166/19 and `.planning/codebase/TESTING.md`'s "~154". | Nothing | Resolved |
+| OQ-02 (resolved) | Exact test baseline. Re-measured 2026-09-08 at `62fb2f1`: **192 Python passed / 1 skipped, 78 frontend passed**. The skip is the PostgreSQL integration test, which needs `EASY_A_TEST_POSTGRES_URL`. Supersedes the pre-Sprint-5 figure of 166/19 and `.planning/codebase/TESTING.md`'s "~154". | Nothing | Resolved |
 | OQ-03 | How broadly can coverage expand while keeping refresh sustainable and search performance acceptable? Search still ranks sections before slicing pagination. | Phase 1 coverage claims and Phase 2 sizing | Phase 1, by measurement at the widened coverage |
 | OQ-04 | Do real USF InfoCenter grade exports contain suppression markers, or is blank genuinely zero? `src/easy_a/grades/parser.py` currently converts every blank cell to `0` unconditionally, with no suppression path. Answering needs a real or sample export. | Grade-import correctness at broader coverage | Needs a real export file; owner is whoever holds ODS/registrar access |
 | OQ-05 | External dependencies not yet supplied: deployment host and domain. | Phase 2 deployment | Before hosted beta |
@@ -252,8 +254,8 @@ Treat it as input, never as an approved requirement.
 | Treat the handoff documents as proposals, not confirmed decisions | Alerts, RMP, a scoring rewrite and campus-wide launch scope were recorded as "locked" and "user-confirmed" without that confirmation. | Applied 2026-09-08 |
 | Preserve the existing scoring model | The current model works and is the validated baseline for the beta. Replacing it is a large change with no approval behind it. | Applied 2026-09-08 |
 | Keep evidence-backed observations, drop the requirements built on top of them | Findings like the silent fixture fallback and the SQLite/PostgreSQL gap are real and verified; the product requirements the handoff derived from them were not confirmed. | Applied 2026-09-08 |
-| Record Sprint 5 complete against merged code rather than against the PR description | Each delivered item was verified present in the tree at `180afe0` before its requirement was ticked; the test baseline was re-measured rather than quoted. | Applied 2026-09-08 |
+| Record Sprint 5 complete against merged code rather than against the PR description | Each delivered item was verified present in the tree at `62fb2f1` before its requirement was ticked; the test baseline was re-measured rather than quoted. | Applied 2026-09-08 |
 | Demote the handoff docs to low-precedence archival inputs in the ingest manifest | Leaving `gsd-core-mvp-prompt.md` as a precedence-0 ADR meant any future `/gsd-ingest-docs` run could re-promote alerts, RMP, a scoring rewrite and campus-wide scope over current planning. | Applied 2026-09-08 |
 
 ---
-*Last updated: 2026-09-08 — Sprint 5 recorded complete against merged code at `180afe0`; baseline, test counts and observations refreshed; next activity is real-data expansion validation.*
+*Last updated: 2026-09-08 — Sprint 5 recorded complete against merged code at `62fb2f1`; baseline, test counts and observations refreshed; next activity is real-data expansion validation.*

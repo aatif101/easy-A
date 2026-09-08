@@ -4,7 +4,7 @@ Requirements for the sequence forward from the current working baseline. Easy-A 
 application with real ingestion, configurable course coverage and seat freshness — not a
 greenfield build.
 
-**Current baseline: `origin/main` = `180afe0`.** Sprint 5 is merged and complete.
+**Current baseline: `origin/main` = `62fb2f1`.** Sprint 5 is merged and complete.
 **Current activity: real-data expansion validation.**
 
 ## How requirements are classified
@@ -42,11 +42,11 @@ target is not the same as having validated coverage for it.
 
 ### Current test baseline
 
-Measured on the merged branch at `180afe0` on 2026-09-08:
+Measured on the merged branch at `62fb2f1` on 2026-09-08:
 
 | Suite | Result | Notes |
 |-------|--------|-------|
-| Python (`uv run pytest -q`) | **191 passed, 1 skipped** | The skip is the PostgreSQL integration test, which skips when `EASY_A_TEST_POSTGRES_URL` is unset |
+| Python (`uv run pytest -q`) | **192 passed, 1 skipped** | The skip is the PostgreSQL integration test, which skips when `EASY_A_TEST_POSTGRES_URL` is unset |
 | Python with PostgreSQL configured | 192 passed (reported in PR #14) | Requires `EASY_A_TEST_POSTGRES_URL` |
 | Frontend (`npm test` in `web/`) | **78 passed** | 5 test files |
 | Quality gates | ruff, mypy `strict = true`, ESLint, `tsc -b`, build — all passing | |
@@ -59,7 +59,7 @@ and skips silently when the environment variable is absent.
 
 ## Complete — Sprint 5 (merged, PR #14 + PR #15)
 
-Kept for traceability. Verified present in code at `180afe0`.
+Kept for traceability. Verified present in code at `62fb2f1`.
 
 - [x] **REQ-COVERAGE-01**: Course coverage is configurable rather than hard-coded. ✓ **Complete.**
   `src/easy_a/refresh/targets.py` loads validated targets from `config/course_targets.toml`;
@@ -176,5 +176,5 @@ Not committed. Not required for the hosted beta.
 - Committing raw grade export files
 
 ---
-*Last updated: 2026-09-08 — Sprint 5 marked complete against merged code at `180afe0`; test
+*Last updated: 2026-09-08 — Sprint 5 marked complete against merged code at `62fb2f1`; test
 baseline re-measured; current activity is real-data expansion validation.*

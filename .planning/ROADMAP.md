@@ -9,8 +9,8 @@ historical grade imports, configurable course coverage, and seat freshness class
 This roadmap describes the sequence forward from that baseline. It is **not** a greenfield MVP
 plan, and it does not restart the project.
 
-**Current baseline: `origin/main` = `180afe0b8faf72a70c297e4c3d4af40c8c3b15a0`** (Sprint 5 merged
-via PR #14 and PR #15).
+**Current baseline: `origin/main` = `62fb2f189c8cac67a1500863f080e0f638469df1`** (Sprint 5 merged via PR #14 and
+PR #15; Tampa scope restriction via PR #16).
 
 **Current position: Sprint 5 is complete. Next activity is real-data expansion validation.**
 
@@ -31,7 +31,7 @@ having validated coverage for it.
 
 ## Sprint 5 — COMPLETE
 
-Merged to `main` via PR #14 and PR #15. Verified present in the code at `180afe0`.
+Merged to `main` via PR #14, PR #15 and PR #16. Verified present in the code at `62fb2f1`.
 
 **PR #14 — configurable coverage and seat refresh**
 
@@ -53,6 +53,12 @@ Merged to `main` via PR #14 and PR #15. Verified present in the code at `180afe0
 - Seat freshness UI and relative observation timestamps — `web/src/components/SeatBadge.tsx`,
   `web/src/utils/time.ts`
 - Coverage UX — `web/src/components/CoverageNotice.tsx`
+
+**PR #16 — Tampa scope restriction**
+
+- Coverage refresh now pins `campus="T"` in the schedule query and rejects any returned row whose
+  campus is not Tampa — `src/easy_a/refresh/coverage.py`. Tightens the bounded-request guarantee
+  so a widened course list cannot silently pull non-Tampa sections.
 
 **Requirements delivered:** REQ-COVERAGE-01, REQ-SEAT-01, REQ-SEAT-02, REQ-CONFIG-01.
 REQ-TEST-01 is partially delivered — see `.planning/REQUIREMENTS.md` for its exact status.
@@ -215,5 +221,5 @@ Backlog requirements (`REQ-ALERT-*`, `REQ-RMP-01`) are deliberately unmapped —
 candidate later phases and are not part of the current sequence.
 
 ---
-*Last updated: 2026-09-08 — Sprint 5 recorded complete against merged code at `180afe0`; next
+*Last updated: 2026-09-08 — Sprint 5 recorded complete against merged code at `62fb2f1`; next
 activity is real-data expansion validation for the five configured targets.*
