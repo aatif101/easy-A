@@ -4,6 +4,7 @@ from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
 
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
@@ -22,6 +23,9 @@ from easy_a.models import (
 )
 from easy_a.quality.models import FindingSeverity, QualityFinding, QualityReport
 from easy_a.schedule.normalize import DELIVERY_METHOD_LABELS
+
+if TYPE_CHECKING:
+    from easy_a.refresh.targets import CourseTarget
 
 DEFAULT_STALE_AFTER_DAYS = 7
 
@@ -47,6 +51,7 @@ def run_quality_checks(
     *,
     stale_after: timedelta = timedelta(days=DEFAULT_STALE_AFTER_DAYS),
     as_of: datetime | None = None,
+    targets: tuple[CourseTarget, ...] | None = None,
 ) -> QualityReport:
     if stale_after.total_seconds() < 0:
         raise ValueError("Stale observation threshold must be non-negative.")
@@ -83,6 +88,11 @@ def run_quality_checks(
             for section in sections
         ]
     )
+    # Registration coverage and near-live seats are opt-in, including for historical terms.
+    if targets is not None:
+        from easy_a.quality.coverage import coverage_findings
+
+        findings.extend(coverage_findings(session, term, targets, generated_at))
     findings.extend(_check_grades(session, term_row))
     findings.extend(_check_orphan_instructor_observations(session))
     findings.extend(_check_seats(session, term_row, sections))

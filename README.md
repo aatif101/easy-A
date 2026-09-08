@@ -568,3 +568,78 @@ repository while the application stores only approved aggregate records and
 their derived statistics. USF ODS approved use of aggregate InfoCenter
 grade-distribution data for this project; this does not imply USF endorsement of
 Easy-A, and the repository's data safety restrictions still apply.
+
+
+## Configurable beta coverage and latest observed seats
+
+`config/course_targets.toml` defines the beta course targets, catalog edition, and
+public catalog URL template. The seed set is MAC 1105, ENC 1101, AMH 2020,
+PSY 2012, and BSC 1005. Broader coverage is configurable; this does not automatically
+cover all USF courses or supply historical grades for newly configured targets.
+Set `EASY_A_COURSE_TARGETS_PATH` to an absolute config path when running outside the
+repository root (including API deployments), or pass `--targets path/to/targets.toml`
+to either command. Duplicate targets and invalid course codes are rejected.
+
+```powershell
+uv run python scripts/refresh_course_coverage.py --term 202701
+uv run python scripts/refresh_course_coverage.py --term 202701 --subject MAC --course 1105
+uv run python scripts/refresh_seats.py --term 202701
+uv run python scripts/refresh_seats.py --term 202701 --subject MAC --course 1105
+uv run python scripts/refresh_seats.py --term 202701 --crn 13173
+```
+
+Coverage refresh fetches each target's catalog metadata and schedule sequentially,
+reports section counts returned in this pass, missing targets, and quality findings.
+Seat refresh uses the existing Staff Schedule Search client and schedule ingestion:
+it appends snapshots and instructor observations and updates canonical schedule fields
+by exact term + CRN. Previous snapshots remain. Neither command imports historical
+grades or touches syllabi. Seat values and freshness never enter historical scoring;
+a changed instructor can still select a different historical score through existing
+schedule behavior. CRN refresh requires an already stored section in the requested
+term that belongs to a configured target. Filters narrow the configured list.
+
+Each invocation performs one pass in a database transaction. Source/network/parser
+failures abort and roll back the pass; they are not treated as empty results. Responses
+outside the requested course/CRN scope are rejected. A valid empty schedule response
+reports zero refreshed sections and preserves older section rows and observations.
+No daemon, polling loop, parallel scraper, protection bypass, or automatic retry is added.
+An external scheduler may invoke seat refresh every **5–10 minutes** for this small beta
+set, with non-overlapping runs. This is a suggested interval, not a verified upstream
+rate limit. Adjust it to source guidance and operational observations. Alerts and
+notifications are not yet implemented.
+
+Ranking API and CLI `seats` objects now include `observed_at` (UTC), `freshness`, and
+`age_seconds`. Describe these as **latest observed seats**, not live availability.
+Freshness derives from the latest seat snapshot, ordered by timestamp then id:
+
+| Freshness | Default age |
+| --- | --- |
+| `fresh` | At most 10 minutes |
+| `aging` | More than 10 and at most 30 minutes |
+| `stale` | More than 30 minutes |
+| `unavailable` | No usable snapshot, all seat fields null, or future timestamp |
+
+Configure seconds with `EASY_A_SEAT_FRESH_SECONDS` (600) and
+`EASY_A_SEAT_STALE_SECONDS` (1800); require `0 <= fresh <= stale`.
+Canonical seat fields without a snapshot remain available but have unavailable
+freshness and null age. Existing provenance `current` means the requested term,
+not recent observation. Freshness does not modify easiness, W-rate, confidence,
+or score source, and stale seats do not invalidate historical ranking.
+
+`GET /api/v1/metadata/coverage?term=202701` returns each configured target's catalog
+presence, stored section count, latest observed schedule timestamp, and
+`observed`/`missing` status. `observed` means stored observations exist, not that the
+source currently offers those sections. Use timestamps and the refresh command's
+per-pass counts to assess recency. No deletion or inferred cancellation is performed.
+When explicitly supplied targets (as both refresh commands do), quality checks warn
+about targets missing catalog metadata, targets without stored
+sections, and seat snapshots older than the configured stale threshold. No migration
+is required. Generic `run_quality_checks(..., targets=None)` and `check_data_quality.py`
+do not load target configuration or run these registration coverage/seat freshness checks;
+they retain existing schedule and historical quality checks.
+
+Offline unit tests use injected source functions. To also run the PostgreSQL integration
+test, set `EASY_A_TEST_POSTGRES_URL` to a test database URL with schema-creation
+permission, then run `uv run pytest`. That test creates a uniquely named schema in a
+transaction and rolls it back; it verifies coverage aggregation, snapshot history,
+and timestamp/id ordering on PostgreSQL. It is skipped when the URL is absent.

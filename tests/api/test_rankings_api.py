@@ -96,9 +96,7 @@ def test_course_rankings_endpoint_returns_all_sections(
         _seed_search_data(session)
         session.commit()
 
-    response = api_client.get(
-        "/api/v1/rankings/course?term=202701&subject=MAC&course_number=1105"
-    )
+    response = api_client.get("/api/v1/rankings/course?term=202701&subject=MAC&course_number=1105")
 
     assert response.status_code == 200
     assert [item["crn"] for item in response.json()] == ["70001", "70002"]
@@ -229,9 +227,7 @@ def test_search_paginates_after_filtering_and_sorting(
         _seed_search_data(session)
         session.commit()
 
-    response = api_client.get(
-        "/api/v1/rankings/search?term=202701&sort=course&limit=2&offset=1"
-    )
+    response = api_client.get("/api/v1/rankings/search?term=202701&sort=course&limit=2&offset=1")
 
     assert response.status_code == 200
     body = response.json()
@@ -551,3 +547,25 @@ def _add_section(
             observed_at=NOW,
         )
     )
+
+
+def test_seat_freshness_and_coverage_api(
+    api_client: TestClient,
+    api_session_factory: sessionmaker[Session],
+) -> None:
+    with api_session_factory() as session:
+        _seed_search_data(session)
+        session.commit()
+    response = api_client.get("/api/v1/rankings/section?term=202701&crn=70001")
+    assert response.status_code == 200
+    seats = response.json()["seats"]
+    assert {"observed_at", "freshness", "age_seconds"} <= seats.keys()
+    assert seats["freshness"] in {"fresh", "aging", "stale", "unavailable"}
+    response = api_client.get("/api/v1/metadata/coverage?term=202701")
+    assert response.status_code == 200
+    rows = response.json()
+    assert len(rows) == 5
+    assert rows[0]["subject"] == "MAC"
+    assert rows[0]["section_count"] > 0
+    assert rows[0]["latest_observed_at"] is not None
+    assert api_client.get("/api/v1/metadata/coverage?term=bad").status_code == 422

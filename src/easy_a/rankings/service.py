@@ -18,6 +18,7 @@ from easy_a.rankings.models import (
     SeatInfo,
     SectionRanking,
 )
+from easy_a.schedule.freshness import snapshot_freshness
 from easy_a.schedule.normalize import DELIVERY_METHOD_LABELS
 from easy_a.signals.models import ResolvedSignalSet, SignalSourceKind
 from easy_a.signals.resolver import resolve_section_signals
@@ -212,12 +213,14 @@ def _seat_info_for(session: Session, *, section: Section, term_code: str) -> Sea
             select(SeatSnapshot)
             .where(SeatSnapshot.section_id == section.id)
             .order_by(SeatSnapshot.observed_at.desc(), SeatSnapshot.id.desc())
+            .limit(1)
         )
         .scalars()
         .first()
     )
     if latest_snapshot is not None:
         return SeatInfo(
+            **snapshot_freshness(latest_snapshot).model_dump(),
             capacity=latest_snapshot.capacity,
             enrollment=latest_snapshot.enrollment,
             seats_remaining=latest_snapshot.seats_remaining,
