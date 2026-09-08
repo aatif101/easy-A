@@ -20,7 +20,9 @@ from easy_a.models import (
     SectionInstructor,
     Term,
 )
+from easy_a.quality.coverage import coverage_findings
 from easy_a.quality.models import FindingSeverity, QualityFinding, QualityReport
+from easy_a.refresh.targets import CourseTarget, load_targets
 from easy_a.schedule.normalize import DELIVERY_METHOD_LABELS
 
 DEFAULT_STALE_AFTER_DAYS = 7
@@ -47,6 +49,7 @@ def run_quality_checks(
     *,
     stale_after: timedelta = timedelta(days=DEFAULT_STALE_AFTER_DAYS),
     as_of: datetime | None = None,
+    targets: tuple[CourseTarget, ...] | None = None,
 ) -> QualityReport:
     if stale_after.total_seconds() < 0:
         raise ValueError("Stale observation threshold must be non-negative.")
@@ -82,6 +85,11 @@ def run_quality_checks(
             SectionIdentity(term=term, crn=section.crn, section_id=section.id)
             for section in sections
         ]
+    )
+    findings.extend(
+        coverage_findings(
+            session, term, load_targets().targets if targets is None else targets, generated_at
+        )
     )
     findings.extend(_check_grades(session, term_row))
     findings.extend(_check_orphan_instructor_observations(session))
