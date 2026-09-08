@@ -27,6 +27,7 @@ compressing this structure would silently drop dependency edges the source state
 ## Phases
 
 **Phase Numbering:**
+
 - Integer phases (1, 2, 3): Planned milestone work
 - Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
 
@@ -62,6 +63,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Phase Details
 
 ### Phase 1: Baseline, Scope and Contracts
+
 **Goal**: The team knows exactly what baseline it is building on, what scope it has declared, and
 what method and UI contracts every later phase must satisfy — with the three live coverage risks
 answered by evidence rather than assumption.
@@ -74,19 +76,24 @@ Samples validate acquisition before a complete subject/section reconciliation; u
 grades, instructor names, verified profiles, or syllabi must not remove sections from scope.
 Reuse completed onboarding, maps and source specifications; investigate only remaining gaps.
 **Success Criteria** (what must be TRUE):
+
   1. A published launch coverage manifest names USF Tampa, the supported registration term(s),
      the supported subjects/courses, the grade terms, the default term and the refresh cadence —
      with exclusions and missing historical coverage stated, and no invented semester or coverage
      percentage. Historical-only terms are not selectable registration targets.
+
   2. The implementation baseline is recorded and confirmed: which commit, which branch strategy,
      and what happens to the untracked `web/` directory on local `main`. The recorded exact
      baseline test counts (Python and frontend) replace both conflicting figures.
+
   3. A reader can reproduce method v2 from the written contract alone: the formula, `k`, `mu`,
      RULE-20, RULE-60A, RULE-60B, RULE-60C and RULE-K60 each stated separately with their own
      test intent, plus the confirmed source suppression and blank-cell interpretation.
+
   4. Named-instructor coverage and current-term syllabus availability across the *declared* launch
      scope are inventoried with counts, and the Phase 3 exit criterion is restated to match what
      the data actually supports.
+
   5. Every requirement in REQUIREMENTS.md maps to a phase, every UI screen and failure state is
      specified, and every external dependency (grade exports, host, domain, email provider, sender
      domain, test inbox) is listed with its owner and its blocked phase.
@@ -95,6 +102,7 @@ Reuse completed onboarding, maps and source specifications; investigate only rem
 formulas reproducible; UI screens and failure states specified. An unavailable grade export does
 not block seat work, but it remains a grade-launch dependency.
 **Scope decisions carried in, NOT resolved facts** (from `.planning/INGEST-CONFLICTS.md`):
+
   - **OQ-01 resolved, 2026-09-08.** The user confirmed implementation stays in worktrees off
     `origin/main`; leave local `main` and untracked work alone until developer 1 merges.
     Phase 1 planning stays on `claude/gsd-onboard-774626`, in the same PR as onboarding.
@@ -105,6 +113,7 @@ not block seat work, but it remains a grade-launch dependency.
     descended from `origin/main` = `06634490de5c765bdc7b55e4f439476b0e4fa0f7`. PROJECT.md records
     that descendant-worktree baseline as the confirmed decision. **Do not overwrite untracked
     local work.** Exact baseline test counts remain open under OQ-04.
+
   - **RMP / instructor coverage risk.** All five sampled Spring 2027 Tampa `MAC 1105` sections and
     all 41 sampled `ENC 1101` sections show instructor `Staff`. This is a two-course sample, not a
     campus-wide fact. If it generalizes, verified RMP links and professor-specific grade evidence
@@ -112,6 +121,7 @@ not block seat work, but it remains a grade-launch dependency.
     section and show course-only evidence where eligible plus "Verified RMP link unavailable"
     when verification is absent. Inventory actual coverage and condition Phase 3 real-example
     acceptance on that evidence. Do not narrow scope to courses with matches.
+
   - **Current-term syllabus risk.** No Spring 2027 syllabus was found for either sampled course;
     matching public library results were Fall 2026 only. If this generalizes, the historical-source
     path is **primary**, not a fallback, and "syllabus link exists but no chip extracted" is a
@@ -119,10 +129,18 @@ not block seat work, but it remains a grade-launch dependency.
 **Plans**: 5 plans
 
 Plans:
+**Wave 1**
+
 - [ ] 01-01-PLAN.md — Record the confirmed implementation baseline and write the method v2 reproducibility contract
 - [ ] 01-02-PLAN.md — Build the bounded subject-enumeration inventory and run it to answer OQ-02 with counts
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
 - [ ] 01-03-PLAN.md — Probe the syllabus search surface and answer OQ-03 with a bounded, labelled pass
 - [ ] 01-04-PLAN.md — Write the UI/API state contract, verify requirement coverage, and register external dependencies
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
 - [ ] 01-05-PLAN.md — Publish the launch coverage manifest and restate the Phase 3 exit criterion
 
 **Waves**: 1 → plans 01 and 02 in parallel; 2 → plans 03 and 04 in parallel; 3 → plan 05.
@@ -130,6 +148,7 @@ Plans 02, 03 and 05 carry blocking human checkpoints and are not autonomous.
 **UI hint**: yes
 
 ### Phase 2: Honest Grade Evidence, API Through UI
+
 **Goal**: A student looking at any section sees only grade numbers that came from real observed
 outcomes, with visible denominators and named terms — and sees an explicit reason instead of a
 number wherever the evidence does not qualify.
@@ -137,20 +156,25 @@ number wherever the evidence does not qualify.
 **Requirements**: REQ-GRADE-01, REQ-GRADE-02, REQ-GRADE-03, REQ-GRADE-04, REQ-EVID-01,
 REQ-EVID-02, REQ-DATA-01
 **Success Criteria** (what must be TRUE):
+
   1. A student sees a prominent A rate labeled "A grades among A-F outcomes" with its `A of N`
      denominator, a full A/B/C/D/F chart with an always-available count table, W/I/S/U/O counts
      listed separately beneath it, and a withdrawal rate labeled `W of T recorded outcomes` — all
      drawn from one explicitly selected and labeled cohort.
+
   2. A section with no usable grade history shows "Insufficient data" with a reason and **no
      number**; the 7.8/10-from-nothing behavior is gone, along with every subject/global displayed
      fallback and the 0.75/0.10 no-evidence defaults.
+
   3. The published methodology page states the exact grade-only formula, both denominators, the
      small-sample adjustment, the measured reference population, the method version and date, and
      a worked example explicitly labeled synthetic — reachable at `/methodology` from the header
      and from score help.
+
   4. A student can tell whose history they are looking at: "This professor + course" versus
      "Course only" with the fallback reason, named semesters, exact N and T, section count, and a
      descriptive Limited/Moderate/Strong label that is never presented as a probability.
+
   5. Changing only W, seats, policies, RMP or modality provably cannot change grade ease; unknown
      scores sort after known scores in both directions with no hidden zero coercion; and duplicate
      grade exports cannot double-count because source selection is explicit.
@@ -167,23 +191,29 @@ hard-coded priors are removed from `src/easy_a/analytics/scoring.py`.
 **UI hint**: yes
 
 ### Phase 3: Verified RMP and Policy Sources
+
 **Goal**: Every source link a student follows lands on the correct, actually-verified source — and
 where no verified source exists, the product says so rather than guessing.
 **Depends on**: Phase 1; consumes the shared payload shape from Phase 2
 **Requirements**: REQ-RMP-01, REQ-POLICY-01
 **Success Criteria** (what must be TRUE):
+
   1. A "View on Rate My Professors" link appears only where an operator has verified the profile
      against both the named instructor and USF with recorded identity evidence and a timestamp;
      everywhere else the student sees "Verified RMP link unavailable".
+
   2. `Staff`, ambiguous names, missing profiles and rejected matches never produce a link, and no
      RMP rating, review count, review text, tag or summary exists anywhere in the database, API or
      UI.
+
   3. A policy chip shows its short evidence quote, its named source term, whether it is this
      professor/course or course-only, and a working link that is labeled correctly — a schedule
      note links to the schedule source and is never presented as a syllabus quote.
+
   4. A syllabus link is exposed independently of chips: a syllabus with no recognized supported
      policy still has a working "Open syllabus" link, and a clearly dated historical source is
      never presented as current.
+
   5. An operator can add, validate and re-verify registry entries through a CLI and an import file
      with a validation command — no new admin UI, and rechecks trigger when instructor assignments
      change.
@@ -203,25 +233,31 @@ source links, current-vs-historical badging and conflict states.
 **UI hint**: yes
 
 ### Phase 4: Fresh Seats and Scheduled Observation
+
 **Goal**: A student can trust a seat count because they can see exactly when it was last
 successfully checked — and the checking happens on a durable server-side schedule, not in their
 browser.
 **Depends on**: Phase 1; shared API/UI contract from Phase 2
 **Requirements**: REQ-SEAT-01, REQ-SEAT-02
 **Success Criteria** (what must be TRUE):
+
   1. Every section shows its availability state with an absolute and relative "checked at" time,
      and stale data reads "Last known: N seats — Checked [time] — Update overdue" rather than a
      green live-open badge.
+
   2. Waitlist seats are displayed separately and never counted as available course seats;
      cancelled, closed-registration or incompatible source status is never overruled by a positive
      count; valid negative remaining seats classify as full/over capacity with the signed
      observation preserved for diagnostics.
+
   3. Seats refresh on a schedule with no browser open: one shared observation serves every watcher,
      a student's search never triggers an upstream crawl, and worker restart preserves polling
      state, leases and checkpoints.
+
   4. A failed or partial upstream request records the attempt without advancing the successful
      observation timestamp, without fabricating zero seats and without cancelling a section on a
      single missing row.
+
   5. The "open seats only" filter returns only sections with a fresh, valid, positive count and a
      compatible source status, and every section links to official USF registration with no
      automated registration anywhere.
@@ -242,25 +278,31 @@ classification are net-new.
 **UI hint**: yes
 
 ### Phase 5: Email Watches
+
 **Goal**: A student who verifies their email address is told once, reliably, when a watched section
 reports seats — and can cancel, rearm or unsubscribe without an account.
 **Depends on**: Phase 4
 **Requirements**: REQ-ALERT-01, REQ-ALERT-02, REQ-ALERT-03
 **Success Criteria** (what must be TRUE):
+
   1. A student submits an email for a specific section, deliberately confirms a short-lived
      ownership token, and sees an active watch naming the exact course, term, section, CRN, current
      availability, cadence and the one-alert behavior — with no email ever sent to an unverified
      address.
+
   2. When a fresh validated observation reports seats, the student receives exactly one email
      containing the observed count, the checked-at time, term/CRN, a section detail link, the
      official registration link and an unsubscribe action; the watch then reads "completed" and
      offers rearm.
+
   3. Repeated polls, transient provider errors, a crash between provider acceptance and the
      database update, expired jobs and worker restart do not produce duplicate mail — and an
      opening message queued before the section closed again is suppressed rather than sent.
+
   4. A student reaches a private management page from an emailed link, sees only their own watches,
      and can cancel, rearm or stop all — while a token cannot read or change another recipient's
      watches and expired tokens offer a new-link flow.
+
   5. The product never claims inbox delivery: "Availability email sent" appears only after provider
      acceptance, and provider acceptance is described as acceptance.
 **Exit gate**: Controlled source transitions generate one durable delivery per watch; repeated
@@ -278,6 +320,7 @@ code exists.
 **UI hint**: yes
 
 ### Phase 6: Final Integrated UI
+
 **Goal**: A student with no developer knowledge can find a class, understand what every number
 means, follow its sources, and manage an email watch — on a phone or a desktop, with a keyboard or
 a screen reader.
@@ -286,19 +329,24 @@ a screen reader.
 **Verifies**: REQ-GRADE-01..04, REQ-EVID-01, REQ-EVID-02, REQ-RMP-01, REQ-POLICY-01,
 REQ-ALERT-01 as integrated rendered behavior
 **Success Criteria** (what must be TRUE):
+
   1. All five surfaces work end to end — search/results, linkable section detail, methodology/data
      coverage, watch signup/confirmation, private watch management — with A rate leading the
      hierarchy without hiding uncertainty.
+
   2. Search state (term, query, filters, sort, page) lives in the URL: sharing a link or pressing
      Back restores the same results, position and filters, and section detail is a real linkable
      route keyed by term and CRN.
+
   3. Every required failure and empty state renders correctly and is reachable in a browser: no
      history, small sample, no measured reference, W-only, suppressed/invalid source, no professor
      match, no current syllabus, missing RMP verification, full/over capacity, stale seats,
      unknown/cancelled, API outage, and empty or unsupported-term search.
+
   4. Verification passes at 360px, 768px and 1440px and at 200% zoom, with keyboard-only
      navigation, persistent visible focus, focus restoration from drawers and dialogs, chart text
      alternatives, readable chip contrast, and status conveyed by text and not by color alone.
+
   5. Production never shows synthetic data: the implicit fixture fallback in
      `web/src/api/rankings.ts` and the hard-coded Spring 2027 term preference are both gone, and a
      missing API configuration fails visibly.
@@ -312,6 +360,7 @@ is not a substitute.
 **UI hint**: yes
 
 ### Phase 7: Real Data, Performance and Deployment Readiness
+
 **Goal**: The system runs on real imported USF data at declared launch scale, on the database
 dialect it actually deploys to, fast enough to use, and can be deployed and operated
 reproducibly.
@@ -320,20 +369,25 @@ reproducibly.
 **Verifies**: REQ-DATA-01, REQ-EVID-01, REQ-EVID-02, REQ-RMP-01, REQ-POLICY-01, REQ-SEAT-01,
 REQ-SEAT-02, REQ-ALERT-01..03, REQ-LAUNCH-01 against real data
 **Success Criteria** (what must be TRUE):
+
   1. Real approved historical grade exports are imported with correct terms and source provenance,
      the declared launch schedule/catalog coverage is refreshed, syllabi are ingested and RMP links
      are curated — with coverage reported **separately** for searchable sections, grade evidence,
      professor-specific history, fresh seats, syllabi and verified RMP. Honest unavailable labels
      are fine; claiming coverage based on fixtures is not.
+
   2. PostgreSQL integration tests pass for queries, migrations, job claiming, uniqueness and
      concurrency — closing the gap where every existing test runs on in-memory SQLite and Alembic
      migrations are never applied.
+
   3. CI runs Python checks (`ruff`, `mypy`, `pytest`), frontend checks (`tsc -b`, `vitest`,
      ESLint) and deployment smoke tests on every change.
+
   4. Measured benchmark evidence exists for full-scope search — not one course — against the
      budgets: search p95 ≤ 2s at 20 concurrent users, usable search within 3s on the agreed mobile
      profile, watched sections observed within the 5-minute target, queue-to-provider acceptance
      within 60s of a validated opening. Recorded as measurements, not promises.
+
   5. A reproducible staging deployment exists with API, frontend and worker packaged, a migration
      command, TLS/origins, a persistent database, secrets, a validated sender domain and a
      scheduler — plus readiness that tests database access, worker health exposing last successful
@@ -343,11 +397,14 @@ staging deployment, validated sender setup, backup restore drill, restart behavi
 runbook. External credentials and domain ownership are specific dependencies, not tasks to
 silently skip.
 **Baseline work — both net-new, not modifications**:
+
   - **PostgreSQL tests**: `tests/conftest.py` builds `sqlite+pysqlite:///:memory:` and uses
     `Base.metadata.create_all`; the deployment target is PostgreSQL 16 and migrations have never
     been exercised. Nothing exists to modify.
+
   - **CI**: there is no `.github/` directory and no CI config anywhere in the repository. Nothing
     exists to modify.
+
   - Also net-new: any Dockerfile, production ASGI configuration, frontend serve path, and
     structured logging (there is no logging configuration in `src/easy_a/` at all).
 **Known performance work**: `GET /api/v1/rankings/search` ranks every section in the term before
@@ -359,6 +416,7 @@ host, domain, email sender domain. Named dependencies, not skippable tasks.
 **Plans**: TBD
 
 ### Phase 8: Deployed Acceptance and Release
+
 **Goal**: The product is actually deployed, actually running on real data, and a real student
 journey has been verified end to end on it — or the specific blocking dependency is named and the
 acceptance item is left explicitly incomplete.
@@ -366,21 +424,26 @@ acceptance item is left explicitly incomplete.
 **Requirements**: REQ-OPS-01 (deployed release, health, recovery and operator handoff)
 **Verifies**: all 17 requirements via the final acceptance matrix in REQUIREMENTS.md
 **Success Criteria** (what must be TRUE):
+
   1. Every row of the final acceptance matrix has recorded evidence from the deployed system
      running against real imported aggregates and live public schedule observations — supported
      professor history, course-only history, no usable history, small/invalid/suppressed data,
      sources, seats, email lifecycle, delivery resilience, privacy, mobile/desktop, real launch and
      operations.
+
   2. A student journey completes on the deployed URL: find a real section → read observed grades
      and evidence → follow a verified source → see an honestly timestamped seat count → receive and
      manage a verified email alert.
+
   3. Where no live full-to-open transition occurred, an opening was simulated through a clearly
      isolated test adapter and that evidence is labeled honestly — no real USF section was altered
      to force a transition, and the production source adapter, worker scheduling and delivery
      transport are separately verified.
+
   4. The release record exists: release commit, deployed URL, environment and method versions,
      coverage figures and runbook location — with production configuration verified and production
      fixture mode confirmed disabled.
+
   5. Any acceptance item blocked by an unavailable external dependency is left **explicitly
      incomplete** with a precise statement of what is needed. The milestone is not marked complete
      on a roadmap, a passing backend, a fixture demo or a static UI.
@@ -414,6 +477,7 @@ Phases 2, 3 and 4 have no hard dependency on each other and may run in parallel 
 - Orphaned: 0
 - Phase structure and dependency edges: preserved verbatim from `docs/final-mvp-plan.md` section 7
   (locked by ADR-15), one milestone
+
 - Threshold rules RULE-20 / RULE-60A / RULE-60B / RULE-60C / RULE-K60: five independently testable
   rules, all owned by Phase 2, none collapsed into another
 

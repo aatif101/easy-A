@@ -1,10 +1,17 @@
 ---
-gsd_state_version: '1.0'
+gsd_state_version: 1.0
+current_phase: 01
+current_phase_name: Baseline, Scope and Contracts
 status: planning
+stopped_at: Phase 1 context captured from this conversation; research and plan creation in progress.
+last_updated: "2026-09-08T15:55:15.547Z"
+last_activity: 2026-09-08
+last_activity_desc: User confirmed all Tampa offerings for Spring 2027 only,
+state_head: 02688302cdea5c8f1d2288fb66498686c0deaa45
 progress:
   total_phases: 8
   completed_phases: 0
-  total_plans: 0
+  total_plans: 5
   completed_plans: 0
   percent: 0
 ---
@@ -22,17 +29,18 @@ of producing a plausible-looking score.
 
 ## Current Position
 
-Phase: 1 of 8 (Baseline, Scope and Contracts)
+Phase: 01 (Baseline, Scope and Contracts) — READY TO EXECUTE
 Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-09-08 — Resolved OQ-01 with the user's confirmed worktree strategy;
-fetched origin/main and verified current worktree ancestry. No implementation performed.
+Status: Planning in progress
+Last activity: 2026-09-08 — User confirmed all Tampa offerings for Spring 2027 only,
+research-first planning, and reuse of completed work. Captured Phase 1 context; no implementation performed.
 
 Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
+
 - Total plans completed: 0
 - Average duration: —
 - Total execution time: —
@@ -59,10 +67,16 @@ Progress: [░░░░░░░░░░] 0%
   `origin/main` (freshly fetched at `06634490`). Leave local `main` and its untracked files
   alone until developer 1 merges. Continue Phase 1 planning on `claude/gsd-onboard-774626`
   in this worktree, keeping planning commits in the same PR as onboarding.
+
 - D-ADR-15: eight delivery outcomes in sequence — one milestone, not eight MVPs
+- Launch scope confirmed: all offered USF Tampa sections in Spring 2027 (`202701`) only.
+  Samples validate the pipeline; they do not limit final coverage. Missing evidence never hides a section.
+  Reuse completed work and research only gaps; see Phase 1 `01-CONTEXT.md` for D-01 through D-07.
+
 - D-ADR-02 / D-ADR-03: grade ease is grade-only; a prior may adjust real evidence, never replace it
 - D-ADR-12 (locked *default* set): k=60, 20-outcome score floor, 60-outcome professor threshold,
   5-minute watched cadence, one-alert-then-rearm — revisable only with documented evidence
+
 - D-ADR-18: done means deployed, real-data, verified email journey — not a roadmap or a fixture demo
 
 Project-level decisions (PROJECT.md Key Decisions): preserve the source PRD's 8-phase structure
@@ -79,16 +93,20 @@ Four open questions remain for Phase 1 (full text: PROJECT.md "Open Questions").
 resolved and no longer blocks planning. The primary checkout remains at `d880d3c` with untracked
 work: **do not check out, merge or fast-forward local `main`.** OQ-02 and OQ-03 remain unresolved
 scope decisions from `.planning/INGEST-CONFLICTS.md`:
+
 - **OQ-02**: All sampled Spring 2027 Tampa sections show instructor `Staff` (5 MAC 1105 + 41
   ENC 1101). Threatens REQ-RMP-01 coverage and Phase 3's exit criterion. Inventory named-instructor
   coverage in Phase 1 before restating that criterion.
+
 - **OQ-03**: No current-term syllabus found for either sampled course. The historical-source path
   is likely **primary**, not a fallback, for REQ-POLICY-01. Order Phase 3 acceptance cases
   accordingly.
+
 - **OQ-04**: Baseline test count conflict — PRD says 166 Python at `06634490`, codebase map says
   ~154 at `894da473`. ADR-16 locks the baseline, so resolve the exact number in Phase 1.
-- **OQ-05**: Unsupplied external dependencies — real grade exports and their terms, launch
-  term/subject scope, deployment host and domain, email provider and sender-domain DNS, designated
+
+- **OQ-05**: Unsupplied external dependencies — real grade exports and their terms,
+  deployment host and domain, email provider and sender-domain DNS, designated
   test inbox. Blocks Phases 5, 7, 8. Identify in Phase 1; do not purchase services.
 
 Baseline defects to resolve rather than paper over (evidence in `.planning/codebase/CONCERNS.md`):
@@ -104,8 +122,8 @@ null on grade import (Phase 2), silent frontend fixture fallback (Phase 6).
 ## Session Continuity
 
 Last session: 2026-09-08
-Stopped at: OQ-01 resolved and Phase 1 planning unblocked on the onboarding branch.
-No phase planned, executed or implemented.
+Stopped at: Phase 1 context captured from this conversation; research and plan creation in progress.
+No phase executed or implemented.
 Resume file: None
-Next action: `/gsd-plan-phase 1` on `claude/gsd-onboard-774626` in the current worktree.
-Keep Phase 1 planning commits in the same PR as onboarding; no further OQ-01 confirmation needed.
+Next action: Continue the active `/gsd-plan-phase 1` with existing documents and research first.
+Keep planning commits on `claude/gsd-onboard-774626`; do not repeat onboarding or confirmed scope questions.
