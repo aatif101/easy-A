@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import { syntheticRankings } from "../fixtures/rankings";
 import type { RankingQuery, RankingsSearchResponse } from "../types/rankings";
@@ -8,6 +8,8 @@ const baseQuery: RankingQuery = {
   limit: 50,
   offset: 0,
 };
+
+beforeEach(() => { vi.stubEnv("VITE_USE_MOCK_DATA", "false"); });
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -139,4 +141,30 @@ describe("ranking API client", () => {
     await expect(fetchRankings(baseQuery)).rejects.toThrow("Network unavailable");
     expect(fetchMock).toHaveBeenCalledOnce();
   });
+});
+
+
+test.each(["", "https://api.example.test"])("explicit mock flag uses fixtures with URL %s", async (url) => {
+  vi.stubEnv("VITE_USE_MOCK_DATA", "true");
+  vi.stubEnv("VITE_API_BASE_URL", url);
+  const fetchMock = vi.fn();
+  vi.stubGlobal("fetch", fetchMock);
+  const { fetchRankings, fetchMetadata, isUsingMockData } = await import("./rankings");
+  expect(isUsingMockData).toBe(true);
+  expect((await fetchRankings(baseQuery)).items).toHaveLength(syntheticRankings.length);
+  expect((await fetchMetadata()).subjects.length).toBeGreaterThan(0);
+  expect(fetchMock).not.toHaveBeenCalled();
+});
+
+test.each([undefined, "false", "TRUE", "1"])("production without URL and mock flag %s fails visibly", async (flag) => {
+  vi.stubEnv("PROD", true);
+  vi.stubEnv("VITE_USE_MOCK_DATA", flag);
+  vi.stubEnv("VITE_API_BASE_URL", "");
+  const fetchMock = vi.fn();
+  vi.stubGlobal("fetch", fetchMock);
+  const { fetchRankings, fetchMetadata, isUsingMockData } = await import("./rankings");
+  expect(isUsingMockData).toBe(false);
+  await expect(fetchRankings(baseQuery)).rejects.toThrow("API configuration unavailable");
+  await expect(fetchMetadata()).rejects.toThrow("API configuration unavailable");
+  expect(fetchMock).not.toHaveBeenCalled();
 });

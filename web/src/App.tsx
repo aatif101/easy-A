@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { fetchMetadata, fetchRankings, isUsingMockData } from "./api/rankings";
 import { FilterBar } from "./components/FilterBar";
+import { EmptyRankings } from "./components/EmptyRankings";
 import { RankingTable } from "./components/RankingTable";
 import { SYNTHETIC_FIXTURE_NOTICE } from "./fixtures/rankings";
 import type {
@@ -26,7 +27,6 @@ interface AppProps {
 }
 
 const newestTerm = (metadata: RankingMetadata): string | null => {
-  if (metadata.terms.some(({ term }) => term === "202701")) return "202701";
   return metadata.terms.toSorted((left, right) => right.term.localeCompare(left.term))[0]?.term ?? null;
 };
 
@@ -56,6 +56,8 @@ export default function App({
     setMetadataError(null);
     metadataLoader(controller.signal)
       .then((result) => {
+        if (controller.signal.aborted) return;
+        setOffset(0);
         setMetadata(result);
         setTerm((current) =>
           current && result.terms.some(({ term: code }) => code === current)
@@ -83,7 +85,7 @@ export default function App({
     const parsedSearch = parseCourseSearch(filters.courseSearch);
     return {
       term,
-      subject: filters.subject || parsedSearch.subject,
+      subject: parsedSearch.subject || filters.subject || undefined,
       course_number: parsedSearch.courseNumber,
       gened_code: filters.genedCode || undefined,
       delivery_method: filters.deliveryMethod || undefined,
@@ -103,7 +105,15 @@ export default function App({
     setRankingsError(null);
     setExpandedCrn(null);
     rankingLoader(query, controller.signal)
-      .then((result) => setPage(result))
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        // Data can shrink between page requests. Restart once from the first page.
+        if (result.items.length === 0 && query.offset > 0) {
+          setOffset(0);
+          return;
+        }
+        setPage(result);
+      })
       .catch((reason: unknown) => {
         if (!controller.signal.aborted) {
           setPage({ ...emptyPage, offset: query.offset });
@@ -151,7 +161,7 @@ export default function App({
             <p className="mt-3 max-w-2xl text-sm leading-relaxed text-stone-600 md:text-base">Compare historical outcomes, current section information, course format, and evidence-backed policy signals in one honest view.</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {mockMode ? <span className="rounded-sm border border-brass/50 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-950">{SYNTHETIC_FIXTURE_NOTICE}</span> : <span className="rounded-sm border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-950">Connected to API</span>}
+            {mockMode ? <span className="rounded-sm border border-brass/50 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-950">{SYNTHETIC_FIXTURE_NOTICE}</span> : <span className="rounded-sm border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-950">API mode</span>}
             <span className="rounded-sm border border-stone-300 bg-white px-3 py-1.5 font-mono text-xs text-stone-600">Beta · rankings preview</span>
           </div>
         </div>
@@ -208,22 +218,17 @@ export default function App({
             ) : null}
 
             {!rankingsLoading && !rankingsError && page.items.length > 0 ? (
-              <>
-                <RankingTable rankings={page.items} rankOffset={page.offset} expandedCrn={expandedCrn} onToggle={toggleDetails} />
-                <nav aria-label="Course results pages" className="mt-5 flex items-center justify-between gap-4 border-t border-rule pt-5">
-                  <button type="button" className="rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-bold text-ink disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-spruce" disabled={!canGoBack} onClick={() => setOffset((current) => Math.max(0, current - page.limit))}>Previous</button>
-                  <span className="text-center text-xs font-semibold text-stone-600" aria-live="polite">Showing {firstShown}–{lastShown} of {page.total} sections</span>
-                  <button type="button" className="rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-bold text-ink disabled:cursor-not-allowed disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-spruce" disabled={!canGoForward} onClick={() => setOffset((current) => current + page.limit)}>Next</button>
-                </nav>
-              </>
+              <RankingTable rankings={page.items} rankOffset={page.offset} expandedCrn={expandedCrn} onToggle={toggleDetails} />
             ) : null}
 
+            <nav aria-label="Course results pages" className="mt-5 flex items-center justify-between gap-4 border-t border-rule pt-5">
+              <button type="button" className="rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-bold text-ink aria-disabled:cursor-not-allowed aria-disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-spruce" aria-disabled={rankingsLoading || !!rankingsError || !canGoBack} onClick={() => { if (!rankingsLoading && !rankingsError && canGoBack) setOffset(Math.max(0, page.offset - page.limit)); }}>Previous</button>
+              <span className="text-center text-xs font-semibold text-stone-600" aria-live="polite" aria-atomic="true">{rankingsLoading ? "Loading sections..." : rankingsError ? "Results unavailable" : `Showing ${firstShown}\u2013${lastShown} of ${page.total} sections`}</span>
+              <button type="button" className="rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-bold text-ink aria-disabled:cursor-not-allowed aria-disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-spruce" aria-disabled={rankingsLoading || !!rankingsError || !canGoForward} onClick={() => { if (!rankingsLoading && !rankingsError && canGoForward) setOffset(page.offset + page.limit); }}>Next</button>
+            </nav>
+
             {!rankingsLoading && !rankingsError && page.items.length === 0 ? (
-              <section className="rounded-lg border border-dashed border-stone-400 bg-white/60 p-10 text-center" role="status">
-                <h2 className="font-display text-2xl font-bold">{hasActiveFilters(filters) ? "No sections match these filters" : `No sections available for ${selectedTerm?.term_name ?? term}`}</h2>
-                <p className="mt-2 text-sm text-stone-600">{hasActiveFilters(filters) ? "Try clearing the course code or widening confidence, modality, seat, or GenEd filters." : "This term is listed by the API but has no searchable section data."}</p>
-                {hasActiveFilters(filters) ? <button type="button" className="mt-5 rounded-md bg-spruce px-4 py-2 text-sm font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-spruce" onClick={() => changeFilters(initialFilters)}>Reset filters</button> : null}
-              </section>
+              <EmptyRankings filtered={hasActiveFilters(filters)} termLabel={selectedTerm?.term_name ?? term} onReset={() => changeFilters(initialFilters)} />
             ) : null}
           </>
         ) : null}

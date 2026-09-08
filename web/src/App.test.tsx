@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, test, vi } from "vitest";
 
@@ -60,10 +60,10 @@ const rowForCrn = (table: HTMLElement, crn: string): HTMLElement => {
 };
 
 describe("course ranking page", () => {
-  test("prefers beta term 202701 from metadata", async () => {
+  test("uses the newest term from metadata", async () => {
     await renderLoadedApp();
-    expect(screen.getByLabelText("Term")).toHaveValue("202701");
-    expect(screen.getByRole("heading", { name: "Spring 2027 course index" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Term")).toHaveValue("202801");
+    expect(screen.getByRole("heading", { name: "Spring 2028 course index" })).toBeInTheDocument();
   });
 
   test("uses the most recent metadata term when 202701 is absent", async () => {
@@ -89,7 +89,7 @@ describe("course ranking page", () => {
 
     await waitFor(() => expect(loader).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        term: "202701",
+        term: "202801",
         subject: "MAC",
         course_number: "1105",
         gened_code: "SMEL",
@@ -130,7 +130,7 @@ describe("course ranking page", () => {
     const user = userEvent.setup();
     render(<App rankingLoader={async (query) => pageFor(query, [], 0)} metadataLoader={resolvedMetadataLoader} />);
     await user.type(await screen.findByRole("searchbox", { name: /Course code/ }), "ENC 1101");
-    expect(await screen.findByRole("heading", { name: "No sections match these filters" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "No sections are currently available for this search" })).toBeInTheDocument();
   });
 
   test("announces an API failure", async () => {
@@ -194,4 +194,112 @@ describe("course ranking page", () => {
     expect(alert).toHaveTextContent("Terms endpoint unavailable.");
     expect(rankingLoader).not.toHaveBeenCalled();
   });
+});
+
+
+const largeItems = Array.from({ length: 500 }, (_, index) => ({
+  ...syntheticRankings[index % syntheticRankings.length],
+  crn: String(30000 + index),
+  course_title: `Advanced interdisciplinary course ${index} with extensive applied research and laboratory practice`,
+  instructor: `Professor Alexandra Maria Long-Instructor-Name ${index}`,
+  gened_attributes: Array.from({ length: 8 }, (_, attribute) => ({ code: `G${attribute}`, label: `Extended interdisciplinary attribute ${attribute}` })),
+}));
+const pagedLoader = (total: number) => vi.fn<RankingLoader>(async (query) =>
+  pageFor(query, largeItems.slice(query.offset, Math.min(total, query.offset + query.limit)), total));
+
+test.each([0, 5, 50, 51, 143, 500])("server pagination for total %s", async (total) => {
+  const loader = pagedLoader(total);
+  const user = userEvent.setup();
+  render(<App rankingLoader={loader} metadataLoader={resolvedMetadataLoader} mockMode={false} />);
+  await waitFor(() => expect(screen.getAllByText(`Showing ${total ? 1 : 0}–${Math.min(50, total)} of ${total} sections`).length).toBeGreaterThan(0));
+  expect(screen.getByRole("button", { name: "Previous" })).toHaveAttribute("aria-disabled", "true");
+  if (total <= 50) expect(screen.getByRole("button", { name: "Next" })).toHaveAttribute("aria-disabled", "true");
+  for (let offset = 50; offset < total; offset += 50) {
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    await waitFor(() => expect(screen.getAllByText(`Showing ${offset + 1}–${Math.min(offset + 50, total)} of ${total} sections`).length).toBeGreaterThan(0));
+    expect(loader).toHaveBeenLastCalledWith(expect.objectContaining({ offset, limit: 50 }), expect.any(AbortSignal));
+    expect(dataRows(screen.getByRole("table"))).toHaveLength(Math.min(50, total - offset));
+  }
+  expect(screen.getByRole("button", { name: "Next" })).toHaveAttribute("aria-disabled", "true");
+  if (total > 50) {
+    await user.click(screen.getByRole("button", { name: "Previous" }));
+    await waitFor(() => expect(loader).toHaveBeenLastCalledWith(expect.objectContaining({ offset: Math.floor((total - 1) / 50) * 50 - 50 }), expect.any(AbortSignal)));
+  }
+}, 20000);
+
+test("term change resets an advanced page", async () => {
+  const loader = pagedLoader(143);
+  const { user } = await renderLoadedApp(loader);
+  await user.click(screen.getByRole("button", { name: "Next" }));
+  await screen.findAllByText("Showing 51–100 of 143 sections");
+  await user.selectOptions(screen.getByLabelText("Term"), "202608");
+  await waitFor(() => expect(loader).toHaveBeenLastCalledWith(expect.objectContaining({ term: "202608", offset: 0 }), expect.any(AbortSignal)));
+});
+
+test("many API subjects and arbitrary exact course codes", async () => {
+  const loader = pagedLoader(143);
+  const subjects = Array.from({ length: 150 }, (_, i) => ({ subject: `S${i}` }));
+  const { user } = await renderLoadedApp(loader, async () => ({ ...metadata, subjects: [...subjects, { subject: "CHM" }] }));
+  expect(within(screen.getByLabelText("Subject")).getAllByRole("option")).toHaveLength(152);
+  await user.selectOptions(screen.getByLabelText("Subject"), "S149");
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "CHM 2045L" } });
+  await waitFor(() => expect(loader).toHaveBeenLastCalledWith(expect.objectContaining({ subject: "CHM", course_number: "2045L", limit: 50 }), expect.any(AbortSignal)));
+  const table = await screen.findByRole("table");
+  expect(within(table).getByText(largeItems[0].course_title)).toBeInTheDocument();
+  expect(within(table).getByText(largeItems[0].instructor)).toBeInTheDocument();
+  expect(within(table).getAllByText(/Extended interdisciplinary attribute 7/)).toHaveLength(50);
+});
+
+test("recovers an empty page when data shrinks", async () => {
+  const loader = vi.fn<RankingLoader>(async (query) => query.offset > 0 ? pageFor(query, [], 5) : pageFor(query, largeItems.slice(0, 5), 51));
+  const { user } = await renderLoadedApp(loader);
+  await user.click(screen.getByRole("button", { name: "Next" }));
+  await waitFor(() => expect(loader).toHaveBeenCalledTimes(3));
+  expect(loader).toHaveBeenLastCalledWith(expect.objectContaining({ offset: 0 }), expect.any(AbortSignal));
+  await screen.findByRole("table");
+});
+
+test("late responses cannot replace a newer search, even if abort is ignored", async () => {
+  let finishOld!: (page: RankingsSearchResponse) => void;
+  const loader = vi.fn<RankingLoader>().mockImplementationOnce(() => new Promise((resolve) => { finishOld = resolve; })).mockImplementation(async (query) => pageFor(query, [largeItems[1]]));
+  render(<App rankingLoader={loader} metadataLoader={resolvedMetadataLoader} />);
+  await waitFor(() => expect(loader).toHaveBeenCalledOnce());
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "CHM2045L" } });
+  await screen.findByRole("table");
+  await act(async () => finishOld({ items: [largeItems[0]], total: 1, offset: 0, limit: 50 }));
+  expect(screen.queryByText(largeItems[0].course_title)).not.toBeInTheDocument();
+  expect(screen.getAllByText(largeItems[1].course_title)).toHaveLength(2);
+});
+
+test("old rows disappear while a changed query is pending", async () => {
+  const loader = vi.fn<RankingLoader>().mockImplementationOnce(async (query) => pageFor(query)).mockImplementation(() => new Promise(() => {}));
+  await renderLoadedApp(loader);
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "CHM2045L" } });
+  expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  expect(screen.getByRole("status", { name: "Loading course rankings" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Next" })).toHaveAttribute("aria-disabled", "true");
+});
+
+
+test("pagination keeps keyboard focus and blocks duplicate pending requests", async () => {
+  let finish!: (page: RankingsSearchResponse) => void;
+  const loader = vi.fn<RankingLoader>().mockImplementationOnce(async (query) => pageFor(query, largeItems.slice(0, 50), 143)).mockImplementation(() => new Promise((resolve) => { finish = resolve; }));
+  const { user } = await renderLoadedApp(loader);
+  const next = screen.getByRole("button", { name: "Next" });
+  next.focus();
+  await user.keyboard("{Enter}");
+  expect(next).toHaveFocus();
+  expect(next).toHaveAttribute("aria-disabled", "true");
+  await user.keyboard("{Enter}");
+  expect(loader).toHaveBeenCalledTimes(2);
+  await act(async () => finish({ items: largeItems.slice(50, 100), total: 143, offset: 50, limit: 50 }));
+  expect(next).toHaveFocus();
+  expect(next).toHaveAttribute("aria-disabled", "false");
+});
+
+test("an unfiltered empty term has its own state", async () => {
+  render(<App rankingLoader={pagedLoader(0)} metadataLoader={resolvedMetadataLoader} />);
+  expect(await screen.findByRole("heading", { name: "No sections available for Spring 2028" })).toBeInTheDocument();
+  expect(screen.getByText("This term is listed by the API but has no searchable section data.")).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Reset filters" })).not.toBeInTheDocument();
 });
