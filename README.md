@@ -1,9 +1,10 @@
 # Easy-A
 
-> **Scope note:** This README describes the **current local beta**, not the target scope.
-> An MVP build is planned in [`.planning/ROADMAP.md`](.planning/ROADMAP.md) (8 phases) that
-> adds verified RateMyProfessors links, email seat alerts, and production deployment —
-> features described as excluded below. For current position start at
+> **Scope note:** This README describes the **current local beta**, which is accurate for what
+> runs today. Planning for the work ahead lives in [`.planning/`](.planning/) — current planning
+> phase is **Sprint 5**: broader configurable course coverage, near-live seat freshness, and
+> deployment-safe configuration. RateMyProfessors links and seat alerts are candidate later
+> phases, not current scope. For current position start at
 > [`.planning/STATE.md`](.planning/STATE.md); AI agents start at [`AGENTS.md`](AGENTS.md).
 
 Easy-A is a course-intelligence tool for University of South Florida Tampa students.
@@ -87,8 +88,9 @@ npm run build
 ```
 
 This V1 has no authentication, accounts, RateMyProfessors data, LLM features,
-or deployment configuration. (Target scope differs — RateMyProfessors links, email
-alerts and deployment are planned in [`.planning/ROADMAP.md`](.planning/ROADMAP.md).)
+or deployment configuration. Deployment preparation is in current Sprint 5 scope;
+RateMyProfessors links are a candidate later phase. See
+[`.planning/ROADMAP.md`](.planning/ROADMAP.md).
 
 ## Local Beta Smoke Test
 

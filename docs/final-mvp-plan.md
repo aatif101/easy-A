@@ -1,5 +1,16 @@
 # Easy-A final MVP: evidence, policies, and seat alerts
 
+> **STATUS: PROPOSAL — NOT CONFIRMED SCOPE (annotated 2026-09-08).**
+> This document is design thinking from an earlier planning conversation. It is retained as input,
+> not as a record of approved decisions. Four of its positions are explicitly **not adopted**:
+> email seat alerts as required scope, verified RMP links as required scope, a grade-only scoring
+> rewrite, and all offered USF Tampa sections as launch scope. The existing scoring model is
+> preserved as the current baseline; alerts and RMP are candidate later phases; broader coverage
+> is an expansion target subject to validation.
+> Authoritative current scope: `.planning/PROJECT.md`, `.planning/REQUIREMENTS.md`,
+> `.planning/ROADMAP.md`. Current planning phase is **Sprint 5**.
+
+
 Status: proposed implementation plan, prepared September 5, 2026. This is a handoff for GSD Core, not a claim that the MVP has shipped. Reader: the developer or GSD agent taking the existing application through a usable public release.
 
 Companion documents: [UI contract](final-mvp-ui-spec.md), [GSD Core starting prompt](gsd-core-mvp-prompt.md), and [ingestion manifest](gsd-mvp-manifest.yaml).

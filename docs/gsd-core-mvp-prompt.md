@@ -1,5 +1,16 @@
 # Ready-to-paste GSD Core prompt
 
+> **STATUS: PROPOSAL — NOT CONFIRMED SCOPE (annotated 2026-09-08).**
+> This document is design thinking from an earlier planning conversation. It is retained as input,
+> not as a record of approved decisions. Four of its positions are explicitly **not adopted**:
+> email seat alerts as required scope, verified RMP links as required scope, a grade-only scoring
+> rewrite, and all offered USF Tampa sections as launch scope. The existing scoring model is
+> preserved as the current baseline; alerts and RMP are candidate later phases; broader coverage
+> is an expansion target subject to validation.
+> Authoritative current scope: `.planning/PROJECT.md`, `.planning/REQUIREMENTS.md`,
+> `.planning/ROADMAP.md`. Current planning phase is **Sprint 5**.
+
+
 Paste the block below into GSD Core while working in this repository. Keep the companion plan and UI contract available in the implementation checkout. This starts planning and execution in GSD Core; the current planning task has not executed the application changes.
 
 ```text

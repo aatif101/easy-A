@@ -1,5 +1,16 @@
 # Easy-A final MVP UI contract
 
+> **STATUS: PROPOSAL — NOT CONFIRMED SCOPE (annotated 2026-09-08).**
+> This document is design thinking from an earlier planning conversation. It is retained as input,
+> not as a record of approved decisions. Four of its positions are explicitly **not adopted**:
+> email seat alerts as required scope, verified RMP links as required scope, a grade-only scoring
+> rewrite, and all offered USF Tampa sections as launch scope. The existing scoring model is
+> preserved as the current baseline; alerts and RMP are candidate later phases; broader coverage
+> is an expansion target subject to validation.
+> Authoritative current scope: `.planning/PROJECT.md`, `.planning/REQUIREMENTS.md`,
+> `.planning/ROADMAP.md`. Current planning phase is **Sprint 5**.
+
+
 Status: proposed UI contract for the [final MVP plan](final-mvp-plan.md), September 5, 2026. Implement within the existing React/TypeScript/Vite/Tailwind application. This specifies the finished flows; it is not a rendered design or a claim of visual verification.
 
 ## 1. Product hierarchy and visual direction

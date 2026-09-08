@@ -1,17 +1,10 @@
 ---
-gsd_state_version: 1.0
-current_phase: 01
-current_phase_name: Baseline, Scope and Contracts
+gsd_state_version: '1.0'
 status: planning
-stopped_at: Phase 1 context captured from this conversation; research and plan creation in progress.
-last_updated: "2026-09-08T15:55:15.547Z"
-last_activity: 2026-09-08
-last_activity_desc: User confirmed all Tampa offerings for Spring 2027 only,
-state_head: 02688302cdea5c8f1d2288fb66498686c0deaa45
 progress:
-  total_phases: 8
+  total_phases: 2
   completed_phases: 0
-  total_plans: 5
+  total_plans: 0
   completed_plans: 0
   percent: 0
 ---
@@ -24,106 +17,95 @@ See: .planning/PROJECT.md (updated 2026-09-08)
 
 **Core value:** Every number a student sees is a real observed outcome with a visible denominator,
 a named source and a timestamp — and when the evidence does not exist, the product says so instead
-of producing a plausible-looking score.
-**Current focus:** Phase 1 — Baseline, Scope and Contracts
+of producing a plausible-looking result.
+
+**Current focus:** Phase 1 — Sprint 5: Coverage Expansion, Seat Freshness, Deployment-Safe
+Configuration
 
 ## Current Position
 
-Phase: 01 (Baseline, Scope and Contracts) — READY TO EXECUTE
+Phase: 1 of 2 (Sprint 5)
 Plan: 0 of TBD in current phase
-Status: Planning in progress
-Last activity: 2026-09-08 — User confirmed all Tampa offerings for Spring 2027 only,
-research-first planning, and reuse of completed work. Captured Phase 1 context; no implementation performed.
+Status: Ready to plan
+Last activity: 2026-09-08 — Roadmap and requirements restructured to match the actual project
+sequence. The earlier eight-phase greenfield MVP structure was replaced, and scope that had been
+recorded as locked without confirmation (email alerts, RMP, a scoring rewrite, campus-wide launch
+coverage) was corrected. No implementation performed; no application code changed.
 
 Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
-
 - Total plans completed: 0
 - Average duration: —
 - Total execution time: —
 
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| - | - | - | - |
-
 **Recent Trend:** No plans executed yet.
-
-*Updated after each plan completion*
 
 ## Accumulated Context
 
+### Baseline
+
+Easy-A is a working application, not a prototype. FastAPI backend, React/TypeScript frontend,
+PostgreSQL, real Spring 2027 schedule ingestion, real historical grade imports, and a validated
+real-data beta covering `MAC 1105` and `ENC 1101` with high-confidence historical analytics, GenEd
+metadata, seat snapshots and a data-quality pipeline. API and frontend smoke-tested end to end.
+
+**Measured test baseline (2026-09-08, this worktree): 166 Python tests and 19 frontend tests
+passing.** All Python tests run on SQLite while the deployment target is PostgreSQL 16.
+
 ### Decisions
 
-18 LOCKED decisions (D-ADR-01..18) live in the PROJECT.md `<decisions>` block, all from
-`docs/gsd-core-mvp-prompt.md`. Most load-bearing for Phase 1 planning:
+Constraints that govern the work live in the PROJECT.md `<decisions>` block (D-01..D-18). The
+load-bearing ones for Sprint 5 planning:
 
-- D-ADR-13: start from current `origin/main` in a safe branch/worktree; preserve untracked work
-- OQ-01 resolved (user confirmation, 2026-09-08): implementation stays in worktrees off
-  `origin/main` (freshly fetched at `06634490`). Leave local `main` and its untracked files
-  alone until developer 1 merges. Continue Phase 1 planning on `claude/gsd-onboard-774626`
-  in this worktree, keeping planning commits in the same PR as onboarding.
+- D-02: the existing scoring model is preserved as the baseline — no rewrite is approved
+- D-05: seat observation age must be visible; a failed request must not advance the success
+  timestamp or fabricate a zero count
+- D-06: no fabricated data, including no production synthetic fallback and no invented coverage
+  figures
+- D-14 / D-15: Sprint 5 scope and its explicit exclusions
+- D-16 / D-17 / D-18: alerts, RMP and broader launch coverage are deferred, not committed
 
-- D-ADR-15: eight delivery outcomes in sequence — one milestone, not eight MVPs
-- Launch scope confirmed: all offered USF Tampa sections in Spring 2027 (`202701`) only.
-  Samples validate the pipeline; they do not limit final coverage. Missing evidence never hides a section.
-  Reuse completed work and research only gaps; see Phase 1 `01-CONTEXT.md` for D-01 through D-07.
+### Corrections applied 2026-09-08
 
-- D-ADR-02 / D-ADR-03: grade ease is grade-only; a prior may adjust real evidence, never replace it
-- D-ADR-12 (locked *default* set): k=60, 20-outcome score floor, 60-outcome professor threshold,
-  5-minute watched cadence, one-alert-then-rearm — revisable only with documented evidence
+The ingested handoff documents were treated as confirmed product decisions during onboarding. They
+are proposals. Four claims were corrected and are no longer recorded as locked or user-confirmed:
 
-- D-ADR-18: done means deployed, real-data, verified email journey — not a roadmap or a fixture demo
+| Claim | Corrected to |
+|-------|--------------|
+| Email seat alerts are required MVP scope | Candidate later phase, after near-live seat refresh and hosted beta stability |
+| Verified RMP links are required MVP scope | Deferred until after hosted beta and core data stability; not a beta blocker |
+| Replace the score with a grade-only v2 formula | Existing scoring model preserved as baseline; methodology review is optional research only |
+| All offered USF Tampa sections are the launch scope | Validated coverage is `MAC 1105` + `ENC 1101`; broader coverage is an expansion target subject to validation |
 
-Project-level decisions (PROJECT.md Key Decisions): preserve the source PRD's 8-phase structure
-and dependency graph rather than applying GSD `standard` granularity; keep the three uses of "60"
-as independently testable rules; treat PostgreSQL tests and CI as net-new builds.
-
-### Pending Todos
-
-None yet.
+The eight-phase delivery sequence built on those claims was replaced by the Sprint 5 → hosted beta
+roadmap. Phase planning artifacts produced under the old structure are archived at
+`.planning/phases/_superseded/` with an explanation.
 
 ### Blockers/Concerns
 
-Four open questions remain for Phase 1 (full text: PROJECT.md "Open Questions"). OQ-01 is
-resolved and no longer blocks planning. The primary checkout remains at `d880d3c` with untracked
-work: **do not check out, merge or fast-forward local `main`.** OQ-02 and OQ-03 remain unresolved
-scope decisions from `.planning/INGEST-CONFLICTS.md`:
+No blockers for Sprint 5 planning.
 
-- **OQ-02**: All sampled Spring 2027 Tampa sections show instructor `Staff` (5 MAC 1105 + 41
-  ENC 1101). Threatens REQ-RMP-01 coverage and Phase 3's exit criterion. Inventory named-instructor
-  coverage in Phase 1 before restating that criterion.
+Open questions (full text: PROJECT.md "Open Questions"):
+- **OQ-03**: how broadly coverage can expand while keeping refresh sustainable and search
+  performance acceptable — answered by measurement during Sprint 5 / Phase 2
+- **OQ-04**: whether real InfoCenter exports carry suppression markers, or blank genuinely means
+  zero. `src/easy_a/grades/parser.py` converts every blank cell to `0` unconditionally. Needs a
+  real or sample export; owner is whoever holds ODS/registrar access.
+- **OQ-05**: deployment host and domain, needed before the hosted beta
 
-- **OQ-03**: No current-term syllabus found for either sampled course. The historical-source path
-  is likely **primary**, not a fallback, for REQ-POLICY-01. Order Phase 3 acceptance cases
-  accordingly.
-
-- **OQ-04**: Baseline test count conflict — PRD says 166 Python at `06634490`, codebase map says
-  ~154 at `894da473`. ADR-16 locks the baseline, so resolve the exact number in Phase 1.
-
-- **OQ-05**: Unsupplied external dependencies — real grade exports and their terms,
-  deployment host and domain, email provider and sender-domain DNS, designated
-  test inbox. Blocks Phases 5, 7, 8. Identify in Phase 1; do not purchase services.
-
-Baseline defects to resolve rather than paper over (evidence in `.planning/codebase/CONCERNS.md`):
-dual seat source of truth (Phase 4), the 7.8/10-from-nothing composite (Phase 2), `course_id`
-null on grade import (Phase 2), silent frontend fixture fallback (Phase 6).
-
-## Deferred Items
-
-| Category | Item | Status | Deferred At | Milestone |
-|----------|------|--------|-------------|-----------|
-| *(none)* | | | | |
+Baseline observations to respect rather than paper over (evidence in `.planning/codebase/`):
+silent frontend fixture fallback when `VITE_API_BASE_URL` is unset (Sprint 5, REQ-CONFIG-01);
+two seat sources of truth that can make a stale column look current (Sprint 5, REQ-SEAT-01);
+`course_id` null on grade import and term/CRN/source dedup safety (watch during expansion);
+search ranking every section before pagination (measure at broader coverage).
 
 ## Session Continuity
 
 Last session: 2026-09-08
-Stopped at: Phase 1 context captured from this conversation; research and plan creation in progress.
-No phase executed or implemented.
+Stopped at: Planning documents corrected and restructured. No phase planned or executed under the
+new roadmap.
 Resume file: None
-Next action: Continue the active `/gsd-plan-phase 1` with existing documents and research first.
-Keep planning commits on `claude/gsd-onboard-774626`; do not repeat onboarding or confirmed scope questions.
+Next action: `/gsd-plan-phase 1` — plan Sprint 5 against the corrected roadmap.

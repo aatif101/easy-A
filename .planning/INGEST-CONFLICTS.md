@@ -1,5 +1,22 @@
 ## Conflict Detection Report
 
+> **STATUS — SUPERSEDED IN PART (2026-09-08).** This report records what the ingested handoff
+> documents *said* and how their internal conflicts were resolved. It is accurate as a record of
+> that ingest. It is **not** a record of confirmed product decisions.
+>
+> The ingest treated `docs/gsd-core-mvp-prompt.md` as a locked ADR because it carries a
+> "LOCKED RULES" heading. That document is a proposal from an earlier planning conversation, and
+> four of its claims were never confirmed: email seat alerts as required scope, verified RMP links
+> as required scope, a grade-only scoring rewrite, and all offered USF Tampa sections as launch
+> scope. Those are corrected in `.planning/PROJECT.md` — alerts and RMP are candidate later
+> phases, the existing scoring model is preserved as the baseline, and broader coverage is an
+> expansion target subject to validation.
+>
+> The conflict *analysis* below remains useful: the code findings it verified are real, and the
+> precedence reasoning is sound given its inputs. Read the resolutions as "what follows from those
+> documents", not as "what the project has committed to".
+
+
 Operation: ingest. Mode: new. Precedence: ADR > SPEC > PRD > DOC, with explicit
 per-doc ranks 0/1/2/3 supplied by docs/gsd-mvp-manifest.yaml.
 
