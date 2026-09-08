@@ -1,5 +1,7 @@
-import { syntheticRankings } from "../fixtures/rankings";
+import { syntheticCoverage, syntheticRankings } from "../fixtures/rankings";
 import type {
+  CoverageLoader,
+  CourseCoverage,
   DeliveryMethodMetadata,
   GenEdAttributeMetadata,
   MetadataLoader,
@@ -163,4 +165,12 @@ export const fetchRankings: RankingLoader = async (query, signal) => {
     }
   }
   return fetchJson<RankingsSearchResponse>(url, signal);
+};
+
+
+export const fetchCoverage: CoverageLoader = async (term, signal) => {
+  if (isUsingMockData) return term === "202701" ? syntheticCoverage : [];
+  const url = endpointUrl("/api/v1/metadata/coverage");
+  url.searchParams.set("term", term);
+  return fetchJson<CourseCoverage[]>(url, signal);
 };

@@ -12,6 +12,11 @@ import type {
   RankingsSearchResponse,
 } from "./types/rankings";
 
+vi.mock("./api/rankings", async (importOriginal) => ({
+  ...await importOriginal<typeof import("./api/rankings")>(),
+  fetchCoverage: async () => [],
+}));
+
 const metadata: RankingMetadata = {
   terms: [
     { term: "202801", term_name: "Spring 2028", year: 2028, season: "Spring" },
@@ -145,7 +150,7 @@ describe("course ranking page", () => {
 
   test("renders unknown seats safely", async () => {
     const { table } = await renderLoadedApp();
-    expect(within(rowForCrn(table, "17205")).getByText("Unknown")).toBeInTheDocument();
+    expect(within(rowForCrn(table, "17205")).getByText("Seat availability unavailable")).toBeInTheDocument();
   });
 
   test("renders a blank current instructor assignment as Staff", async () => {
@@ -302,4 +307,19 @@ test("an unfiltered empty term has its own state", async () => {
   expect(await screen.findByRole("heading", { name: "No sections available for Spring 2028" })).toBeInTheDocument();
   expect(screen.getByText("This term is listed by the API but has no searchable section data.")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Reset filters" })).not.toBeInTheDocument();
+});
+
+
+test("coverage failure does not block server search or stale open seats", async () => {
+  const user = userEvent.setup();
+  const stale = { ...syntheticRankings[0], seats: { ...syntheticRankings[0].seats, seats_remaining: 3, freshness: "stale" as const } };
+  const loader = vi.fn<RankingLoader>(async query => pageFor(query, [stale]));
+  render(<App rankingLoader={loader} metadataLoader={resolvedMetadataLoader} coverageLoader={async () => { throw new Error("offline"); }} />);
+  await screen.findByRole("table");
+  expect(await screen.findByText("Coverage information unavailable. You can still search sections.")).toBeVisible();
+  await user.click(screen.getByLabelText("Open seats only"));
+  await waitFor(() => expect(loader).toHaveBeenLastCalledWith(expect.objectContaining({ seats_open: true }), expect.any(AbortSignal)));
+  const table = await screen.findByRole("table");
+  expect(within(table).getByText("3 seats open")).toBeVisible();
+  expect(within(table).getByText("Stale")).toBeVisible();
 });

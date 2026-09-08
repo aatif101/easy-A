@@ -168,3 +168,33 @@ test.each([undefined, "false", "TRUE", "1"])("production without URL and mock fl
   await expect(fetchMetadata()).rejects.toThrow("API configuration unavailable");
   expect(fetchMock).not.toHaveBeenCalled();
 });
+
+
+test("coverage client uses term query and canonical response", async () => {
+  vi.stubEnv("VITE_API_BASE_URL", "https://api.example.test");
+  const payload = [{ subject: "CHM", course_number: "2045L", catalog_present: true, section_count: 2, latest_observed_at: null, status: "observed" }];
+  const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(payload)));
+  vi.stubGlobal("fetch", fetchMock);
+  const { fetchCoverage } = await import("./rankings");
+  expect(await fetchCoverage("202801")).toEqual(payload);
+  expect(String(fetchMock.mock.calls[0][0])).toBe("https://api.example.test/api/v1/metadata/coverage?term=202801");
+});
+
+test("coverage failures never fall back to fixture targets", async () => {
+  vi.stubEnv("VITE_API_BASE_URL", "https://api.example.test");
+  vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockRejectedValue(new Error("offline")));
+  const { fetchCoverage } = await import("./rankings");
+  await expect(fetchCoverage("202701")).rejects.toThrow("offline");
+});
+
+test("explicit mock coverage includes missing and observed examples", async () => {
+  vi.stubEnv("VITE_USE_MOCK_DATA", "true");
+  const fetchMock = vi.fn();
+  vi.stubGlobal("fetch", fetchMock);
+  const { fetchCoverage } = await import("./rankings");
+  const result = await fetchCoverage("202701");
+  expect(result.some(item => item.status === "observed")).toBe(true);
+  expect(result.some(item => !item.catalog_present)).toBe(true);
+  expect(result.some(item => item.catalog_present && item.status === "missing")).toBe(true);
+  expect(fetchMock).not.toHaveBeenCalled();
+});

@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { fetchMetadata, fetchRankings, isUsingMockData } from "./api/rankings";
+import { fetchCoverage, fetchMetadata, fetchRankings, isUsingMockData } from "./api/rankings";
+import { CoverageNotice } from "./components/CoverageNotice";
 import { FilterBar } from "./components/FilterBar";
 import { EmptyRankings } from "./components/EmptyRankings";
 import { RankingTable } from "./components/RankingTable";
 import { SYNTHETIC_FIXTURE_NOTICE } from "./fixtures/rankings";
 import type {
+  CoverageLoader,
   MetadataLoader,
   RankingLoader,
   RankingMetadata,
@@ -21,6 +23,7 @@ import {
 const PAGE_SIZE = 50;
 
 interface AppProps {
+  coverageLoader?: CoverageLoader;
   rankingLoader?: RankingLoader;
   metadataLoader?: MetadataLoader;
   mockMode?: boolean;
@@ -33,6 +36,7 @@ const newestTerm = (metadata: RankingMetadata): string | null => {
 const emptyPage: RankingsSearchResponse = { items: [], total: 0, limit: PAGE_SIZE, offset: 0 };
 
 export default function App({
+  coverageLoader = fetchCoverage,
   rankingLoader = fetchRankings,
   metadataLoader = fetchMetadata,
   mockMode = isUsingMockData,
@@ -193,6 +197,7 @@ export default function App({
       <main id="main-content" className="mx-auto max-w-[1500px] px-4 py-7 md:px-6 md:py-10" tabIndex={-1}>
         {metadata && term ? (
           <>
+            <CoverageNotice key={term} term={term} subject={query?.subject} courseNumber={query?.course_number} loader={coverageLoader} />
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
                 <p className="eyebrow">Ranked sections</p>

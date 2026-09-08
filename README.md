@@ -98,8 +98,16 @@ is loaded. Empty searches do not establish whether a course is offered or covere
 It accepts ISO timestamps with an explicit timezone, returns `Unavailable` for
 missing/invalid input, permits an injected millisecond clock, and formats absolute
 times in UTC. Future timestamps clamp to `just now`; older values use minutes,
-hours, or days. Seat-row integration is deferred until the canonical backend
-observation timestamp contract is established.
+hours, or days. Rows, cards, and expanded details display `seats.freshness` as
+provided by the backend and use `seats.observed_at` for relative text and an
+absolute UTC tooltip. The frontend does not calculate freshness thresholds.
+Stale counts remain visible, null counts stay unavailable, negative counts show
+over-enrollment, and waitlist spots are labeled separately from registration seats.
+
+The client also loads `/api/v1/metadata/coverage?term=<term>` once per selected
+term. Exact configured-course searches can show missing catalog or missing
+section observations. Absent targets do not block arbitrary searches, and coverage
+failures are announced with a retry while ranking search remains available.
 
 This V1 has no authentication, accounts, RateMyProfessors data, LLM features,
 or deployment configuration.
