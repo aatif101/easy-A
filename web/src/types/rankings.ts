@@ -21,7 +21,12 @@ export interface ModalityInfo {
   provenance: RankingProvenance;
 }
 
+export type SeatFreshness = "fresh" | "aging" | "stale" | "unavailable";
+
 export interface SeatInfo {
+  observed_at: string | null;
+  freshness: SeatFreshness;
+  age_seconds: number | null;
   capacity: number | null;
   enrollment: number | null;
   seats_remaining: number | null;
@@ -143,3 +148,15 @@ export interface RankingMetadata {
 }
 
 export type MetadataLoader = (signal?: AbortSignal) => Promise<RankingMetadata>;
+
+
+export interface CourseCoverage {
+  subject: string;
+  course_number: string;
+  catalog_present: boolean;
+  section_count: number;
+  latest_observed_at: string | null;
+  status: "missing" | "observed";
+}
+
+export type CoverageLoader = (term: string, signal?: AbortSignal) => Promise<CourseCoverage[]>;

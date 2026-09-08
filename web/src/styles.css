@@ -106,3 +106,9 @@ select {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* Keep long metadata inside narrow cards, grid tracks, and table cells. */
+.filter-label { min-width: 0; }
+article, td, .detail-panel { overflow-wrap: anywhere; }
+.detail-panel div { min-width: 0; }
+input[type="range"] { min-width: 0; }

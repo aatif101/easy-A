@@ -80,6 +80,9 @@ def test_rank_section_cli_outputs_synthetic_spring_2027_fixture(
         "  },\n"
         '  "seats_remaining": 12,\n'
         '  "seats": {\n'
+        '    "observed_at": null,\n'
+        '    "freshness": "unavailable",\n'
+        '    "age_seconds": null,\n'
         '    "capacity": 30,\n'
         '    "enrollment": 18,\n'
         '    "seats_remaining": 12,\n'

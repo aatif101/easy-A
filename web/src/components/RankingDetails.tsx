@@ -34,10 +34,13 @@ export function RankingDetails({ ranking, id }: { ranking: SectionRanking; id: s
         <div><dt>Effective sample</dt><dd>{Math.round(ranking.effective_n)} grades</dd></div>
         <div><dt>Confidence</dt><dd><ConfidenceBadge value={ranking.confidence_label} />{ranking.confidence_label === "low" ? <span className="mt-1 block text-xs font-semibold text-amber-900">Based on limited historical data.</span> : null}</dd></div>
         <div><dt>Score source</dt><dd>{scoreSourceLabel(ranking.score_source)}</dd></div>
-        <div><dt>Seats</dt><dd><SeatBadge ranking={ranking} /></dd></div>
-        <div><dt>Enrollment</dt><dd>{ranking.seats.enrollment ?? "Unknown"} / {ranking.seats.capacity ?? "Unknown"}</dd></div>
-        <div><dt>Waitlist seats</dt><dd>{ranking.seats.wait_seats_available ?? "Unknown"}</dd></div>
       </dl>
+      <section className="mt-5 rounded-md border border-rule p-3" aria-label="Seat observation details">
+        <SeatBadge ranking={ranking} />
+        {ranking.seats.enrollment !== null || ranking.seats.capacity !== null ? (
+          <p className="mt-2 text-xs text-stone-600">Enrollment / capacity: {ranking.seats.enrollment ?? "Unavailable"} / {ranking.seats.capacity ?? "Unavailable"}</p>
+        ) : null}
+      </section>
       <p className="mt-4 text-xs font-semibold text-stone-600">{seatSourceLabel(ranking)}{ranking.seats.provenance.detail ? ` — ${ranking.seats.provenance.detail}` : ""}</p>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.5fr_1fr]">

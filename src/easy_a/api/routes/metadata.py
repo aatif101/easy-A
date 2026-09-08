@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from sqlalchemy import select
 
 from easy_a.api.dependencies import DbSession
@@ -11,6 +11,8 @@ from easy_a.api.schemas import (
     TermMetadata,
 )
 from easy_a.models import Course, CourseAttribute, Section, Term
+from easy_a.refresh.coverage import TargetCoverage, coverage_metadata
+from easy_a.refresh.targets import load_targets
 from easy_a.schedule.normalize import DELIVERY_METHOD_LABELS
 
 router = APIRouter(prefix="/api/v1/metadata", tags=["metadata"])
@@ -32,9 +34,7 @@ def list_terms(session: DbSession) -> list[TermMetadata]:
 
 @router.get("/subjects", response_model=list[SubjectMetadata])
 def list_subjects(session: DbSession) -> list[SubjectMetadata]:
-    subjects = session.execute(
-        select(Course.subject).distinct().order_by(Course.subject)
-    ).scalars()
+    subjects = session.execute(select(Course.subject).distinct().order_by(Course.subject)).scalars()
     return [SubjectMetadata(subject=subject) for subject in subjects]
 
 
@@ -45,10 +45,7 @@ def list_gened_attributes(session: DbSession) -> list[GenEdAttributeMetadata]:
         .distinct()
         .order_by(CourseAttribute.attribute_code, CourseAttribute.attribute_label)
     )
-    return [
-        GenEdAttributeMetadata(code=code, label=label)
-        for code, label in rows
-    ]
+    return [GenEdAttributeMetadata(code=code, label=label) for code, label in rows]
 
 
 @router.get("/delivery-methods", response_model=list[DeliveryMethodMetadata])
@@ -64,3 +61,10 @@ def list_delivery_methods(session: DbSession) -> list[DeliveryMethodMetadata]:
         for code in codes
         if code is not None
     ]
+
+
+@router.get("/coverage", response_model=list[TargetCoverage])
+def get_coverage(
+    session: DbSession, term: str = Query(pattern=r"^\d{4}(01|05|08)$")
+) -> list[TargetCoverage]:
+    return coverage_metadata(session, term, load_targets().targets)

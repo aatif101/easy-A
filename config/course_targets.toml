@@ -1,0 +1,18 @@
+catalog_edition = "2026-2027"
+catalog_url_template = "https://cloud.usf.edu/academic-programs/details/prefix/{subject}/code/{number}"
+
+[[targets]]
+subject = "MAC"
+number = "1105"
+[[targets]]
+subject = "ENC"
+number = "1101"
+[[targets]]
+subject = "AMH"
+number = "2020"
+[[targets]]
+subject = "PSY"
+number = "2012"
+[[targets]]
+subject = "BSC"
+number = "1005"

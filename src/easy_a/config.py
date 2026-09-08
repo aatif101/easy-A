@@ -11,6 +11,13 @@ class Settings(BaseSettings):
         default="postgresql+psycopg://easy_a:easy_a@localhost:5432/easy_a",
         validation_alias="DATABASE_URL",
     )
+    course_targets_path: str = Field(
+        default="config/course_targets.toml", validation_alias="EASY_A_COURSE_TARGETS_PATH"
+    )
+    seat_fresh_seconds: int = Field(default=600, ge=0, validation_alias="EASY_A_SEAT_FRESH_SECONDS")
+    seat_stale_seconds: int = Field(
+        default=1800, ge=0, validation_alias="EASY_A_SEAT_STALE_SECONDS"
+    )
     echo_sql: bool = Field(default=False, validation_alias="EASY_A_ECHO_SQL")
     api_host: str = Field(default="127.0.0.1", validation_alias="EASY_A_API_HOST")
     api_port: int = Field(default=8000, validation_alias="EASY_A_API_PORT")
@@ -23,9 +30,7 @@ class Settings(BaseSettings):
 
     def allowed_frontend_origin_list(self) -> list[str]:
         return [
-            origin.strip()
-            for origin in self.allowed_frontend_origins.split(",")
-            if origin.strip()
+            origin.strip() for origin in self.allowed_frontend_origins.split(",") if origin.strip()
         ]
 
 

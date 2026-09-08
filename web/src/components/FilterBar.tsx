@@ -57,7 +57,7 @@ export function FilterBar({
             placeholder="MAC 1105 or 1105"
             onChange={(event) => update("courseSearch", event.target.value)}
           />
-          <span className="mt-1 block normal-case tracking-normal text-stone-500" id="course-search-help">Exact subject/course lookup</span>
+          <span className="mt-1 block normal-case tracking-normal text-stone-500" id="course-search-help">Exact subject/course lookup; a full code takes priority over Subject</span>
         </label>
 
         <label className="filter-label sm:col-span-2 lg:col-span-1">

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from datetime import datetime
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from easy_a.analytics.confidence import ConfidenceLabel, PriorLevel, ScoreSource
+from easy_a.schedule.freshness import SeatFreshness
 
 
 class RankingFreshness(StrEnum):
@@ -38,6 +40,9 @@ class ModalityInfo(BaseModel):
 
 
 class SeatInfo(BaseModel):
+    observed_at: datetime | None = None
+    freshness: SeatFreshness = SeatFreshness.unavailable
+    age_seconds: float | None = None
     capacity: int | None
     enrollment: int | None
     seats_remaining: int | None

@@ -1,5 +1,7 @@
-import { syntheticRankings } from "../fixtures/rankings";
+import { syntheticCoverage, syntheticRankings } from "../fixtures/rankings";
 import type {
+  CoverageLoader,
+  CourseCoverage,
   DeliveryMethodMetadata,
   GenEdAttributeMetadata,
   MetadataLoader,
@@ -15,9 +17,18 @@ import type {
 const trimTrailingSlash = (value: string): string => value.replace(/\/+$/, "");
 
 export const apiBaseUrl = trimTrailingSlash(import.meta.env.VITE_API_BASE_URL?.trim() ?? "");
-export const isUsingMockData = apiBaseUrl.length === 0;
+export const isUsingMockData = import.meta.env.VITE_USE_MOCK_DATA === "true";
 
-const endpointUrl = (path: string): URL => new URL(`${apiBaseUrl}${path}`);
+const endpointUrl = (path: string): URL => {
+  if (!apiBaseUrl) {
+    throw new Error("API configuration unavailable: set VITE_API_BASE_URL or explicitly enable VITE_USE_MOCK_DATA=true for synthetic development data.");
+  }
+  const url = new URL(`${apiBaseUrl}${path}`);
+  if (!['http:', 'https:'].includes(url.protocol)) {
+    throw new Error("VITE_API_BASE_URL must be an absolute HTTP(S) URL.");
+  }
+  return url;
+};
 
 const fetchJson = async <Result>(url: URL, signal?: AbortSignal): Promise<Result> => {
   const response = await fetch(url, {
@@ -154,4 +165,12 @@ export const fetchRankings: RankingLoader = async (query, signal) => {
     }
   }
   return fetchJson<RankingsSearchResponse>(url, signal);
+};
+
+
+export const fetchCoverage: CoverageLoader = async (term, signal) => {
+  if (isUsingMockData) return term === "202701" ? syntheticCoverage : [];
+  const url = endpointUrl("/api/v1/metadata/coverage");
+  url.searchParams.set("term", term);
+  return fetchJson<CourseCoverage[]>(url, signal);
 };
