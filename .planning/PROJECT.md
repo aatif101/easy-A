@@ -13,8 +13,9 @@ on the frontend. It has real Spring 2027 schedule ingestion, real historical gra
 configurable course coverage, seat freshness classification, GenEd metadata and a data-quality
 pipeline. The API and frontend have been smoke-tested end to end.
 
-**Current baseline: `origin/main` = `62fb2f189c8cac67a1500863f080e0f638469df1`** (Sprint 5 merged via PR #14 and
-PR #15; Tampa scope restriction via PR #16).
+**Current baseline: `origin/main` = `d72f8f3d77a11f301f2b74f56088a217226feefa`** (verified by
+fetch 2026-09-09; Sprint 5 merged via PR #14 and PR #15 and the Tampa scope restriction via
+PR #16, all at ancestor `62fb2f1` — every commit since is planning/docs only).
 
 **Sprint 5 and real-data expansion validation are both complete.**
 **Current activity: Tampa-only data correction — blocking. See "Current blocker" below.**
@@ -58,8 +59,12 @@ plausible-looking result.
 - ✓ Explicit mock opt-in — unset `VITE_API_BASE_URL` throws rather than serving fixtures
 - ✓ Tampa-only scope enforcement in coverage refresh — `campus="T"` pinned in the schedule query,
   non-Tampa rows rejected (PR #16)
-- ✓ **192 Python passed / 1 skipped and 78 frontend passed** (measured 2026-09-08 at `62fb2f1`;
-  the skip is the PostgreSQL integration test, which needs `EASY_A_TEST_POSTGRES_URL`)
+- ✓ Reviewable removal of stored sections outside the supported campus —
+  `scripts/cleanup_non_tampa_sections.py`, `src/easy_a/refresh/cleanup.py` (tooling only; not yet
+  run against the beta database)
+- ✓ **208 Python passed / 1 skipped and 78 frontend passed** (measured 2026-09-09 at `d72f8f3`
+  plus the cleanup tooling; was 192 / 1 at `62fb2f1`. The skip is the PostgreSQL integration
+  test, which needs `EASY_A_TEST_POSTGRES_URL`)
 - ✓ Strict quality gates: ruff (`B,C4,E,F,I,SIM,UP`), mypy `strict = true`, ESLint + `tsc -b`
 
 ### Sprint 5 — COMPLETE (merged, PR #14 + PR #15)
@@ -81,8 +86,10 @@ plausible-looking result.
 
 ### Current — Tampa-only data correction (blocking)
 
-- [ ] **REQ-DATA-02** — Remove the 47 non-Tampa Spring 2027 sections inserted by the first
-  expansion pass; clean Tampa refresh; verify API and coverage counts
+- [◐] **REQ-DATA-02** — Remove the 47 non-Tampa Spring 2027 sections inserted by the first
+  expansion pass; clean Tampa refresh; verify API and coverage counts. **Partial:** the removal
+  tooling is written and tested (`scripts/cleanup_non_tampa_sections.py`); it has not been run
+  against the beta database, so no count has changed yet.
 
 ### Next — historical grade coverage
 
@@ -132,8 +139,11 @@ separately reviewed cleanup."
 the verified Tampa total of 75.** Any coverage figure read from the running database today is
 wrong.
 
-No section-deletion tooling exists — `scripts/` holds ingest, refresh, analysis and quality
-commands only. The cleanup must be written and reviewed, not merely run.
+The removal tooling was written on 2026-09-09 — `scripts/cleanup_non_tampa_sections.py`, backed
+by `src/easy_a/refresh/cleanup.py` and covered by `tests/refresh/test_cleanup.py`. It reports
+without writing unless `--apply` is given, deletes by explicit primary key, and verifies after
+applying that no grade row and no kept-campus section was lost. **It has not been run against the
+beta database**, so the contaminated counts above are unchanged.
 
 ## Context
 
@@ -176,7 +186,7 @@ status" below — those documents are proposals, and several of their claims are
 | Scoring | Historical easiness score, shrinkage, confidence labels, fallback | **Unchanged — preserved as baseline** |
 | Seats | Freshness classification, seat-only refresh, API fields, freshness UI | — |
 | Frontend | Explicit mock opt-in, pagination hardening, coverage UX, relative timestamps | — |
-| Tests | 192 passed / 1 skipped Python, 78 frontend; PostgreSQL integration present but skippable | Widen PostgreSQL coverage (unscheduled) |
+| Tests | 208 passed / 1 skipped Python, 78 frontend; PostgreSQL integration present but skippable | Widen PostgreSQL coverage (unscheduled) |
 | CI | Nothing — no `.github/` directory | Net-new, Phase 2 |
 | Deployment | `docker-compose.yml` provisions PostgreSQL only | Minimal, portable (Phase 2) |
 
@@ -194,7 +204,8 @@ status" below — those documents are proposals, and several of their claims are
   the widened coverage rather than extrapolation from two courses
 - `src/easy_a/grades/parser.py` converts every blank cell to `0` with no suppression path.
   Unresolved: answering it needs a real or sample InfoCenter export.
-- 47 non-Tampa Spring 2027 sections remain stored — the current blocker (REQ-DATA-02)
+- 47 non-Tampa Spring 2027 sections remain stored — the current blocker (REQ-DATA-02). Removal
+  tooling now exists but has not been run against the beta database.
 - AMH 2020, PSY 2012 and BSC 1005 have no imported historical grade data; each falls back to a
   global prior with `effective_n = 0` (REQ-GRADES-01)
 - Grade import initializes `course_id` to null; grade rows are unique by term/CRN/**source**, so
@@ -277,13 +288,14 @@ Treat it as input, never as an approved requirement.
 - **D-09 [locked]:** Bounded, narrow requests to USF public sources. No broad crawling.
 - **D-10 [locked]:** Fetch and verify current `origin/main` before planning; work from branches or worktrees descended from it. Preserve untracked local work; do not check out, merge or fast-forward a local `main` you did not verify.
 - **D-11 [locked]:** Use GSD Core's `.planning/` structure, not GSD2 `.gsd/` conventions.
-- **D-12 [locked]:** Preserve the passing test baseline and update tests when semantics genuinely change. Measured 2026-09-09: 192 passed / 1 skipped without `EASY_A_TEST_POSTGRES_URL` (193 collected); 193 passed with PostgreSQL configured; 78 frontend passed. A default run does not use PostgreSQL — state both facts, not one.
+- **D-12 [locked]:** Preserve the passing test baseline and update tests when semantics genuinely change. Measured 2026-09-09 at `d72f8f3` plus the cleanup tooling: 208 passed / 1 skipped without `EASY_A_TEST_POSTGRES_URL` (209 collected); 78 frontend passed. A default run does not use PostgreSQL — state both facts, not one. The PostgreSQL-configured total was 193 at `62fb2f1` and has not been re-measured since; do not quote a current number for it.
 - **D-13 [locked]:** Never invent data coverage, source permissions, credential access or deployment completion. Identify missing external dependencies early and name an owner. Do not purchase services.
 
 ### Current sprint scope
 
 - **D-14 [complete]:** Sprint 5 delivered configurable course targets, one-pass coverage refresh, seat-only refresh, seat freshness classification and API fields, a coverage metadata endpoint, explicit frontend mock opt-in, pagination hardening, freshness UX and PostgreSQL integration coverage. Merged via PR #14 and PR #15 at `62fb2f1`.
 - **D-15 [current-scope]:** Real-data expansion validation is complete (2026-09-09). Current activity is Tampa-only data correction (REQ-DATA-02), then historical grade coverage for AMH/PSY/BSC, then hosted beta. Still excludes a scoring rewrite, email alerts, auth/accounts, RMP, LLM features, and provider-specific deployment infrastructure.
+- **D-21 [locked]:** Section deletion is an explicit, reviewable operator step. Any command that removes stored sections reports without writing by default, selects rows by stated criteria, deletes by explicit primary key rather than a broad `WHERE`, and verifies afterwards that historical grade rows and in-scope sections survived — aborting the transaction if they did not. No pipeline stage deletes sections implicitly.
 - **D-20 [locked]:** A global-prior fallback score is not course history. Never present a course with `effective_n = 0` as having evidence-backed historical analytics.
 - **D-19 [locked]:** Never commit raw grade export files.
 
@@ -319,4 +331,4 @@ Treat it as input, never as an approved requirement.
 | Demote the handoff docs to low-precedence archival inputs in the ingest manifest | Leaving `gsd-core-mvp-prompt.md` as a precedence-0 ADR meant any future `/gsd-ingest-docs` run could re-promote alerts, RMP, a scoring rewrite and campus-wide scope over current planning. | Applied 2026-09-08 |
 
 ---
-*Last updated: 2026-09-09 — real-data expansion validation recorded with measured results; the 47-section contamination recorded as the current blocker.*
+*Last updated: 2026-09-09 — Phase 2 removal tooling written and tested; the 47 rows are still stored and the blocker stands until the cleanup is run against the beta database.*

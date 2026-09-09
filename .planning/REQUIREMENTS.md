@@ -44,18 +44,22 @@ counts differ until the Phase 2 cleanup runs — see REQ-DATA-02.
 
 ### Current test baseline
 
-Measured 2026-09-09 on this branch (merged with `origin/main` = `62fb2f1`):
+Re-measured 2026-09-09 at `origin/main` = `d72f8f3` plus the Phase 2 cleanup tooling:
 
 | Condition | Result |
 |-----------|--------|
-| `uv run pytest -q`, no `EASY_A_TEST_POSTGRES_URL` | **192 passed, 1 skipped** (193 collected) |
-| Backend with PostgreSQL configured | **193 passed** (measured on the validation branch) |
+| `uv run pytest -q`, no `EASY_A_TEST_POSTGRES_URL` | **208 passed, 1 skipped** (209 collected) |
+| Backend with PostgreSQL configured | **not re-measured** — was 193 passed at `62fb2f1` |
 | Frontend `npm test` in `web/` | **78 passed** |
-| Quality gates | ruff, mypy, ESLint, typecheck, build — all passing |
+| Quality gates | `ruff check .`, `mypy src migrations scripts tests` — passing |
+
+The suite was 192 passed / 1 skipped before the cleanup tooling; the 16 added tests cover it.
 
 Both facts are true and both matter: **a default run does not use PostgreSQL** — most of the
 suite runs on SQLite and the PostgreSQL integration test skips unless `EASY_A_TEST_POSTGRES_URL`
-is set; with it set, all 193 pass. Do not state only one of these.
+is set; with it set, that test also runs. Do not state only one of these. The
+PostgreSQL-configured total has not been re-measured since the tooling landed — quote
+193-at-`62fb2f1` as the last measurement rather than a current number.
 
 ---
 
@@ -127,7 +131,7 @@ Kept for traceability. Verified present in code at `62fb2f1`.
 
 ## Current — Tampa-only data correction (blocking)
 
-- [ ] **REQ-DATA-02**: Stored, API and coverage counts reflect Tampa-only reality.
+- [◐] **REQ-DATA-02**: Stored, API and coverage counts reflect Tampa-only reality.
   *Context*: the first expansion pass ran before the campus-scope bug was found — configured
   refresh queried all campuses, and **47 non-Tampa Spring 2027 sections were inserted into the
   existing beta database**. PR #16 fixed the cause by pinning `campus="T"` and rejecting non-Tampa
@@ -140,9 +144,17 @@ Kept for traceability. Verified present in code at `62fb2f1`.
   coverage-endpoint counts; and explicit confirmation that **no historical grades and no Tampa
   sections were deleted** — the 237 grade rows and all 75 verified Tampa sections must survive
   intact. Stored, API and coverage counts must agree with each other.
-  *Note*: **no section-deletion tooling exists.** `scripts/` holds ingest, refresh, analysis and
-  quality commands only, and no code path deletes sections. This step has to be written and
-  reviewed, not just run.
+  *Progress (2026-09-09)*: the removal tooling is written, tested and documented —
+  `scripts/cleanup_non_tampa_sections.py`, `src/easy_a/refresh/cleanup.py`,
+  `src/easy_a/refresh/cleanup_cli.py`, 16 tests in `tests/refresh/test_cleanup.py`, and a README
+  section. It reports without writing unless `--apply` is given, selects by term and stored
+  campus, deletes by explicit primary key, refuses sections carrying a stored syllabus, and
+  aborts the transaction if stored grade rows change, a kept-campus section is lost, the number
+  removed differs from the number matched, or any other-campus section remains.
+  `--expect-removed N` refuses to proceed unless exactly `N` sections match.
+  *Outstanding*: **the tooling has not been run against the beta database** — that needs an
+  operator with database access. None of the acceptance numbers above has been measured, so this
+  requirement stays open and the blocker stands.
 
 ---
 

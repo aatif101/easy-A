@@ -684,3 +684,42 @@ test, set `EASY_A_TEST_POSTGRES_URL` to a test database URL with schema-creation
 permission, then run `uv run pytest`. That test creates a uniquely named schema in a
 transaction and rolls it back; it verifies coverage aggregation, snapshot history,
 and timestamp/id ordering on PostgreSQL. It is skipped when the URL is absent.
+
+## Removing sections from an unsupported campus
+
+Coverage refresh pins `campus="T"` and rejects non-Tampa rows before ingestion, but an
+earlier expansion pass ran before that fix and left other-campus sections stored. No other
+command deletes sections, so removal has its own reviewable step:
+
+```powershell
+uv run python scripts/cleanup_non_tampa_sections.py --term 202701
+uv run python scripts/cleanup_non_tampa_sections.py --term 202701 --apply --expect-removed 47
+uv run python scripts/cleanup_non_tampa_sections.py --term 202701 --apply --json
+```
+
+**The command reports without writing anything unless `--apply` is given.** Run it once
+without `--apply`, read the matched CRNs, then re-run with `--apply`.
+
+Selection criteria are exactly: sections in the requested term whose stored `campus` is not
+the `--keep-campus` value (default `Tampa`), compared case-insensitively after stripping.
+Matched sections are deleted by explicit primary key, never by a broad `WHERE` clause. Other
+terms are out of scope, and the command is a no-op on a second run.
+
+`--expect-removed N` refuses to proceed unless exactly `N` sections match, so an operator can
+assert the count they reviewed. The command also refuses when a matched section has a stored
+syllabus, because discarding syllabus rows needs a separate decision.
+
+Deleting a section cascades to that section's own seat snapshots and instructor observations.
+It never touches `grade_distributions`: grade rows join to sections by `(term, CRN)` and hold
+no section foreign key. After applying, the command re-measures and aborts the transaction if
+stored grade rows changed, if any kept-campus section was lost, if the number of rows removed
+differs from the number matched, or if any other-campus section remains.
+
+Both runs print stored counts before and after — sections per campus, seat snapshots,
+instructor observations, syllabi, grade rows for the term, and grade rows across all terms —
+so the cleanup result, the final Tampa-only counts, and the preservation of historical grades
+can be recorded from the command's own output. Use `--json` for a machine-readable record.
+
+Removing stored rows does not re-check the source. Follow a cleanup with
+`scripts/refresh_course_coverage.py`, then verify `GET /api/v1/metadata/coverage` and the
+`/api/v1/rankings/*` counts against the corrected data.
