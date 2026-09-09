@@ -20,34 +20,66 @@ imports, configurable course coverage, and seat freshness classification.
 | | |
 |---|---|
 | Baseline | `origin/main` = `62fb2f189c8cac67a1500863f080e0f638469df1` |
-| Sprint 5 | **Complete** — merged via PR #14 and PR #15, with a Tampa scope restriction in PR #16. Do not re-plan or re-implement it. |
-| Now | **Real-data expansion validation** — validate the five configured Spring 2027 targets against real ingestion |
-| Next | Hosted beta — deployment, CI, performance measurement, observability, operator runbook |
+| Sprint 5 | ✓ **Complete** — merged via PR #14 and PR #15. Do not re-plan or re-implement it. |
+| PR #16 | ✓ **Merged** — pins `campus="T"` and rejects non-Tampa rows before ingestion |
+| Real-data validation | ✓ **Complete** (2026-09-09) — five targets verified, **75 Tampa sections** |
+| **Now** | ⛔ **Tampa-only data correction — BLOCKING.** 47 non-Tampa rows still stored. |
+| Then | Historical grade imports for AMH 2020 → PSY 2012 → BSC 1005 |
+| Then | Hosted beta — deployment, CI, performance measurement, observability, runbook |
 
 Fetch and verify current `origin/main` before planning rather than trusting the SHA above.
 
+### ⛔ Current blocker — read before touching data
+
+The first expansion pass ran before the campus-scope bug was found: configured refresh queried all
+campuses and inserted **47 non-Tampa Spring 2027 sections** into the beta database. PR #16 fixed
+the cause but **did not remove the rows** — its merged description says they "remain visible in
+stored coverage/API counts until a separately reviewed cleanup."
+
+**Stored counts, API counts and `GET /api/v1/metadata/coverage` counts are therefore still
+contaminated and do not equal 75.** Any coverage figure read from the running database today is
+wrong. No section-deletion tooling exists in `scripts/` — the cleanup has to be written and
+reviewed.
+
+The cleanup must record: rows removed and the criteria used; final Tampa-only stored counts;
+final API counts; final coverage-endpoint counts; and explicit confirmation that **no historical
+grades and no Tampa sections were deleted** (237 grade rows and all 75 Tampa sections intact).
+
 ### Test baseline
 
-Measured 2026-09-08 at `62fb2f1`: **192 Python passed / 1 skipped**, **78 frontend passed**.
+Measured 2026-09-09 at `62fb2f1`:
 
-The skip is the PostgreSQL integration test, which skips when `EASY_A_TEST_POSTGRES_URL` is
-unset. PostgreSQL integration coverage exists but most of the suite still runs on SQLite — do not
-describe it as a PostgreSQL suite.
+| Condition | Result |
+|-----------|--------|
+| `uv run pytest -q`, no `EASY_A_TEST_POSTGRES_URL` | **192 passed, 1 skipped** (193 collected) |
+| Backend with PostgreSQL configured | **193 passed** |
+| Frontend `npm test` in `web/` | **78 passed** |
+
+Both facts are true: a **default run does not use PostgreSQL** — most of the suite runs on SQLite
+and the integration test skips unless `EASY_A_TEST_POSTGRES_URL` is set; with it set, all 193
+pass. Do not state only one.
 
 ### Configured course targets
 
 `config/course_targets.toml`, catalog edition 2026-2027:
 
-| Subject | Number | Status |
-|---------|--------|--------|
-| MAC | 1105 | Previously validated |
-| ENC | 1101 | Previously validated |
-| AMH | 2020 | Configured, **not validated** |
-| PSY | 2012 | Configured, **not validated** |
-| BSC | 1005 | Configured, **not validated** |
+Validated against real Spring 2027 data on 2026-09-09:
 
-**Configuration is not coverage.** Do not claim a target is covered until real ingestion
-validates it.
+| Course | Catalog | Verified Tampa sections | Historical grade data |
+|--------|---------|-------------------------|-----------------------|
+| MAC 1105 | present | 5 | Real data; high-confidence course analytics |
+| ENC 1101 | present | 41 | Real data; high-confidence course analytics |
+| AMH 2020 | present | 17 | **None** — global fallback, `effective_n = 0` |
+| PSY 2012 | present | 10 | **None** — global fallback, `effective_n = 0` |
+| BSC 1005 | present | 2 | **None** — global fallback, `effective_n = 0` |
+| **Verified Tampa total** | | **75** | |
+
+**Section coverage and grade coverage are different things.** All five have verified sections;
+only two have historical grade data. **The AMH / PSY / BSC fallback scores are not evidence-backed
+course history** — they are global priors with zero observed outcomes. Never present them as
+course history. Import priority: AMH 2020 → PSY 2012 → BSC 1005.
+
+75 is the *verified* Tampa count, not the *currently stored* count — see the blocker above.
 
 ## Hard constraints
 
@@ -61,6 +93,8 @@ validates it.
 - **No LLM or AI features.**
 - **No fabricated data or coverage.** Every figure carries a real source and a date. Report what
   failed rather than omitting it.
+- **A global-prior fallback is not course history.** Never present a course with `effective_n = 0`
+  as having evidence-backed historical analytics.
 - **Never commit raw grade export files.** The repo stores derived aggregates and provenance.
 - **Narrow, bounded requests to USF public sources.** No broad crawling.
 - **Preserve term + CRN identity**, source provenance and deduplication. Grade rows are unique by
@@ -98,25 +132,31 @@ restore them to ADR/PRD/SPEC.
 
 Real and unresolved. Do not paper over them, and do not treat them as licence to redesign:
 
-- **Ranking search cost at broader coverage** — `GET /api/v1/rankings/search` ranks sections
-  before slicing pagination. Measure during validation.
+- **47 non-Tampa sections stored** — the current blocker, above (REQ-DATA-02)
+- **No historical grades for AMH 2020, PSY 2012, BSC 1005** — global fallback, `effective_n = 0`
+  (REQ-GRADES-01)
+- **Search performance unmeasured at widened coverage** — `GET /api/v1/rankings/search` ranks
+  sections before slicing pagination; Phase 1 did not measure it (REQ-PERF-01)
 - **Blank grade-cell / suppression semantics** — `src/easy_a/grades/parser.py` converts every
   blank cell to `0` with no suppression path. Needs a real or sample InfoCenter export nobody
   currently has.
-- **Broader real-data coverage is unvalidated** — three of five configured targets have never
-  been ingested.
 - **Deployment host and domain** not yet supplied.
 
-Fixed in Sprint 5, do **not** re-plan: silent frontend fixture fallback, missing seat freshness
-contract, absent PostgreSQL integration coverage, hard-coded Spring 2027 term preference.
+Fixed, do **not** re-plan: silent frontend fixture fallback, missing seat freshness contract,
+absent PostgreSQL integration coverage, hard-coded Spring 2027 term preference (all Sprint 5);
+configured refresh querying all campuses (PR #16 — cause fixed, rows still need cleanup).
+
+Confirmed healthy by the validation run: zero data-quality errors across 202408 / 202501 / 202508
+/ 202701; seat refresh preserved previous snapshots, section identity and all 237 grade rows;
+frontend and API verification passed with no console errors.
 
 ## Workflow
 
 This repo uses GSD. Planning artifacts live in `.planning/`, not `.gsd/`.
 
 - `/gsd-progress` — check state and get the next action
-- `/gsd-plan-phase 1` — plan Phase 1 (Real-Data Expansion Validation). **Not Sprint 5**, which is
-  already implemented and merged.
+- `/gsd-plan-phase 2` — plan Phase 2 (Tampa-Only Data Correction), the current work. **Not
+  Sprint 5 and not Phase 1** — both are already complete.
 - `/gsd-execute-phase N` — execute a planned phase
 
 If you are not running GSD, read `.planning/STATE.md` and `.planning/ROADMAP.md` before changing

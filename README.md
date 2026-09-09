@@ -1,12 +1,13 @@
 # Easy-A
 
 > **Scope note:** Sections below describe the application as it has grown; some predate Sprint 5.
-> Planning for the work ahead lives in [`.planning/`](.planning/). **Sprint 5 is complete** —
-> configurable course coverage, seat freshness, and deployment-safe frontend configuration are
-> merged. Current activity is **real-data expansion validation** for the configured Spring 2027
-> targets, then hosted beta. RateMyProfessors links and seat alerts remain candidate later
-> phases, not current scope. For current position start at
-> [`.planning/STATE.md`](.planning/STATE.md); AI agents start at [`AGENTS.md`](AGENTS.md).
+> Planning for the work ahead lives in [`.planning/`](.planning/). **Sprint 5 and real-data
+> expansion validation are both complete** — five Spring 2027 Tampa course targets are validated
+> (75 verified sections). Current work is a **Tampa-only data correction**: 47 non-Tampa sections
+> from an early expansion pass are still stored and must be removed before coverage numbers can
+> be trusted. RateMyProfessors links and seat alerts remain candidate later phases, not current
+> scope. For current position start at [`.planning/STATE.md`](.planning/STATE.md); AI agents
+> start at [`AGENTS.md`](AGENTS.md).
 
 Easy-A is a course-intelligence tool for University of South Florida Tampa students.
 
@@ -117,9 +118,9 @@ term. Exact configured-course searches can show missing catalog or missing
 section observations. Absent targets do not block arbitrary searches, and coverage
 failures are announced with a retry while ranking search remains available.
 
-This V1 has no authentication, accounts, RateMyProfessors data, LLM features,
-or deployment configuration. Deployment preparation is in current Sprint 5 scope;
-RateMyProfessors links are a candidate later phase. See
+This V1 has no authentication, accounts, RateMyProfessors data, or LLM features.
+Sprint 5 is complete. Hosted-beta deployment, CI and observability are planned
+work; RateMyProfessors links and seat alerts remain candidate later phases. See
 [`.planning/ROADMAP.md`](.planning/ROADMAP.md).
 
 ## Local Beta Smoke Test

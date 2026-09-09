@@ -2,157 +2,192 @@
 
 ## Overview
 
-Easy-A is a working course-intelligence application for USF Tampa students. It has a FastAPI
-backend, a React/TypeScript frontend, PostgreSQL, real Spring 2027 schedule ingestion, real
-historical grade imports, configurable course coverage, and seat freshness classification.
+Easy-A is a working course-intelligence application for USF Tampa students: FastAPI backend,
+React/TypeScript frontend, PostgreSQL, real Spring 2027 schedule ingestion, real historical grade
+imports, configurable course coverage, and seat freshness classification.
 
 This roadmap describes the sequence forward from that baseline. It is **not** a greenfield MVP
 plan, and it does not restart the project.
 
-**Current baseline: `origin/main` = `62fb2f189c8cac67a1500863f080e0f638469df1`** (Sprint 5 merged via PR #14 and
-PR #15; Tampa scope restriction via PR #16).
+**Current baseline: `origin/main` = `62fb2f189c8cac67a1500863f080e0f638469df1`**
+(Sprint 5 via PR #14 + #15; Tampa scope fix via PR #16).
 
-**Current position: Sprint 5 is complete. Next activity is real-data expansion validation.**
+**Current position: Sprint 5 and real-data validation are complete. Phase 2 — Tampa-only data
+correction — is the current work and is blocking.**
 
 ### How to read this roadmap
 
 | Section | Meaning |
 |---------|---------|
-| Sprint 5 | **Complete.** Merged to main. Not scope. |
-| Phase 1 — Real-data expansion validation | Current activity. |
-| Phase 2 — Hosted beta | Next, after validation. |
+| Sprint 5 | **Complete.** Merged. Not scope. |
+| Phase 1 — Real-data expansion validation | **Complete.** Executed; results recorded below. |
+| Phase 2 — Tampa-only data correction | **Current.** Blocks trustworthy coverage numbers. |
+| Phase 3 — Historical grade coverage | Next. |
+| Phase 4 — Hosted beta | After that. |
 | Backlog | Candidate later phases. Not scheduled, not committed. |
-
-Coverage numbers and launch breadth throughout this document are **coverage expansion targets
-subject to validation**, not declared support. Configuring a course target is not the same as
-having validated coverage for it.
 
 ---
 
 ## Sprint 5 — COMPLETE
 
-Merged to `main` via PR #14, PR #15 and PR #16. Verified present in the code at `62fb2f1`.
+Merged via PR #14, PR #15 and PR #16. Verified present in code at `62fb2f1`.
 
-**PR #14 — configurable coverage and seat refresh**
-
-- Configurable course targets — `src/easy_a/refresh/targets.py`, `target_cli.py`,
-  config at `config/course_targets.toml`
-- One-pass coverage refresh and seat-only refresh — `src/easy_a/refresh/coverage.py`,
-  `scripts/refresh_seats.py`
-- Seat freshness classification — `src/easy_a/schedule/freshness.py` (`SeatFreshness`,
-  `classify_observation`, `snapshot_freshness`)
-- Freshness fields exposed through the API
-- Coverage metadata endpoint — `GET /api/v1/metadata/coverage`
-- PostgreSQL integration coverage — `tests/refresh/test_postgres_coverage.py`
-
-**PR #15 — frontend hardening and freshness UX**
-
-- Explicit mock opt-in via `VITE_USE_MOCK_DATA`; unset `VITE_API_BASE_URL` now raises instead of
-  silently serving fixtures — `web/src/api/rankings.ts`
-- Scalable broader-course UX and server-backed pagination hardening
-- Seat freshness UI and relative observation timestamps — `web/src/components/SeatBadge.tsx`,
-  `web/src/utils/time.ts`
-- Coverage UX — `web/src/components/CoverageNotice.tsx`
-
-**PR #16 — Tampa scope restriction**
-
-- Coverage refresh now pins `campus="T"` in the schedule query and rejects any returned row whose
-  campus is not Tampa — `src/easy_a/refresh/coverage.py`. Tightens the bounded-request guarantee
-  so a widened course list cannot silently pull non-Tampa sections.
+- **PR #14** — configurable course targets (`src/easy_a/refresh/targets.py`, `target_cli.py`,
+  `config/course_targets.toml`), one-pass coverage refresh (`src/easy_a/refresh/coverage.py`),
+  seat-only refresh (`scripts/refresh_seats.py`), seat freshness classification
+  (`src/easy_a/schedule/freshness.py`), freshness API fields, coverage metadata endpoint
+  (`GET /api/v1/metadata/coverage`), PostgreSQL integration coverage
+- **PR #15** — explicit mock opt-in via `VITE_USE_MOCK_DATA` with no silent production fixture
+  fallback, scalable broader-course UX, server-backed pagination hardening, seat freshness UI,
+  coverage UX, relative seat observation timestamps
+- **PR #16** — coverage refresh pins `campus="T"` and rejects non-Tampa rows before ingestion
 
 **Requirements delivered:** REQ-COVERAGE-01, REQ-SEAT-01, REQ-SEAT-02, REQ-CONFIG-01.
-REQ-TEST-01 is partially delivered — see `.planning/REQUIREMENTS.md` for its exact status.
+REQ-TEST-01 is partial — PostgreSQL integration exists but skips without configuration.
 
 ---
 
-## Phases
+## Phase 1: Real-Data Expansion Validation — COMPLETE
 
-| Phase | Name | Status |
-|-------|------|--------|
-| 1 | Real-Data Expansion Validation | Current |
-| 2 | Hosted Beta — Deployment, CI, Observability | Next |
+**Executed.** All five configured Spring 2027 (`202701`) targets verified present in the catalog.
 
----
+| Course | Catalog | Verified Tampa sections |
+|--------|---------|-------------------------|
+| MAC 1105 | present | 5 |
+| ENC 1101 | present | 41 |
+| AMH 2020 | present | 17 |
+| PSY 2012 | present | 10 |
+| BSC 1005 | present | 2 |
+| **Verified Tampa total** | | **75** |
 
-## Phase Details
+**Seat refresh:** appended 75 snapshots; preserved previous snapshots and section identity; left
+all 237 grade rows unchanged; syllabi remained empty; all observed Tampa seats fresh immediately
+after refresh.
 
-### Phase 1: Real-Data Expansion Validation
+**Data quality:** zero errors across all four terms.
 
-**Goal**: Know what the five configured course targets actually resolve to in real Spring 2027
-data — counts, availability, quality and cost — so coverage can be claimed on evidence rather
-than on configuration.
+| Term | Errors | Warnings | Info |
+|------|--------|----------|------|
+| 202408 | 0 | 103 | 103 |
+| 202501 | 0 | 6 | 0 |
+| 202508 | 0 | 11 | 0 |
+| 202701 | 0 | 49 | 49 |
 
-**Depends on**: Sprint 5 (complete)
+Historical generic quality reports were not polluted by Sprint 5 target/freshness checks.
 
-**Status**: Current
+**Frontend / API:** required endpoints returned 200; desktop and mobile search worked; server
+pagination worked; freshness UX worked; GenEd rendering worked; details worked; no browser
+console errors.
 
-**Configured targets** (`config/course_targets.toml`, catalog edition 2026-2027):
+**What the pass exposed:** a campus-scope bug — configured refresh queried all campuses, and the
+first pass inserted **47 non-Tampa Spring 2027 sections** into the existing beta database. PR #16
+fixed the cause. The rows were preserved, not removed. That is Phase 2.
 
-| Subject | Number |
-|---------|--------|
-| MAC | 1105 |
-| ENC | 1101 |
-| AMH | 2020 |
-| PSY | 2012 |
-| BSC | 1005 |
+**Not sufficiently measured:** search performance at the widened coverage. Split into
+REQ-PERF-01 under Phase 4 rather than being falsely marked complete.
 
-`MAC 1105` and `ENC 1101` are the previously validated beta pair. `AMH 2020`, `PSY 2012` and
-`BSC 1005` are **configured but not yet validated** — configuration is not coverage.
-
-**What the validation pass must determine**
-
-For the configured Spring 2027 (`202701`) Tampa targets, by running real ingestion:
-
-1. Actual section counts per course
-2. Catalog availability — whether each target resolves in the 2026-2027 catalog
-3. GenEd attribute coverage
-4. Seat freshness behavior across a real refresh cycle
-5. Instructor coverage — how many sections carry a named instructor rather than `Staff`
-6. Historical grade coverage — which terms actually have imported grade data per course
-7. Quality findings surfaced by the data-quality pipeline
-8. Search performance implications at the widened coverage
-
-**Success criteria** (what must be TRUE)
-
-1. Every figure reported is measured from a real ingestion run, with the run's date and scope
-   recorded. No count, term or percentage is stated without a source.
-2. Courses that fail to resolve, or that have no historical grade data, are reported as such
-   rather than omitted.
-3. Search performance is measured at the widened coverage, not extrapolated from two courses.
-4. The result states plainly which of the five targets are validated and which are not.
-
-**Requirements**: REQ-COVERAGE-02
-
-**Constraints**: requests to USF public sources stay narrow and bounded — no broad crawling. Do
-not commit raw grade export files.
+**Requirements:** REQ-COVERAGE-02 ✓ complete (search performance carved out to REQ-PERF-01)
 
 ---
 
-### Phase 2: Hosted Beta — Deployment, CI, Observability
+## Phase 2: Tampa-Only Data Correction — CURRENT
 
-**Goal**: The validated application runs as a hosted beta with enough automation and measurement
-to keep it running.
+**Goal**: Stored, API and coverage-endpoint counts reflect Tampa-only reality, with the
+contaminated rows removed and nothing legitimate lost.
 
-**Depends on**: Phase 1
+**Depends on**: PR #16 (merged)
+
+**Status**: Current — blocking. Any coverage figure read from the running database is wrong
+until this completes.
+
+**Why it exists**: the first expansion pass inserted 47 non-Tampa Spring 2027 sections. PR #16's
+merged description is explicit that it "does not delete the 47 other-campus sections inserted by
+the initial validation pass… They remain visible in stored coverage/API counts until a separately
+reviewed cleanup."
+
+**Scope**
+
+1. A targeted, reviewable removal of the 47 non-Tampa Spring 2027 sections. **No such tooling
+   exists today** — `scripts/` has ingest, refresh, analysis and quality commands only, and no
+   code path deletes sections. This has to be written and reviewed.
+2. A clean Tampa refresh afterwards
+3. API and coverage-endpoint verification against the corrected data
+
+**Success criteria** (what must be TRUE, each with a real measured number)
+
+1. Exact cleanup result recorded — rows removed, and the criteria used to select them
+2. Final Tampa-only stored counts recorded
+3. Final API counts recorded
+4. Final coverage-endpoint counts recorded
+5. **No historical grades and no Tampa sections deleted** — the 237 grade rows and all 75
+   verified Tampa sections survive intact, confirmed by count
+6. Stored, API and coverage counts agree with each other
+
+**Requirements**: REQ-DATA-02
+
+---
+
+## Phase 3: Historical Grade Coverage for AMH / PSY / BSC
+
+**Goal**: The three newly validated courses have real historical grade data instead of a global
+fallback.
+
+**Depends on**: Phase 2
 
 **Status**: Next
+
+Currently `AMH 2020`, `PSY 2012` and `BSC 1005` have **no imported historical grade data**. They
+fall back to a global prior with `effective_n = 0`. Those fallback scores are not evidence-backed
+course history and must not be described as such anywhere in the product or the docs.
+
+**Import priority: AMH 2020 → PSY 2012 → BSC 1005.**
+
+**Scope**
+
+1. Obtain and import approved historical grade exports, in priority order
+2. Validate the resulting course-level analytics per course
+3. Record which terms actually have data per course, and which do not
+
+**Success criteria**
+
+1. Each imported course reports real observed outcomes with a non-zero effective N, or is
+   explicitly recorded as still lacking data
+2. Analytics for each imported course are validated against the source aggregate
+3. No course presents a global fallback as if it were course history
+
+**Requirements**: REQ-GRADES-01
+
+**Dependency**: approved historical grade exports are an external input. Never commit raw export
+files.
+
+---
+
+## Phase 4: Hosted Beta — Deployment, CI, Performance, Observability
+
+**Goal**: The corrected application runs as a hosted beta with enough automation and measurement
+to keep it running.
+
+**Depends on**: Phase 2 (and Phase 3 for meaningful coverage)
+
+**Status**: Later
 
 **Scope**
 
 1. Deployment — minimal and portable, no provider-specific infrastructure
 2. CI for Python and frontend checks (net-new; there is no `.github/` directory today)
-3. Performance measurement at validated coverage
+3. **Search performance measurement at the widened coverage** — carried over from Phase 1, which
+   did not measure it sufficiently
 4. Observability — refresh success/failure, search latency
 5. Operator runbook — refreshing data, recovering from a failed refresh
 
-**Success criteria** (what must be TRUE)
+**Success criteria**
 
-1. The hosted beta is reachable and serves real data.
-2. CI runs Python and frontend checks on push.
-3. Search latency at validated coverage is measured and recorded.
-4. An operator can follow the runbook to refresh data and recover from a failed refresh.
+1. The hosted beta is reachable and serves real data
+2. CI runs Python and frontend checks on push
+3. Search latency at validated coverage is measured and recorded
+4. An operator can follow the runbook to refresh data and recover from a failed refresh
 
-**Requirements**: REQ-OPS-01
+**Requirements**: REQ-PERF-01, REQ-OPS-01
 
 ---
 
@@ -163,24 +198,23 @@ into the current execution sequence.
 
 ### Phase 999.1: Seat alerts and notifications (candidate later phase)
 
-**Not current scope.** A candidate later phase, appropriate only after the hosted beta is stable.
-Do not add subscriber, watch, outbox or email-provider work to the current sequence.
+**Not current scope.** Appropriate only after the hosted beta is stable. Do not add subscriber,
+watch, outbox or email-provider work to the current sequence.
 
-Design considerations preserved as **future / optional only**: alerting would need a durable
-worker independent of any browser session, polling shared across subscribers, a persisted outbox
-with idempotency and bounded retries, verified email ownership before any send, and honest
-language distinguishing provider acceptance from inbox receipt.
+Design considerations preserved as **future / optional only**: a durable worker independent of
+any browser session, polling shared across subscribers, a persisted outbox with idempotency and
+bounded retries, verified email ownership before any send, and honest language distinguishing
+provider acceptance from inbox receipt.
 
 ### Phase 999.2: Verified RMP profile links (candidate later phase)
 
 **Not current scope.** Deferred until after hosted beta and core data stability. Not a blocker.
-Constraints that hold whenever it is picked up: no scraping, no bulk crawler, and no imported
-ratings, review counts, review text, tags or summaries — a verified link only.
+Whenever picked up: no scraping, no bulk crawler, and no imported ratings, review counts, review
+text, tags or summaries — a verified link only.
 
 ### Phase 999.3: Deeper professor-specific coverage (candidate later phase)
 
-Depends on named-instructor coverage in the source data, which Phase 1 will measure for the first
-time across more than two courses.
+Depends on named-instructor coverage in the source data.
 
 ### Phase 999.4: Additional UX features (candidate later phase)
 
@@ -197,11 +231,13 @@ rewrite is planned or approved.
 
 ## Progress
 
-| Phase | Status | Plans | Progress |
-|-------|--------|-------|----------|
-| Sprint 5 | ✓ Complete (merged, PR #14 + #15) | — | 100% |
-| 1 | ◆ Current | 0 | 0% |
-| 2 | ○ Pending | 0 | 0% |
+| Phase | Status | Progress |
+|-------|--------|----------|
+| Sprint 5 | ✓ Complete (PR #14, #15, #16) | 100% |
+| 1 — Real-data expansion validation | ✓ Complete | 100% |
+| 2 — Tampa-only data correction | ◆ Current (blocking) | 0% |
+| 3 — Historical grade coverage | ○ Next | 0% |
+| 4 — Hosted beta | ○ Later | 0% |
 
 ---
 
@@ -213,13 +249,16 @@ rewrite is planned or approved.
 | REQ-SEAT-01 | Sprint 5 | ✓ Complete |
 | REQ-SEAT-02 | Sprint 5 | ✓ Complete |
 | REQ-CONFIG-01 | Sprint 5 | ✓ Complete |
-| REQ-TEST-01 | Sprint 5 | ◐ Partial — PostgreSQL integration exists and skips without config |
-| REQ-COVERAGE-02 | 1 | ○ Current |
-| REQ-OPS-01 | 2 | ○ Pending |
+| REQ-TEST-01 | Sprint 5 | ◐ Partial — PostgreSQL integration exists, skips without config |
+| REQ-COVERAGE-02 | 1 | ✓ Complete — search performance carved out to REQ-PERF-01 |
+| REQ-DATA-02 | 2 | ◆ Current |
+| REQ-GRADES-01 | 3 | ○ Next |
+| REQ-PERF-01 | 4 | ○ Later |
+| REQ-OPS-01 | 4 | ○ Later |
 
 Backlog requirements (`REQ-ALERT-*`, `REQ-RMP-01`) are deliberately unmapped — they belong to
-candidate later phases and are not part of the current sequence.
+candidate later phases.
 
 ---
-*Last updated: 2026-09-08 — Sprint 5 recorded complete against merged code at `62fb2f1`; next
-activity is real-data expansion validation for the five configured targets.*
+*Last updated: 2026-09-09 — real-data expansion validation recorded as complete with measured
+results; the 47-section contamination recorded as the current blocking work item.*

@@ -4,8 +4,9 @@ Requirements for the sequence forward from the current working baseline. Easy-A 
 application with real ingestion, configurable course coverage and seat freshness — not a
 greenfield build.
 
-**Current baseline: `origin/main` = `62fb2f1`.** Sprint 5 is merged and complete.
-**Current activity: real-data expansion validation.**
+**Current baseline: `origin/main` = `62fb2f1`.** Sprint 5 and real-data expansion validation are
+both complete.
+**Current activity: Tampa-only data correction (Phase 2) — blocking.**
 
 ## How requirements are classified
 
@@ -17,8 +18,9 @@ greenfield build.
 | Next | Hosted beta scope. |
 | Later / optional | Candidate later phases. Not committed. |
 
-Coverage figures are **coverage expansion targets subject to validation**. Configuring a course
-target is not the same as having validated coverage for it.
+Coverage figures below are **measured**, from the real-data validation pass of 2026-09-09. Where
+a figure is not measured, it says so. Note that *verified* Tampa counts and *currently stored*
+counts differ until the Phase 2 cleanup runs — see REQ-DATA-02.
 
 ---
 
@@ -42,18 +44,18 @@ target is not the same as having validated coverage for it.
 
 ### Current test baseline
 
-Measured on the merged branch at `62fb2f1` on 2026-09-08:
+Measured 2026-09-09 on this branch (merged with `origin/main` = `62fb2f1`):
 
-| Suite | Result | Notes |
-|-------|--------|-------|
-| Python (`uv run pytest -q`) | **192 passed, 1 skipped** | The skip is the PostgreSQL integration test, which skips when `EASY_A_TEST_POSTGRES_URL` is unset |
-| Python with PostgreSQL configured | 192 passed (reported in PR #14) | Requires `EASY_A_TEST_POSTGRES_URL` |
-| Frontend (`npm test` in `web/`) | **78 passed** | 5 test files |
-| Quality gates | ruff, mypy `strict = true`, ESLint, `tsc -b`, build — all passing | |
+| Condition | Result |
+|-----------|--------|
+| `uv run pytest -q`, no `EASY_A_TEST_POSTGRES_URL` | **192 passed, 1 skipped** (193 collected) |
+| Backend with PostgreSQL configured | **193 passed** (measured on the validation branch) |
+| Frontend `npm test` in `web/` | **78 passed** |
+| Quality gates | ruff, mypy, ESLint, typecheck, build — all passing |
 
-**Do not describe the whole Python suite as running on PostgreSQL.** Most tests still use
-SQLite; PostgreSQL integration coverage exists for the behavior most exposed to the dialect gap
-and skips silently when the environment variable is absent.
+Both facts are true and both matter: **a default run does not use PostgreSQL** — most of the
+suite runs on SQLite and the PostgreSQL integration test skips unless `EASY_A_TEST_POSTGRES_URL`
+is set; with it set, all 193 pass. Do not state only one of these.
 
 ---
 
@@ -92,24 +94,81 @@ Kept for traceability. Verified present in code at `62fb2f1`.
 
 ---
 
-## Current — real-data expansion validation
+## Complete — Phase 1 real-data expansion validation (executed 2026-09-09)
 
-- [ ] **REQ-COVERAGE-02**: Configured coverage is validated against real data before it is claimed.
-  *Acceptance*: Run real ingestion for the configured Spring 2027 (`202701`) Tampa targets —
-  `MAC 1105`, `ENC 1101`, `AMH 2020`, `PSY 2012`, `BSC 1005` — and record, from that run:
-  actual section counts per course; catalog availability per target; GenEd attribute coverage;
-  seat freshness behavior across a refresh cycle; named-instructor coverage versus `Staff`;
-  historical grade coverage by term per course; quality-pipeline findings; and measured search
-  performance at the widened coverage.
-  Every figure must carry the run date and scope. Targets that fail to resolve, or that have no
-  historical grade data, are reported as such rather than omitted. The result states plainly
-  which targets are validated and which are not. `MAC 1105` and `ENC 1101` are the previously
-  validated pair; the other three are configured but unvalidated.
-  Requests to USF public sources stay narrow and bounded. Do not commit raw grade export files.
+- [x] **REQ-COVERAGE-02**: Configured coverage is validated against real data before it is claimed.
+  ✓ **Complete**, with one carve-out. All five configured Spring 2027 (`202701`) targets were
+  verified present in the catalog and their Tampa sections counted:
+
+  | Course | Catalog | Verified Tampa sections |
+  |--------|---------|-------------------------|
+  | MAC 1105 | present | 5 |
+  | ENC 1101 | present | 41 |
+  | AMH 2020 | present | 17 |
+  | PSY 2012 | present | 10 |
+  | BSC 1005 | present | 2 |
+  | **Verified Tampa total** | | **75** |
+
+  Seat refresh appended 75 snapshots, preserved previous snapshots and section identity, left all
+  237 grade rows unchanged, and left syllabi empty; all observed Tampa seats were fresh
+  immediately after refresh. Data quality reported **zero errors** across 202408, 202501, 202508
+  and 202701, and historical generic quality reports were not polluted by Sprint 5
+  target/freshness checks. Frontend and API verification passed: required endpoints returned 200,
+  desktop and mobile search worked, server pagination worked, freshness UX worked, GenEd
+  rendering worked, details worked, and there were no browser console errors.
+
+  **Carve-out:** search performance at the widened coverage was **not** sufficiently measured.
+  That concern is REQ-PERF-01 under the hosted beta, not a satisfied criterion here.
+
+  **Caveat:** the 75 figure is *verified Tampa sections*, not *currently stored* sections. The
+  database still holds 47 contaminated non-Tampa rows until REQ-DATA-02 completes.
 
 ---
 
-## Next — hosted beta
+## Current — Tampa-only data correction (blocking)
+
+- [ ] **REQ-DATA-02**: Stored, API and coverage counts reflect Tampa-only reality.
+  *Context*: the first expansion pass ran before the campus-scope bug was found — configured
+  refresh queried all campuses, and **47 non-Tampa Spring 2027 sections were inserted into the
+  existing beta database**. PR #16 fixed the cause by pinning `campus="T"` and rejecting non-Tampa
+  rows before ingestion, but its merged description states plainly that it "does not delete the 47
+  other-campus sections inserted by the initial validation pass… They remain visible in stored
+  coverage/API counts until a separately reviewed cleanup."
+  *Acceptance*: perform a targeted, reviewable removal of those 47 rows, then a clean Tampa
+  refresh and API verification. Record, as measured numbers: the exact cleanup result (rows
+  removed and the selection criteria); final Tampa-only stored counts; final API counts; final
+  coverage-endpoint counts; and explicit confirmation that **no historical grades and no Tampa
+  sections were deleted** — the 237 grade rows and all 75 verified Tampa sections must survive
+  intact. Stored, API and coverage counts must agree with each other.
+  *Note*: **no section-deletion tooling exists.** `scripts/` holds ingest, refresh, analysis and
+  quality commands only, and no code path deletes sections. This step has to be written and
+  reviewed, not just run.
+
+---
+
+## Next — historical grade coverage
+
+- [ ] **REQ-GRADES-01**: The three newly validated courses have real historical grade data.
+  *Context*: `AMH 2020`, `PSY 2012` and `BSC 1005` currently have **no imported historical grade
+  data**. Each falls back to a global prior with `effective_n = 0`. **These fallback scores are
+  not evidence-backed course history and must not be described as such** — in the product, the
+  API, or these documents.
+  *Acceptance*: obtain and import approved historical grade exports in priority order
+  **AMH 2020 → PSY 2012 → BSC 1005**; validate the resulting course-level analytics against the
+  source aggregate per course; record which terms actually have data per course and which do not.
+  A course that still lacks data after the pass is recorded as lacking it, not quietly omitted.
+  Approved exports are an external input with a named owner. **Never commit raw export files.**
+
+---
+
+## Later — hosted beta
+
+- [ ] **REQ-PERF-01**: Search performance is measured at the widened coverage.
+  *Context*: carried over from Phase 1, which did not measure it sufficiently.
+  `GET /api/v1/rankings/search` ranks sections before slicing pagination.
+  *Acceptance*: measure and record search latency against the corrected, widened dataset. Report
+  real numbers with the dataset size they were measured at. Extrapolation from the two-course
+  beta does not satisfy this.
 
 - [ ] **REQ-OPS-01**: The hosted beta is deployable, observable and reproducible.
   *Acceptance*: Minimal, portable deployment configuration — no provider-specific infrastructure.
@@ -142,24 +201,34 @@ Not committed. Not required for the hosted beta.
 
 ## Observations
 
-### Fixed in Sprint 5 (historical — do not re-plan these)
+### Fixed (historical — do not re-plan)
 
 | Observation | Status |
 |-------------|--------|
-| Frontend silently served fixtures when `VITE_API_BASE_URL` was unset | **Fixed in Sprint 5** — explicit `VITE_USE_MOCK_DATA` opt-in; unset config now throws |
+| Frontend silently served fixtures when `VITE_API_BASE_URL` was unset | **Fixed in Sprint 5** — explicit `VITE_USE_MOCK_DATA` opt-in; unset config throws |
 | No seat freshness contract | **Fixed in Sprint 5** — `src/easy_a/schedule/freshness.py` plus API fields and UI |
 | No PostgreSQL-specific integration coverage | **Fixed in Sprint 5 (partially)** — exists, skips without `EASY_A_TEST_POSTGRES_URL` |
-| Frontend hard-coded a Spring 2027 term preference | **Fixed in Sprint 5** — term selection is configuration-driven |
+| Frontend hard-coded a Spring 2027 term preference | **Fixed in Sprint 5** — configuration-driven |
+| Configured refresh queried all campuses | **Cause fixed in PR #16** — `campus="T"` pinned, non-Tampa rows rejected before ingestion. **The 47 rows already inserted were not removed** — see REQ-DATA-02. |
 
 ### Still open
 
 | Observation | Evidence | Where it lands |
 |-------------|----------|----------------|
-| Ranking search may be expensive at broader coverage | `GET /api/v1/rankings/search` ranks sections before slicing pagination | Measure in Phase 1 (REQ-COVERAGE-02) |
+| 47 non-Tampa Spring 2027 sections stored in the beta database | PR #16 merged description | REQ-DATA-02 — **current blocker** |
+| Search performance unmeasured at widened coverage | Phase 1 did not measure it; search ranks sections before slicing pagination | REQ-PERF-01 (hosted beta) |
+| AMH 2020, PSY 2012, BSC 1005 have no historical grade data | Validation run: global fallback, `effective_n = 0` for each | REQ-GRADES-01 |
 | Blank grade-cell / suppression semantics unresolved | `src/easy_a/grades/parser.py` converts every blank cell to `0` with no suppression path | Needs a real or sample InfoCenter export; owner holds ODS/registrar access |
-| Broader real-data coverage is not yet validated | Three of five configured targets have never been ingested | Phase 1 is exactly this |
-| `course_id` null on grade import; term/CRN/**source** dedup | Grade import behavior | Watch during expansion (BASE-04) |
-| Named-instructor coverage is unmeasured beyond two courses | Two-course sample showed all `Staff` | Measured in Phase 1 |
+| Deployment host and domain not supplied | — | Before hosted beta |
+| `course_id` null on grade import; term/CRN/**source** dedup | Grade import behavior | BASE-04; watch during grade imports |
+
+### Confirmed healthy by the validation run
+
+- Zero data-quality errors across 202408, 202501, 202508 and 202701
+- Historical generic quality reports were not polluted by Sprint 5 target/freshness checks
+- Seat refresh preserved previous snapshots and section identity, and left all 237 grade rows
+  unchanged
+- Frontend and API verification passed with no browser console errors
 
 ---
 
@@ -176,5 +245,6 @@ Not committed. Not required for the hosted beta.
 - Committing raw grade export files
 
 ---
-*Last updated: 2026-09-08 — Sprint 5 marked complete against merged code at `62fb2f1`; test
-baseline re-measured; current activity is real-data expansion validation.*
+*Last updated: 2026-09-09 — real-data expansion validation recorded with measured results;
+REQ-DATA-02 (47-section cleanup) is the current blocking requirement; search performance carved
+out to REQ-PERF-01.*
