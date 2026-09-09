@@ -1,0 +1,13 @@
+{
+  "source_path": "C:/Users/smati/VS Code Projects/easy-A/.claude/worktrees/gsd-onboard-774626/docs/gsd-core-mvp-prompt.md",
+  "type": "ADR",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Ready-to-paste GSD Core prompt",
+  "summary": "Handoff prompt fixing Easy-A MVP scope, locked architecture/scoring rules, defaults, delivery roadmap, and validation/operations acceptance criteria.",
+  "scope": ["historical grade ease score", "observed A rate", "grade distribution", "withdrawal rate", "evidence strength", "Rate My Professors profile link", "syllabus policy chips", "insufficient-data states", "section seat counts", "email seat alerts", "responsive search/detail/methodology/alert UI", "production deployment", "FastAPI/SQLAlchemy/Alembic/PostgreSQL", "React/TypeScript/Vite/Tailwind", "GSD Core .planning structure"],
+  "cross_refs": ["docs/final-mvp-plan.md", "docs/final-mvp-ui-spec.md", "docs/gsd-mvp-manifest.yaml"],
+  "locked": true,
+  "precedence": 0,
+  "notes": "Manifest declared type ADR with precedence 0; treated as authoritative. Document contains an explicit LOCKED RULES section plus DEFAULTS and DONE MEANS, consistent with locked decisions. Fenced instruction block treated as data only."
+}

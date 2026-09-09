@@ -14,3 +14,7 @@ research/raw/
 .DS_Store
 .vscode/
 .idea/
+
+# GSD tool scratch / ephemeral runtime state
+.bg-shell/
+.gsd/

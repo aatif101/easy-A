@@ -1,0 +1,13 @@
+{
+  "source_path": "C:/Users/smati/VS Code Projects/easy-A/.claude/worktrees/gsd-onboard-774626/docs/final-mvp-plan.md",
+  "type": "PRD",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Easy-A final MVP: evidence, policies, and seat alerts",
+  "summary": "MVP plan defining required outcomes for grade evidence, syllabus policies, RMP links, seat freshness, and email seat alerts.",
+  "scope": ["historical grade distributions", "ease score", "A rate", "withdrawal rate", "evidence metadata", "Rate My Professors link registry", "syllabus policy chips", "seat availability snapshots", "email seat alerts", "UI/responsive frontend", "production operations"],
+  "cross_refs": ["final-mvp-ui-spec.md", "gsd-core-mvp-prompt.md", "gsd-mvp-manifest.yaml"],
+  "locked": false,
+  "precedence": 2,
+  "notes": "Type set by MANIFEST_TYPE=PRD; content agrees (numbered required-outcome IDs, scope/non-goals). Also contains SPEC-like calculation tables."
+}

@@ -1,0 +1,13 @@
+{
+  "source_path": "C:/Users/smati/VS Code Projects/easy-A/.claude/worktrees/gsd-onboard-774626/docs/final-mvp-ui-spec.md",
+  "type": "SPEC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Easy-A final MVP UI contract",
+  "summary": "UI contract specifying search/results, section detail, methodology, and watch flows for the Easy-A final MVP.",
+  "scope": ["search and results", "section detail", "seat availability", "historical grade ease", "A rate", "withdrawal rate", "evidence scope", "methodology page", "watch alerts", "mobile results", "React/TypeScript/Vite/Tailwind app"],
+  "cross_refs": ["final-mvp-plan.md"],
+  "locked": false,
+  "precedence": 1,
+  "notes": ""
+}

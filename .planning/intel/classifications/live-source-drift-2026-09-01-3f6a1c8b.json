@@ -1,0 +1,13 @@
+{
+  "source_path": "C:/Users/smati/VS Code Projects/easy-A/.claude/worktrees/gsd-onboard-774626/docs/live-source-drift-2026-09-01.md",
+  "type": "DOC",
+  "confidence": "high",
+  "manifest_override": true,
+  "title": "Narrow Live Source Drift Check — 2026-09-01",
+  "summary": "Point-in-time observations from a narrow live check of Spring 2027 Tampa MAC 1105 and ENC 1101 schedule and syllabus sources.",
+  "scope": ["Spring 2027 term 202701", "Tampa campus", "MAC 1105", "ENC 1101", "Staff Schedule search", "Simple Syllabus library", "schedule_current.html baseline", "CRN 13173", "CRN 19410"],
+  "cross_refs": ["schedule_current.html"],
+  "locked": false,
+  "precedence": 3,
+  "notes": "Type set by MANIFEST_TYPE. Observational evidence only — seat/instructor values are point-in-time observations, not requirements or configuration defaults. Explicitly states it does not change signal scoring; ENC change status unknown due to missing baseline."
+}
