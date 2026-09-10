@@ -165,13 +165,13 @@ Re-measured 2026-09-09 at `d72f8f3` plus the cleanup tooling:
 
 | Condition | Result |
 |-----------|--------|
-| `uv run pytest -q`, no `EASY_A_TEST_POSTGRES_URL` | **208 passed, 1 skipped** (209 collected) |
+| `uv run pytest -q`, no `EASY_A_TEST_POSTGRES_URL` | **215 passed, 1 skipped** (216 collected) |
 | Backend with PostgreSQL configured | **not re-measured** — no PostgreSQL in this environment |
 | Frontend `npm test` in `web/` | **78 passed** |
 | Quality gates | `ruff check .`, `mypy src migrations scripts tests` — passing |
 
-The suite was 192 passed / 1 skipped before this work; the 16 added tests cover the cleanup
-tooling. The PostgreSQL-configured figure was **193 passed** when last measured on the validation
+The suite was 192 passed / 1 skipped before this work; the 23 added tests cover the cleanup
+tooling (16) and the campus-scope quality check (7). The PostgreSQL-configured figure was **193 passed** when last measured on the validation
 branch; it should now be 209, but nobody has run it — do not quote 209 as measured.
 
 The single skip is the PostgreSQL integration test. **A default run does not use PostgreSQL** —
@@ -200,6 +200,29 @@ shape (75 Tampa + 47 other-campus sections, 237 grade rows), the dry run matched
 --expect-removed 47` took stored sections 122 → 75 with 0 Tampa sections and 0 grade rows removed,
 a second run was a no-op, and `coverage_metadata` then read 5 / 41 / 17 / 10 / 2 = 75. **Those
 rows were invented for the rehearsal and are not evidence about the beta database.**
+
+### Phase 2 — campus-scope quality check (added 2026-09-10)
+
+`unsupported_campus_section` in `src/easy_a/quality/checks.py`, severity **error**, one finding
+per stored section in the term whose campus is not the supported campus. Runs in the generic
+check path, so plain `scripts/check_data_quality.py --term 202701` reports it and exits nonzero
+— no target configuration needed. `--campus` overrides the expected campus for a term that
+legitimately holds another. The campus constant and comparison live in
+`src/easy_a/common/campus.py`, imported by both the check and the cleanup command so a row cannot
+be in scope for one and out of scope for the other.
+
+This gives the cleanup an **independent confirmation path**: the cleanup selects by a campus
+group-by and verifies counts; the quality check iterates stored sections and reports each
+offender. A clean quality exit after the cleanup is a second, separately implemented statement
+that no off-campus row is left. Run it before and after and keep both reports.
+
+Rehearsed on a throwaway SQLite database seeded to the reported shape: 47 errors and exit 1
+before the cleanup, 0 errors, 75 sections and exit 0 after. **Synthetic rows — not evidence about
+the beta database.**
+
+Note for whoever runs it: this check is new, so a historical term populated before the PR #16
+scope fix may now report errors it never reported before. That is a true finding about stored
+data, not a regression.
 
 ### Sprint 5 — what landed
 
@@ -236,8 +259,9 @@ refresh (PR #16 — cause fixed; stored rows still need cleanup).
 
 ### Still open
 
-- **47 non-Tampa sections stored** — the current blocker, above. Removal tooling now exists;
-  running it against the beta database is the outstanding step.
+- **47 non-Tampa sections stored** — the current blocker, above. Removal tooling and a
+  campus-scope quality check now exist; running them against the beta database is the
+  outstanding step.
 - **Search performance at widened coverage** — not sufficiently measured; moved to REQ-PERF-01
 - **No historical grades for AMH / PSY / BSC** — global fallback, `effective_n = 0`
 - **Blank grade-cell / suppression semantics** — `src/easy_a/grades/parser.py` converts every

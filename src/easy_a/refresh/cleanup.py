@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
+from easy_a.common.campus import SUPPORTED_CAMPUS, same_campus
 from easy_a.common.terms import normalize_banner_term_code
 from easy_a.models import (
     Course,
@@ -28,8 +29,6 @@ from easy_a.models import (
     Syllabus,
     Term,
 )
-
-TAMPA_CAMPUS = "Tampa"
 
 
 class CleanupError(ValueError):
@@ -93,11 +92,6 @@ class CleanupReport(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
-def same_campus(stored: str, expected: str) -> bool:
-    """Compare campus labels the way the schedule pipeline stores them."""
-    return stored.strip().casefold() == expected.strip().casefold()
-
-
 def _require_term(session: Session, term: str) -> Term:
     term_row = session.scalar(select(Term).where(Term.banner_code == term))
     if term_row is None:
@@ -109,7 +103,7 @@ def _count(session: Session, statement: Select[tuple[int]]) -> int:
     return session.scalar(statement) or 0
 
 
-def stored_counts(session: Session, term: str, kept_campus: str = TAMPA_CAMPUS) -> StoredCounts:
+def stored_counts(session: Session, term: str, kept_campus: str = SUPPORTED_CAMPUS) -> StoredCounts:
     """Measure stored counts for ``term`` without changing anything."""
     term = normalize_banner_term_code(term)
     term_row = _require_term(session, term)
@@ -153,7 +147,7 @@ def stored_counts(session: Session, term: str, kept_campus: str = TAMPA_CAMPUS) 
 
 
 def find_other_campus_sections(
-    session: Session, term: str, kept_campus: str = TAMPA_CAMPUS
+    session: Session, term: str, kept_campus: str = SUPPORTED_CAMPUS
 ) -> tuple[SectionRef, ...]:
     """List the stored sections in ``term`` whose campus is not ``kept_campus``."""
     term = normalize_banner_term_code(term)
@@ -204,7 +198,7 @@ def clean_other_campus_sections(
     session: Session,
     *,
     term: str,
-    kept_campus: str = TAMPA_CAMPUS,
+    kept_campus: str = SUPPORTED_CAMPUS,
     apply: bool = False,
     expect_removed: int | None = None,
     as_of: datetime | None = None,

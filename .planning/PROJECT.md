@@ -62,8 +62,11 @@ plausible-looking result.
 - ✓ Reviewable removal of stored sections outside the supported campus —
   `scripts/cleanup_non_tampa_sections.py`, `src/easy_a/refresh/cleanup.py` (tooling only; not yet
   run against the beta database)
-- ✓ **208 Python passed / 1 skipped and 78 frontend passed** (measured 2026-09-09 at `d72f8f3`
-  plus the cleanup tooling; was 192 / 1 at `62fb2f1`. The skip is the PostgreSQL integration
+- ✓ `unsupported_campus_section` quality check — error-severity, one per stored section outside
+  the supported campus, in the generic check path; shared campus definition in
+  `src/easy_a/common/campus.py`
+- ✓ **215 Python passed / 1 skipped and 78 frontend passed** (measured 2026-09-10 at `d72f8f3`
+  plus the cleanup tooling and campus check; was 192 / 1 at `62fb2f1`. The skip is the PostgreSQL integration
   test, which needs `EASY_A_TEST_POSTGRES_URL`)
 - ✓ Strict quality gates: ruff (`B,C4,E,F,I,SIM,UP`), mypy `strict = true`, ESLint + `tsc -b`
 
@@ -88,8 +91,9 @@ plausible-looking result.
 
 - [◐] **REQ-DATA-02** — Remove the 47 non-Tampa Spring 2027 sections inserted by the first
   expansion pass; clean Tampa refresh; verify API and coverage counts. **Partial:** the removal
-  tooling is written and tested (`scripts/cleanup_non_tampa_sections.py`); it has not been run
-  against the beta database, so no count has changed yet.
+  tooling is written and tested (`scripts/cleanup_non_tampa_sections.py`), as is an
+  `unsupported_campus_section` quality check that independently confirms the result; neither has
+  been run against the beta database, so no count has changed yet.
 
 ### Next — historical grade coverage
 
@@ -186,7 +190,7 @@ status" below — those documents are proposals, and several of their claims are
 | Scoring | Historical easiness score, shrinkage, confidence labels, fallback | **Unchanged — preserved as baseline** |
 | Seats | Freshness classification, seat-only refresh, API fields, freshness UI | — |
 | Frontend | Explicit mock opt-in, pagination hardening, coverage UX, relative timestamps | — |
-| Tests | 208 passed / 1 skipped Python, 78 frontend; PostgreSQL integration present but skippable | Widen PostgreSQL coverage (unscheduled) |
+| Tests | 215 passed / 1 skipped Python, 78 frontend; PostgreSQL integration present but skippable | Widen PostgreSQL coverage (unscheduled) |
 | CI | Nothing — no `.github/` directory | Net-new, Phase 2 |
 | Deployment | `docker-compose.yml` provisions PostgreSQL only | Minimal, portable (Phase 2) |
 
@@ -288,13 +292,14 @@ Treat it as input, never as an approved requirement.
 - **D-09 [locked]:** Bounded, narrow requests to USF public sources. No broad crawling.
 - **D-10 [locked]:** Fetch and verify current `origin/main` before planning; work from branches or worktrees descended from it. Preserve untracked local work; do not check out, merge or fast-forward a local `main` you did not verify.
 - **D-11 [locked]:** Use GSD Core's `.planning/` structure, not GSD2 `.gsd/` conventions.
-- **D-12 [locked]:** Preserve the passing test baseline and update tests when semantics genuinely change. Measured 2026-09-09 at `d72f8f3` plus the cleanup tooling: 208 passed / 1 skipped without `EASY_A_TEST_POSTGRES_URL` (209 collected); 78 frontend passed. A default run does not use PostgreSQL — state both facts, not one. The PostgreSQL-configured total was 193 at `62fb2f1` and has not been re-measured since; do not quote a current number for it.
+- **D-12 [locked]:** Preserve the passing test baseline and update tests when semantics genuinely change. Measured 2026-09-10 at `d72f8f3` plus the cleanup tooling and campus check: 215 passed / 1 skipped without `EASY_A_TEST_POSTGRES_URL` (216 collected); 78 frontend passed. A default run does not use PostgreSQL — state both facts, not one. The PostgreSQL-configured total was 193 at `62fb2f1` and has not been re-measured since; do not quote a current number for it.
 - **D-13 [locked]:** Never invent data coverage, source permissions, credential access or deployment completion. Identify missing external dependencies early and name an owner. Do not purchase services.
 
 ### Current sprint scope
 
 - **D-14 [complete]:** Sprint 5 delivered configurable course targets, one-pass coverage refresh, seat-only refresh, seat freshness classification and API fields, a coverage metadata endpoint, explicit frontend mock opt-in, pagination hardening, freshness UX and PostgreSQL integration coverage. Merged via PR #14 and PR #15 at `62fb2f1`.
 - **D-15 [current-scope]:** Real-data expansion validation is complete (2026-09-09). Current activity is Tampa-only data correction (REQ-DATA-02), then historical grade coverage for AMH/PSY/BSC, then hosted beta. Still excludes a scoring rewrite, email alerts, auth/accounts, RMP, LLM features, and provider-specific deployment infrastructure.
+- **D-22 [locked]:** Easy-A covers USF Tampa only. `src/easy_a/common/campus.py` holds the single definition of the supported campus and how stored labels are compared to it; the schedule query, the cleanup command and the quality checks all defer to it. A stored section outside that campus is an error-severity quality finding, not a warning — it inflates every stored, API and coverage-endpoint count while present.
 - **D-21 [locked]:** Section deletion is an explicit, reviewable operator step. Any command that removes stored sections reports without writing by default, selects rows by stated criteria, deletes by explicit primary key rather than a broad `WHERE`, and verifies afterwards that historical grade rows and in-scope sections survived — aborting the transaction if they did not. No pipeline stage deletes sections implicitly.
 - **D-20 [locked]:** A global-prior fallback score is not course history. Never present a course with `effective_n = 0` as having evidence-backed historical analytics.
 - **D-19 [locked]:** Never commit raw grade export files.

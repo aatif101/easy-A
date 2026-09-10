@@ -44,16 +44,18 @@ counts differ until the Phase 2 cleanup runs — see REQ-DATA-02.
 
 ### Current test baseline
 
-Re-measured 2026-09-09 at `origin/main` = `d72f8f3` plus the Phase 2 cleanup tooling:
+Re-measured 2026-09-10 at `origin/main` = `d72f8f3` plus the Phase 2 cleanup tooling and
+campus-scope quality check:
 
 | Condition | Result |
 |-----------|--------|
-| `uv run pytest -q`, no `EASY_A_TEST_POSTGRES_URL` | **208 passed, 1 skipped** (209 collected) |
+| `uv run pytest -q`, no `EASY_A_TEST_POSTGRES_URL` | **215 passed, 1 skipped** (216 collected) |
 | Backend with PostgreSQL configured | **not re-measured** — was 193 passed at `62fb2f1` |
 | Frontend `npm test` in `web/` | **78 passed** |
 | Quality gates | `ruff check .`, `mypy src migrations scripts tests` — passing |
 
-The suite was 192 passed / 1 skipped before the cleanup tooling; the 16 added tests cover it.
+The suite was 192 passed / 1 skipped before this work; the 23 added tests cover the cleanup
+tooling (16) and the campus-scope quality check (7).
 
 Both facts are true and both matter: **a default run does not use PostgreSQL** — most of the
 suite runs on SQLite and the PostgreSQL integration test skips unless `EASY_A_TEST_POSTGRES_URL`
@@ -152,7 +154,15 @@ Kept for traceability. Verified present in code at `62fb2f1`.
   aborts the transaction if stored grade rows change, a kept-campus section is lost, the number
   removed differs from the number matched, or any other-campus section remains.
   `--expect-removed N` refuses to proceed unless exactly `N` sections match.
-  *Outstanding*: **the tooling has not been run against the beta database** — that needs an
+  *Progress (2026-09-10)*: added `unsupported_campus_section`, an error-severity quality check
+  reporting one finding per stored section outside the supported campus. It runs in the generic
+  check path, so `scripts/check_data_quality.py --term 202701` reports it and exits nonzero with
+  no target configuration. The supported campus and its comparison live in
+  `src/easy_a/common/campus.py`, shared with the cleanup command. This is an independently
+  implemented confirmation of the cleanup — cleanup selects by campus group-by and verifies
+  counts; the check iterates stored sections and names each offender — and it catches a
+  recurrence from any code path, not just coverage refresh.
+  *Outstanding*: **neither the cleanup nor the check has been run against the beta database** — that needs an
   operator with database access. None of the acceptance numbers above has been measured, so this
   requirement stays open and the blocker stands.
 

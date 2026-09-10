@@ -174,18 +174,78 @@ def test_no_analytics_and_low_confidence_are_reported(db_session: Session) -> No
     assert low_confidence.severity == "warning"
 
 
+def test_section_outside_supported_campus_is_an_error(db_session: Session) -> None:
+    db_session.add(_section(crn="12345", campus="St. Petersburg"))
+    db_session.flush()
+
+    report = run_quality_checks(db_session, "202701", as_of=NOW)
+
+    finding = _finding(report.findings, "unsupported_campus_section")
+    assert finding.severity == "error"
+    assert finding.crn == "12345"
+    assert "St. Petersburg" in finding.message
+    assert "Tampa" in finding.message
+    assert report.has_errors
+
+
+def test_supported_campus_sections_produce_no_campus_finding(db_session: Session) -> None:
+    db_session.add_all([_section(crn="12345"), _section(crn="12346", campus="  tampa ")])
+    db_session.flush()
+
+    report = run_quality_checks(db_session, "202701", as_of=NOW)
+
+    assert [f for f in report.findings if f.check_id == "unsupported_campus_section"] == []
+
+
+def test_blank_campus_is_reported_readably(db_session: Session) -> None:
+    db_session.add(_section(crn="12345", campus="   "))
+    db_session.flush()
+
+    report = run_quality_checks(db_session, "202701", as_of=NOW)
+
+    assert "(blank)" in _finding(report.findings, "unsupported_campus_section").message
+
+
+def test_every_offending_section_is_reported(db_session: Session) -> None:
+    db_session.add_all(
+        [
+            _section(crn="12345", campus="St. Petersburg"),
+            _section(crn="12346", campus="Sarasota-Manatee"),
+            _section(crn="12347"),
+        ]
+    )
+    db_session.flush()
+
+    report = run_quality_checks(db_session, "202701", as_of=NOW)
+
+    findings = [f for f in report.findings if f.check_id == "unsupported_campus_section"]
+    assert {f.crn for f in findings} == {"12345", "12346"}
+
+
+def test_supported_campus_is_configurable(db_session: Session) -> None:
+    db_session.add(_section(crn="12345", campus="St. Petersburg"))
+    db_session.flush()
+
+    report = run_quality_checks(
+        db_session, "202701", as_of=NOW, supported_campus="St. Petersburg"
+    )
+
+    assert [f for f in report.findings if f.check_id == "unsupported_campus_section"] == []
+
+
 def _section(
     *,
     crn: str,
     delivery_method: str | None = "CL",
     observed_at: datetime = NOW,
+    campus: str = "Tampa",
 ) -> Section:
     return Section(
         term_id=1,
         crn=crn,
         course_id=10,
         section_number="001",
-        campus="Tampa",
+        campus=campus,
         session="Full Term",
         section_type="Class Lecture",
         primary_status="Open",

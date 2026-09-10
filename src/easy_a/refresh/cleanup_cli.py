@@ -5,10 +5,10 @@ from collections.abc import Sequence
 
 from sqlalchemy.orm import Session, sessionmaker
 
+from easy_a.common.campus import SUPPORTED_CAMPUS
 from easy_a.common.terms import TermParseError, normalize_banner_term_code
 from easy_a.db import get_session_factory
 from easy_a.refresh.cleanup import (
-    TAMPA_CAMPUS,
     CleanupError,
     CleanupReport,
     SectionRef,
@@ -32,8 +32,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--keep-campus",
-        default=TAMPA_CAMPUS,
-        help=f"Campus label to keep; every other campus is removed. Default: {TAMPA_CAMPUS}.",
+        default=SUPPORTED_CAMPUS,
+        help=f"Campus label to keep; every other campus is removed. Default: {SUPPORTED_CAMPUS}.",
     )
     parser.add_argument(
         "--apply",

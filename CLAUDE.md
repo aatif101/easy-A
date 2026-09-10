@@ -12,8 +12,9 @@ Six things that matter most, repeated here because they are easy to get wrong:
    expansion pass queried all campuses. PR #16 fixed the cause (`campus="T"` pinned, non-Tampa
    rows rejected) but **did not delete the rows**. Stored, API and coverage-endpoint counts are
    therefore contaminated and do not equal the verified Tampa total of 75. **Cleaning this up is
-   the current work.** Removal tooling exists as of 2026-09-09
-   (`scripts/cleanup_non_tampa_sections.py`) but **has not been run against the beta database**.
+   the current work.** Removal tooling (`scripts/cleanup_non_tampa_sections.py`) and an
+   error-severity `unsupported_campus_section` quality check now exist, but **neither has been
+   run against the beta database**.
 2. **Sprint 5 is complete** (PR #14, #15) and **real-data validation is complete** (2026-09-09).
    `origin/main` = `d72f8f3` (verified by fetch 2026-09-09; `62fb2f1` is an ancestor). Do not
    re-plan or re-implement either.
@@ -29,11 +30,12 @@ Six things that matter most, repeated here because they are easy to get wrong:
    check out, merge or fast-forward a local `main` you have not verified.
 
 **Next actionable work:** run `scripts/cleanup_non_tampa_sections.py --term 202701` against the
-beta database (dry run, then `--apply --expect-removed 47 --json`) → clean Tampa refresh → API and
-coverage verification, recording final counts and confirming no grades or Tampa sections were
-lost. Then historical grade imports, then hosted beta.
+beta database (dry run, then `--apply --expect-removed 47 --json`), with
+`scripts/check_data_quality.py --term 202701` before and after as an independent confirmation →
+clean Tampa refresh → API and coverage verification, recording final counts and confirming no
+grades or Tampa sections were lost. Then historical grade imports, then hosted beta.
 
-Test baseline (2026-09-09 at `d72f8f3` plus the cleanup tooling): 208 passed / 1 skipped without
-`EASY_A_TEST_POSTGRES_URL` (209 collected); 78 frontend passed. A default run does not use
+Test baseline (2026-09-10 at `d72f8f3` plus the cleanup tooling and campus check): 215 passed /
+1 skipped without `EASY_A_TEST_POSTGRES_URL` (216 collected); 78 frontend passed. A default run does not use
 PostgreSQL, and the PostgreSQL-configured figure has not been re-measured since it was 193 at
 `62fb2f1`.

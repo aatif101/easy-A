@@ -116,10 +116,15 @@ reviewed cleanup."
    sections match; refuses sections carrying a stored syllabus; and aborts the transaction if
    stored grade rows change, a kept-campus section is lost, the number removed differs from the
    number matched, or any other-campus section remains.
-2. ○ **Running it against the beta database.** Not done — needs an operator with database
+2. ✓ A campus-scope quality check. Added 2026-09-10: `unsupported_campus_section` in
+   `src/easy_a/quality/checks.py`, severity error, one finding per stored section outside the
+   supported campus, in the generic check path so `scripts/check_data_quality.py` reports it and
+   exits nonzero. Shared campus definition in `src/easy_a/common/campus.py`. Gives the cleanup an
+   independent confirmation path and catches a future recurrence from any code path.
+3. ○ **Running both against the beta database.** Not done — needs an operator with database
    access. Writing the tooling did not remove the rows.
-3. ○ A clean Tampa refresh afterwards
-4. ○ API and coverage-endpoint verification against the corrected data
+4. ○ A clean Tampa refresh afterwards
+5. ○ API and coverage-endpoint verification against the corrected data
 
 **Success criteria** (what must be TRUE, each with a real measured number)
 
@@ -243,7 +248,7 @@ rewrite is planned or approved.
 |-------|--------|----------|
 | Sprint 5 | ✓ Complete (PR #14, #15, #16) | 100% |
 | 1 — Real-data expansion validation | ✓ Complete | 100% |
-| 2 — Tampa-only data correction | ◆ Current (blocking) — tooling written, not yet run | 25% |
+| 2 — Tampa-only data correction | ◆ Current (blocking) — tooling + check written, not yet run | 40% |
 | 3 — Historical grade coverage | ○ Next | 0% |
 | 4 — Hosted beta | ○ Later | 0% |
 
@@ -268,5 +273,6 @@ Backlog requirements (`REQ-ALERT-*`, `REQ-RMP-01`) are deliberately unmapped —
 candidate later phases.
 
 ---
-*Last updated: 2026-09-09 — Phase 2 removal tooling written and tested; execution against the
-beta database, the clean refresh and the verification counts remain outstanding.*
+*Last updated: 2026-09-10 — Phase 2 removal tooling and campus-scope quality check written and
+tested; execution against the beta database, the clean refresh and the verification counts remain
+outstanding.*
