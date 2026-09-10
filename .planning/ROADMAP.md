@@ -9,8 +9,9 @@ imports, configurable course coverage, and seat freshness classification.
 This roadmap describes the sequence forward from that baseline. It is **not** a greenfield MVP
 plan, and it does not restart the project.
 
-**Current baseline: `origin/main` = `62fb2f189c8cac67a1500863f080e0f638469df1`**
-(Sprint 5 via PR #14 + #15; Tampa scope fix via PR #16).
+**Current baseline: `origin/main` = `d72f8f3d77a11f301f2b74f56088a217226feefa`**
+(verified by fetch 2026-09-09; Sprint 5 via PR #14 + #15, Tampa scope fix via PR #16, all at
+ancestor `62fb2f1` — everything since is planning/docs only).
 
 **Current position: Sprint 5 and real-data validation are complete. Phase 2 — Tampa-only data
 correction — is the current work and is blocking.**
@@ -107,11 +108,23 @@ reviewed cleanup."
 
 **Scope**
 
-1. A targeted, reviewable removal of the 47 non-Tampa Spring 2027 sections. **No such tooling
-   exists today** — `scripts/` has ingest, refresh, analysis and quality commands only, and no
-   code path deletes sections. This has to be written and reviewed.
-2. A clean Tampa refresh afterwards
-3. API and coverage-endpoint verification against the corrected data
+1. ✓ A targeted, reviewable removal step. Written 2026-09-09:
+   `scripts/cleanup_non_tampa_sections.py` → `src/easy_a/refresh/cleanup.py` and
+   `cleanup_cli.py`, with 16 tests in `tests/refresh/test_cleanup.py` and a README section.
+   Reports without writing unless `--apply` is given; selects by term and stored campus;
+   deletes by explicit primary key; `--expect-removed N` refuses to proceed unless exactly `N`
+   sections match; refuses sections carrying a stored syllabus; and aborts the transaction if
+   stored grade rows change, a kept-campus section is lost, the number removed differs from the
+   number matched, or any other-campus section remains.
+2. ✓ A campus-scope quality check. Added 2026-09-10: `unsupported_campus_section` in
+   `src/easy_a/quality/checks.py`, severity error, one finding per stored section outside the
+   supported campus, in the generic check path so `scripts/check_data_quality.py` reports it and
+   exits nonzero. Shared campus definition in `src/easy_a/common/campus.py`. Gives the cleanup an
+   independent confirmation path and catches a future recurrence from any code path.
+3. ○ **Running both against the beta database.** Not done — needs an operator with database
+   access. Writing the tooling did not remove the rows.
+4. ○ A clean Tampa refresh afterwards
+5. ○ API and coverage-endpoint verification against the corrected data
 
 **Success criteria** (what must be TRUE, each with a real measured number)
 
@@ -235,7 +248,7 @@ rewrite is planned or approved.
 |-------|--------|----------|
 | Sprint 5 | ✓ Complete (PR #14, #15, #16) | 100% |
 | 1 — Real-data expansion validation | ✓ Complete | 100% |
-| 2 — Tampa-only data correction | ◆ Current (blocking) | 0% |
+| 2 — Tampa-only data correction | ◆ Current (blocking) — tooling + check written, not yet run | 40% |
 | 3 — Historical grade coverage | ○ Next | 0% |
 | 4 — Hosted beta | ○ Later | 0% |
 
@@ -260,5 +273,6 @@ Backlog requirements (`REQ-ALERT-*`, `REQ-RMP-01`) are deliberately unmapped —
 candidate later phases.
 
 ---
-*Last updated: 2026-09-09 — real-data expansion validation recorded as complete with measured
-results; the 47-section contamination recorded as the current blocking work item.*
+*Last updated: 2026-09-10 — Phase 2 removal tooling and campus-scope quality check written and
+tested; execution against the beta database, the clean refresh and the verification counts remain
+outstanding.*

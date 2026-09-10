@@ -19,7 +19,9 @@ See: .planning/PROJECT.md (updated 2026-09-09)
 a named source and a timestamp — and when the evidence does not exist, the product says so instead
 of producing a plausible-looking result.
 
-**Current baseline:** `origin/main` = `62fb2f189c8cac67a1500863f080e0f638469df1`
+**Current baseline:** `origin/main` = `d72f8f3d77a11f301f2b74f56088a217226feefa`
+(verified by fetch 2026-09-09; `62fb2f1` is an ancestor and was the pre-onboarding baseline —
+every commit since is planning/docs only, no application code)
 
 ## Current Position
 
@@ -32,13 +34,15 @@ of producing a plausible-looking result.
 | Phase 4 — Hosted beta | ○ After that |
 
 Phase: 2 of 4 (Tampa-Only Data Correction)
-Plan: 0 of TBD
-Status: Blocked — 47 contaminated rows must be removed before coverage numbers can be trusted
+Plan: 1 of 3 — removal tooling written and tested; execution and verification outstanding
+Status: Blocked — 47 contaminated rows are still stored; the cleanup has not been run
 
 Progress: [██░░░░░░░░] 25%
 
-Last activity: 2026-09-09 — Recorded real-data expansion validation results. No application code
-changed by this planning work.
+Last activity: 2026-09-09 — Wrote and tested the section-removal tooling
+(`src/easy_a/refresh/cleanup.py`, `cleanup_cli.py`, `scripts/cleanup_non_tampa_sections.py`,
+`tests/refresh/test_cleanup.py`). **The tooling has not been run against the beta database** —
+no database is reachable from the environment it was written in.
 
 ## ⛔ Current blocker
 
@@ -56,14 +60,33 @@ Consequences right now:
   **all still include the 47 contaminated rows**. They do not equal the verified Tampa total of 75.
 - Any coverage figure read from the running database today is wrong until cleanup completes.
 
-**There is no section-deletion tooling in the repository.** `scripts/` contains ingest, refresh,
-analysis and quality commands only, and no code path deletes sections. The cleanup needs a
-targeted, reviewable removal step to be written.
+**Removal tooling now exists but has not been run.** `scripts/cleanup_non_tampa_sections.py`
+performs a targeted, reviewable removal: it reports without writing unless `--apply` is given,
+selects sections by term and stored campus, deletes by explicit primary key, and aborts the
+transaction if stored grade rows change, if a kept-campus section is lost, if the number removed
+differs from the number matched, or if any other-campus section remains. `--expect-removed N`
+refuses to proceed unless exactly `N` sections match.
+
+Writing it did not fix anything on its own: **the 47 rows are still in the beta database, and
+every count above is still contaminated.** The remaining work is running it, then a clean Tampa
+refresh, then recording the verified counts.
 
 ## Next Action
 
-**Targeted removal of the 47 preserved non-Tampa Spring 2027 sections, followed by a clean Tampa
-refresh and API verification.**
+**Run the cleanup against the beta database, then a clean Tampa refresh and API verification.**
+
+This needs an operator with access to the beta database — it cannot be done from an environment
+with no database. The commands are:
+
+```
+uv run python scripts/cleanup_non_tampa_sections.py --term 202701
+uv run python scripts/cleanup_non_tampa_sections.py --term 202701 --apply --expect-removed 47 --json
+uv run python scripts/refresh_course_coverage.py --term 202701
+```
+
+Run the first without `--apply` and review the matched CRNs before applying. If the dry run
+matches a number other than 47, stop and investigate rather than lowering the guard. Keep the
+`--json` output as the cleanup record.
 
 Required outcome, all of which must be recorded with real measured numbers:
 
@@ -138,18 +161,68 @@ Sprint 5 target/freshness checks.
 
 ### Test baseline
 
-Measured 2026-09-09 on this branch (merged with `origin/main` = `62fb2f1`):
+Re-measured 2026-09-09 at `d72f8f3` plus the cleanup tooling:
 
 | Condition | Result |
 |-----------|--------|
-| `uv run pytest -q`, no `EASY_A_TEST_POSTGRES_URL` | **192 passed, 1 skipped** (193 collected) |
-| Backend with PostgreSQL configured | **193 passed** (measured on the validation branch) |
+| `uv run pytest -q`, no `EASY_A_TEST_POSTGRES_URL` | **215 passed, 1 skipped** (216 collected) |
+| Backend with PostgreSQL configured | **not re-measured** — no PostgreSQL in this environment |
 | Frontend `npm test` in `web/` | **78 passed** |
-| Quality gates | ruff, mypy, ESLint, typecheck, build — all passing |
+| Quality gates | `ruff check .`, `mypy src migrations scripts tests` — passing |
+
+The suite was 192 passed / 1 skipped before this work; the 23 added tests cover the cleanup
+tooling (16) and the campus-scope quality check (7). The PostgreSQL-configured figure was **193 passed** when last measured on the validation
+branch; it should now be 209, but nobody has run it — do not quote 209 as measured.
 
 The single skip is the PostgreSQL integration test. **A default run does not use PostgreSQL** —
 most of the suite runs on SQLite, and the PostgreSQL integration test skips unless
 `EASY_A_TEST_POSTGRES_URL` is set. Both facts are true; do not state only one.
+
+### Phase 2 — removal tooling (written 2026-09-09, not yet run)
+
+`scripts/cleanup_non_tampa_sections.py` → `src/easy_a/refresh/cleanup.py` and `cleanup_cli.py`,
+with 16 tests in `tests/refresh/test_cleanup.py` and a README section.
+
+Behaviour: reports without writing unless `--apply` is given; selects sections in the requested
+term whose stored `campus` is not `--keep-campus` (default `Tampa`), compared case-insensitively
+after stripping; deletes by explicit primary key, never a broad `WHERE`; `--expect-removed N`
+refuses to proceed unless exactly `N` sections match; refuses any matched section carrying a
+stored syllabus; `--json` emits a machine-readable record. Deleting a section cascades to that
+section's own seat snapshots and instructor observations and cannot touch `grade_distributions`,
+which joins to sections by `(term, CRN)` and holds no section foreign key. After applying, it
+re-measures and aborts the transaction if stored grade rows changed, if a kept-campus section was
+lost, if the number removed differs from the number matched, or if any other-campus section
+remains. Both modes print stored counts before and after — sections per campus, seat snapshots,
+instructor observations, syllabi, grade rows for the term, grade rows across all terms.
+
+**Rehearsal only, on synthetic data:** against a throwaway SQLite database seeded to the reported
+shape (75 Tampa + 47 other-campus sections, 237 grade rows), the dry run matched 47, `--apply
+--expect-removed 47` took stored sections 122 → 75 with 0 Tampa sections and 0 grade rows removed,
+a second run was a no-op, and `coverage_metadata` then read 5 / 41 / 17 / 10 / 2 = 75. **Those
+rows were invented for the rehearsal and are not evidence about the beta database.**
+
+### Phase 2 — campus-scope quality check (added 2026-09-10)
+
+`unsupported_campus_section` in `src/easy_a/quality/checks.py`, severity **error**, one finding
+per stored section in the term whose campus is not the supported campus. Runs in the generic
+check path, so plain `scripts/check_data_quality.py --term 202701` reports it and exits nonzero
+— no target configuration needed. `--campus` overrides the expected campus for a term that
+legitimately holds another. The campus constant and comparison live in
+`src/easy_a/common/campus.py`, imported by both the check and the cleanup command so a row cannot
+be in scope for one and out of scope for the other.
+
+This gives the cleanup an **independent confirmation path**: the cleanup selects by a campus
+group-by and verifies counts; the quality check iterates stored sections and reports each
+offender. A clean quality exit after the cleanup is a second, separately implemented statement
+that no off-campus row is left. Run it before and after and keep both reports.
+
+Rehearsed on a throwaway SQLite database seeded to the reported shape: 47 errors and exit 1
+before the cleanup, 0 errors, 75 sections and exit 0 after. **Synthetic rows — not evidence about
+the beta database.**
+
+Note for whoever runs it: this check is new, so a historical term populated before the PR #16
+scope fix may now report errors it never reported before. That is a true finding about stored
+data, not a regression.
 
 ### Sprint 5 — what landed
 
@@ -186,7 +259,9 @@ refresh (PR #16 — cause fixed; stored rows still need cleanup).
 
 ### Still open
 
-- **47 non-Tampa sections stored** — the current blocker, above
+- **47 non-Tampa sections stored** — the current blocker, above. Removal tooling and a
+  campus-scope quality check now exist; running them against the beta database is the
+  outstanding step.
 - **Search performance at widened coverage** — not sufficiently measured; moved to REQ-PERF-01
 - **No historical grades for AMH / PSY / BSC** — global fallback, `effective_n = 0`
 - **Blank grade-cell / suppression semantics** — `src/easy_a/grades/parser.py` converts every
@@ -202,7 +277,11 @@ approved later.
 ## Session Continuity
 
 Last session: 2026-09-09
-Stopped at: Real-data expansion validation results recorded in the planning docs. Cleanup of the
-47 contaminated rows has **not** been performed. No application code changed.
+Stopped at: Section-removal tooling written, tested (16 tests) and documented in `README.md`.
+Rehearsed end to end against a throwaway SQLite database seeded to the reported shape — 122
+stored sections went to 75, 47 removed, 0 Tampa sections removed, 237 grade rows preserved, and
+`coverage_metadata` then read 5 / 41 / 17 / 10 / 2 = 75. **That rehearsal used synthetic rows and
+is not evidence about the beta database.** Cleanup of the 47 contaminated rows has **not** been
+performed.
 Resume file: None
-Next action: the targeted cleanup described under "Next Action" above.
+Next action: run the cleanup against the beta database as described under "Next Action" above.

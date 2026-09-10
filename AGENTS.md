@@ -19,7 +19,7 @@ imports, configurable course coverage, and seat freshness classification.
 
 | | |
 |---|---|
-| Baseline | `origin/main` = `62fb2f189c8cac67a1500863f080e0f638469df1` |
+| Baseline | `origin/main` = `d72f8f3d77a11f301f2b74f56088a217226feefa` (verified by fetch 2026-09-09) |
 | Sprint 5 | ✓ **Complete** — merged via PR #14 and PR #15. Do not re-plan or re-implement it. |
 | PR #16 | ✓ **Merged** — pins `campus="T"` and rejects non-Tampa rows before ingestion |
 | Real-data validation | ✓ **Complete** (2026-09-09) — five targets verified, **75 Tampa sections** |
@@ -38,8 +38,20 @@ stored coverage/API counts until a separately reviewed cleanup."
 
 **Stored counts, API counts and `GET /api/v1/metadata/coverage` counts are therefore still
 contaminated and do not equal 75.** Any coverage figure read from the running database today is
-wrong. No section-deletion tooling exists in `scripts/` — the cleanup has to be written and
-reviewed.
+wrong.
+
+The removal tooling now exists — `scripts/cleanup_non_tampa_sections.py` (written 2026-09-09,
+backed by `src/easy_a/refresh/cleanup.py`, covered by `tests/refresh/test_cleanup.py`, documented
+in `README.md`). It reports without writing unless `--apply` is given, deletes by explicit primary
+key, and aborts the transaction if a grade row or a Tampa section would be lost. **It has not been
+run against the beta database**, so nothing has been cleaned yet: run the dry run, review the
+matched CRNs, then `--apply --expect-removed 47 --json` and keep the JSON as the record.
+
+`scripts/check_data_quality.py --term 202701` confirms the result independently — the
+`unsupported_campus_section` check (added 2026-09-10, error severity) reports one finding per
+remaining off-campus section and exits nonzero. Run it before and after the cleanup and keep both
+reports. Because the check is new, a historical term populated before PR #16 may now report
+errors it never reported before; that is a true finding about stored data, not a regression.
 
 The cleanup must record: rows removed and the criteria used; final Tampa-only stored counts;
 final API counts; final coverage-endpoint counts; and explicit confirmation that **no historical
@@ -47,17 +59,18 @@ grades and no Tampa sections were deleted** (237 grade rows and all 75 Tampa sec
 
 ### Test baseline
 
-Measured 2026-09-09 at `62fb2f1`:
+Re-measured 2026-09-10 at `d72f8f3` plus the cleanup tooling and campus check:
 
 | Condition | Result |
 |-----------|--------|
-| `uv run pytest -q`, no `EASY_A_TEST_POSTGRES_URL` | **192 passed, 1 skipped** (193 collected) |
-| Backend with PostgreSQL configured | **193 passed** |
+| `uv run pytest -q`, no `EASY_A_TEST_POSTGRES_URL` | **215 passed, 1 skipped** (216 collected) |
+| Backend with PostgreSQL configured | **not re-measured** — was 193 passed at `62fb2f1` |
 | Frontend `npm test` in `web/` | **78 passed** |
 
-Both facts are true: a **default run does not use PostgreSQL** — most of the suite runs on SQLite
-and the integration test skips unless `EASY_A_TEST_POSTGRES_URL` is set; with it set, all 193
-pass. Do not state only one.
+A **default run does not use PostgreSQL** — most of the suite runs on SQLite and the integration
+test skips unless `EASY_A_TEST_POSTGRES_URL` is set; with it set, that test also runs. State both
+facts, not one. The PostgreSQL-configured total has not been re-measured since the tooling landed,
+so quote 193-at-`62fb2f1` as the last measurement rather than inventing a current number.
 
 ### Configured course targets
 
@@ -100,10 +113,12 @@ course history. Import priority: AMH 2020 → PSY 2012 → BSC 1005.
 - **Preserve term + CRN identity**, source provenance and deduplication. Grade rows are unique by
   term/CRN/**source**; duplicate exports must not double-count.
 - **Seats, GenEd, modality and syllabus signals must not affect scoring.**
+- **Tampa only.** `src/easy_a/common/campus.py` is the single definition of the supported campus.
+  A stored section from any other campus is an error-severity quality finding.
 - **Verify `origin/main` by fetch**; work from a branch or worktree descended from it. Do not
   check out, merge or fast-forward a local `main` you have not verified.
 
-Full set: `D-01`..`D-19` in the `.planning/PROJECT.md` `<decisions>` block.
+Full set: `D-01`..`D-22` in the `.planning/PROJECT.md` `<decisions>` block.
 
 ## Repository layout for context
 
@@ -132,7 +147,8 @@ restore them to ADR/PRD/SPEC.
 
 Real and unresolved. Do not paper over them, and do not treat them as licence to redesign:
 
-- **47 non-Tampa sections stored** — the current blocker, above (REQ-DATA-02)
+- **47 non-Tampa sections stored** — the current blocker, above (REQ-DATA-02). Removal tooling
+  and a campus-scope quality check exist but have not been run against the beta database.
 - **No historical grades for AMH 2020, PSY 2012, BSC 1005** — global fallback, `effective_n = 0`
   (REQ-GRADES-01)
 - **Search performance unmeasured at widened coverage** — `GET /api/v1/rankings/search` ranks

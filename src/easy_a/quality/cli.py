@@ -6,6 +6,7 @@ from datetime import timedelta
 
 from sqlalchemy.orm import Session, sessionmaker
 
+from easy_a.common.campus import SUPPORTED_CAMPUS
 from easy_a.common.terms import TermParseError, normalize_banner_term_code
 from easy_a.db import get_session_factory
 from easy_a.quality.checks import DEFAULT_STALE_AFTER_DAYS, run_quality_checks
@@ -26,6 +27,14 @@ def build_parser() -> argparse.ArgumentParser:
         default=DEFAULT_STALE_AFTER_DAYS,
         help="Warn when the latest schedule observation is older than this many days.",
     )
+    parser.add_argument(
+        "--campus",
+        default=SUPPORTED_CAMPUS,
+        help=(
+            "Campus this term is expected to cover; stored sections from any other campus "
+            f"are reported as errors. Default: {SUPPORTED_CAMPUS}."
+        ),
+    )
     parser.add_argument("--json", action="store_true", help="Print the full report as JSON.")
     return parser
 
@@ -42,6 +51,7 @@ def main(
             session,
             args.term,
             stale_after=timedelta(days=args.stale_after_days),
+            supported_campus=args.campus,
         )
 
     if args.json:

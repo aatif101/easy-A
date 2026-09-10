@@ -277,14 +277,15 @@ Run the quality checks independently for any stored term:
 ```powershell
 uv run python scripts/check_data_quality.py --term 202701
 uv run python scripts/check_data_quality.py --term 202701 --stale-after-days 14 --json
+uv run python scripts/check_data_quality.py --term 202701 --campus "St. Petersburg"
 ```
 
-The report checks duplicate `(term, CRN)` sections, grade bucket totals, orphan
-grade and instructor rows, impossible seat values, unknown delivery methods,
-ambiguous current instructors, stale schedule observations, missing historical
-analytics coverage, and low-confidence rankings. Staleness is configurable and
-is reported as a warning rather than treated as invalid data. Human-readable
-output looks like:
+The report checks duplicate `(term, CRN)` sections, sections stored outside the
+supported campus, grade bucket totals, orphan grade and instructor rows,
+impossible seat values, unknown delivery methods, ambiguous current instructors,
+stale schedule observations, missing historical analytics coverage, and
+low-confidence rankings. Staleness is configurable and is reported as a warning
+rather than treated as invalid data. Human-readable output looks like:
 
 ```text
 Term: 202701
@@ -300,6 +301,16 @@ INFO no_historical_analytics CRN 13173 [section:19]: Section has no historical g
 
 The quality command exits nonzero only when at least one error-level finding is
 present. Warnings and informational coverage gaps do not fail the command.
+
+`unsupported_campus_section` is an **error**, one per offending section. Easy-A is a
+Tampa-only product: the schedule query pins `campus="T"` and coverage refresh rejects
+non-Tampa rows before ingestion, so a stored row from another campus arrived by some
+other path and silently inflates every stored, API and coverage-endpoint count. The
+counts are wrong while it is present, so the command exits nonzero. `--campus` changes
+which campus is expected — use it when a term legitimately holds another campus, rather
+than editing the check. Running this against a term populated before the scope fix will
+surface pre-existing rows as errors; that is a true finding about stored data, not a
+regression in the checks.
 
 ## Narrow public-source commands
 
@@ -684,3 +695,47 @@ test, set `EASY_A_TEST_POSTGRES_URL` to a test database URL with schema-creation
 permission, then run `uv run pytest`. That test creates a uniquely named schema in a
 transaction and rolls it back; it verifies coverage aggregation, snapshot history,
 and timestamp/id ordering on PostgreSQL. It is skipped when the URL is absent.
+
+## Removing sections from an unsupported campus
+
+Coverage refresh pins `campus="T"` and rejects non-Tampa rows before ingestion, but an
+earlier expansion pass ran before that fix and left other-campus sections stored. No other
+command deletes sections, so removal has its own reviewable step:
+
+```powershell
+uv run python scripts/cleanup_non_tampa_sections.py --term 202701
+uv run python scripts/cleanup_non_tampa_sections.py --term 202701 --apply --expect-removed 47
+uv run python scripts/cleanup_non_tampa_sections.py --term 202701 --apply --json
+```
+
+**The command reports without writing anything unless `--apply` is given.** Run it once
+without `--apply`, read the matched CRNs, then re-run with `--apply`.
+
+Selection criteria are exactly: sections in the requested term whose stored `campus` is not
+the `--keep-campus` value (default `Tampa`), compared case-insensitively after stripping.
+Matched sections are deleted by explicit primary key, never by a broad `WHERE` clause. Other
+terms are out of scope, and the command is a no-op on a second run.
+
+`--expect-removed N` refuses to proceed unless exactly `N` sections match, so an operator can
+assert the count they reviewed. The command also refuses when a matched section has a stored
+syllabus, because discarding syllabus rows needs a separate decision.
+
+Deleting a section cascades to that section's own seat snapshots and instructor observations.
+It never touches `grade_distributions`: grade rows join to sections by `(term, CRN)` and hold
+no section foreign key. After applying, the command re-measures and aborts the transaction if
+stored grade rows changed, if any kept-campus section was lost, if the number of rows removed
+differs from the number matched, or if any other-campus section remains.
+
+Both runs print stored counts before and after — sections per campus, seat snapshots,
+instructor observations, syllabi, grade rows for the term, and grade rows across all terms —
+so the cleanup result, the final Tampa-only counts, and the preservation of historical grades
+can be recorded from the command's own output. Use `--json` for a machine-readable record.
+
+Removing stored rows does not re-check the source. Follow a cleanup with
+`scripts/refresh_course_coverage.py`, then verify `GET /api/v1/metadata/coverage` and the
+`/api/v1/rankings/*` counts against the corrected data.
+
+`scripts/check_data_quality.py --term <term>` confirms the result independently: it reports one
+`unsupported_campus_section` error per remaining off-campus section and exits nonzero, so a clean
+exit is a second, separately implemented statement that no such row is left. Run it before and
+after the cleanup and keep both reports.
