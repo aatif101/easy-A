@@ -684,3 +684,45 @@ test, set `EASY_A_TEST_POSTGRES_URL` to a test database URL with schema-creation
 permission, then run `uv run pytest`. That test creates a uniquely named schema in a
 transaction and rolls it back; it verifies coverage aggregation, snapshot history,
 and timestamp/id ordering on PostgreSQL. It is skipped when the URL is absent.
+
+## Removing sections from an unsupported campus
+
+Coverage refresh pins `campus="T"` and rejects non-Tampa rows before ingestion, but an
+earlier expansion pass ran before that fix and left other-campus sections stored. No other
+command deletes sections, so removal has its own reviewable step:
+
+```powershell
+uv run python scripts/cleanup_non_tampa_sections.py --term 202701 --json
+uv run python scripts/cleanup_non_tampa_sections.py --term 202701 --apply --expect-removed 47 --json
+```
+
+**The command reports without writing anything unless `--apply` is given.** Run it once
+without `--apply` and retain the JSON audit output. For the known correction, stop any
+schedule/seat writers and proceed only if the report shows exactly 47 eligible rows, no
+ambiguous-campus rows, no candidate grade rows, and `apply_safe: true`.
+
+Selection criteria are exactly: sections in the requested term that belong to a course in the
+configured beta target file and whose nonblank stored `campus` is not `Tampa`, compared
+case-insensitively after stripping. Blank or null campus values are reported separately as
+ambiguous and are never auto-deleted. Other terms and non-target courses are out of scope.
+Matched sections are locked when supported and deleted by the explicit primary keys captured
+inside the transaction. A second apply with `--expect-removed 0` is a no-op.
+
+Apply mode requires `--expect-removed N` and refuses to proceed unless exactly that many
+sections match. It also refuses if any grade row shares a candidate's term and CRN.
+
+The same transaction explicitly removes each candidate section's seat snapshots, instructor
+observations, and linked syllabus rows before removing the section. It never deletes
+`grade_distributions`. Before commit it verifies exact ID sets so Tampa sections, ambiguous
+sections, historical sections, unrelated current-term sections, grade rows, and unrelated
+dependent records must all remain unchanged. Any failed check rolls back the entire operation.
+
+Both modes report per-course and per-campus target counts, ambiguous rows, candidate CRNs and
+dependent counts, term and historical section counts, and grade totals. Apply mode also reports
+every removed-record category and all preservation counters. Use `--json` for the durable audit
+record.
+
+Removing stored rows does not re-check the source. After a successful apply, run both
+`scripts/refresh_course_coverage.py --term 202701` and `scripts/refresh_seats.py --term 202701`,
+then verify the database, `GET /api/v1/metadata/coverage`, and the rankings API agree on the
+corrected Tampa-only counts.
