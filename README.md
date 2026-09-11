@@ -684,3 +684,23 @@ test, set `EASY_A_TEST_POSTGRES_URL` to a test database URL with schema-creation
 permission, then run `uv run pytest`. That test creates a uniquely named schema in a
 transaction and rolls it back; it verifies coverage aggregation, snapshot history,
 and timestamp/id ordering on PostgreSQL. It is skipped when the URL is absent.
+
+## Knowing what to work on
+
+Before starting work — and before asking an AI agent to — run:
+
+```bash
+uv run python scripts/project_status.py
+```
+
+It fetches the remote and reports the verified `origin/main` SHA, every unmerged branch with
+its owner and files, any two branches building the same thing, and the planned next action
+from `.planning/STATE.md`. Exit code `0` clear, `1` work in flight, `2` duplicate work.
+
+Unmerged branches and open pull requests are the live record; `.planning/STATE.md` describes
+the last **merged** state and is therefore stale by whatever is currently open for review.
+When they disagree, believe the branches.
+
+Agents start a session with `/resume-work` and end it with `/wrap-up` (see
+`.claude/commands/`); the obligations those encode are written out in
+[`AGENTS.md`](AGENTS.md) for tools that do not support slash commands.

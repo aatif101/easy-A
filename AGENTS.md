@@ -3,10 +3,36 @@
 Entry point for any AI coding agent working in this repository. Everything needed for ordinary
 continuation is in the repo — you should not need prior conversation context.
 
+## ⛔ Step 0 — before you write anything, check what is already in flight
+
+**Run this first, every session, no exceptions:**
+
+```bash
+uv run python scripts/project_status.py
+```
+
+It fetches the remote and reports every unmerged branch, who owns it, what files it
+touches, and whether two branches are building the same thing. Exit code `0` means clear,
+`1` means work is in flight, `2` means duplicate work is already underway.
+
+**The planning files below describe the last *merged* state. They are stale by exactly the
+work sitting in open pull requests.** When `project_status.py` and `.planning/STATE.md`
+disagree, the branches are right and the planning file is out of date.
+
+This step is not optional bookkeeping. On 2026-09-10 two contributors each built complete,
+independent Tampa-cleanup tooling — same four file paths, same CLI design — because the
+second one read `main`, where `STATE.md` correctly said no such tooling existed, while the
+first one's finished implementation sat unmerged in PR #17. Both followed the documented
+process. The process was missing this step.
+
+If the report shows someone already doing your task: **stop, read their branch, and tell
+the user.** Build on their work or merge it. Do not write a second version.
+
 ## Read first, in this order
 
+0. **`uv run python scripts/project_status.py`** — live state; outranks every file below
 1. **`AGENTS.md`** (this file) — constraints and orientation
-2. **`.planning/STATE.md`** — current position and the next action
+2. **`.planning/STATE.md`** — current position and the next action *as of the last merge*
 3. **`.planning/PROJECT.md`** — scope, decisions, open questions
 4. **`.planning/ROADMAP.md`** — phase sequence and backlog
 5. **`README.md`** — as needed, for commands and local setup
@@ -102,6 +128,17 @@ course history. Import priority: AMH 2020 → PSY 2012 → BSC 1005.
 - **Seats, GenEd, modality and syllabus signals must not affect scoring.**
 - **Verify `origin/main` by fetch**; work from a branch or worktree descended from it. Do not
   check out, merge or fast-forward a local `main` you have not verified.
+- **Claim work by pushing, before you build it.** Branch from verified `origin/main` using the
+  lane that matches the area (`dev1/*` backend and data, `dev2/*` frontend `web/`), then push
+  that branch immediately — a stub or failing test is enough. A pushed branch is visible to
+  everyone's `project_status.py`; an unpushed branch is invisible, and invisible work gets
+  built twice. Open a draft pull request as soon as there is anything to look at.
+- **Never end a session without recording it.** Update `.planning/STATE.md` — position, next
+  action, and what is in flight — and push. Prefer a separate docs-only pull request for that
+  update so it reaches `main` without waiting on code review; a state update trapped inside an
+  unmerged feature branch is invisible, which is precisely how the duplicate work above
+  happened. Distinguish **written** from **run**: tooling that exists but has never executed
+  must say so.
 
 Full set: `D-01`..`D-19` in the `.planning/PROJECT.md` `<decisions>` block.
 
@@ -152,12 +189,33 @@ frontend and API verification passed with no console errors.
 
 ## Workflow
 
+### Starting and ending a session
+
+Every session opens and closes the same way, whatever tool you are using:
+
+| | Claude Code | Any other agent, or a human |
+|---|---|---|
+| **Start** | `/resume-work` | `uv run python scripts/project_status.py`, then follow Step 0 above |
+| **End** | `/wrap-up` | update `.planning/STATE.md`, push, open or update the pull request |
+
+`/resume-work` and `/wrap-up` live in `.claude/commands/`. They are thin wrappers around the
+rules in this file — if you cannot run slash commands, read those two files and do what they
+say, because the obligations are identical.
+
+Say **"resume work"** and the expected behaviour is: check live state first, report anything
+already in flight, and only then pick up the next action.
+
+### GSD planning
+
 This repo uses GSD. Planning artifacts live in `.planning/`, not `.gsd/`.
 
 - `/gsd-progress` — check state and get the next action
 - `/gsd-plan-phase 2` — plan Phase 2 (Tampa-Only Data Correction), the current work. **Not
   Sprint 5 and not Phase 1** — both are already complete.
 - `/gsd-execute-phase N` — execute a planned phase
+
+GSD commands do not replace Step 0. Run `project_status.py` before any of them — GSD reads
+the planning files, and the planning files do not know about unmerged branches.
 
 If you are not running GSD, read `.planning/STATE.md` and `.planning/ROADMAP.md` before changing
 code, and keep `STATE.md` accurate when you finish.

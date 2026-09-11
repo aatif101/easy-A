@@ -37,8 +37,9 @@ Status: Blocked — 47 contaminated rows must be removed before coverage numbers
 
 Progress: [██░░░░░░░░] 25%
 
-Last activity: 2026-09-09 — Recorded real-data expansion validation results. No application code
-changed by this planning work.
+Last activity: 2026-09-11 — Added the in-flight work check (`scripts/project_status.py`) and
+the session start/end commands, and recorded that cleanup tooling exists twice unmerged. No
+application code changed by this planning work.
 
 ## ⛔ Current blocker
 
@@ -56,16 +57,36 @@ Consequences right now:
   **all still include the 47 contaminated rows**. They do not equal the verified Tampa total of 75.
 - Any coverage figure read from the running database today is wrong until cleanup completes.
 
-**There is no section-deletion tooling in the repository.** `scripts/` contains ingest, refresh,
-analysis and quality commands only, and no code path deletes sections. The cleanup needs a
-targeted, reviewable removal step to be written.
+### ⛔ The removal tooling now exists TWICE, unmerged. Do not write a third.
+
+`origin/main` has no section-deletion code path, but **two open pull requests each add a
+complete one**, built independently on 2026-09-09 and 2026-09-10 against the same four file
+paths (`scripts/cleanup_non_tampa_sections.py`, `src/easy_a/refresh/cleanup.py`,
+`src/easy_a/refresh/cleanup_cli.py`, `tests/refresh/test_cleanup.py`):
+
+| PR | Branch | Author | State | Shape |
+|----|--------|--------|-------|-------|
+| #17 | `claude/main-branch-status-ya1inr` | aatif101 | open | 307-line cleanup, 345 test lines; **also adds a campus quality check** (`common/campus.py`, `quality/checks.py`) so contaminated rows become a quality error — a regression guard #18 lacks; updates the planning docs |
+| #18 | `dev1/tampa-data-cleanup` | kanishk-sc | open, draft | 554-line cleanup, 480 test lines; stronger data safety — row locking, explicit dependent-row deletion, exact ID-set verification, refuses when a grade row shares a candidate's term+CRN, never auto-deletes blank/ambiguous campus; README runbook |
+
+Both default to a dry run and require `--apply` plus an expected-count guard. **Neither has
+been run against the beta database**, so the 47 rows are still stored.
+
+Run `uv run python scripts/project_status.py` for the live picture before acting.
 
 ## Next Action
 
-**Targeted removal of the 47 preserved non-Tampa Spring 2027 sections, followed by a clean Tampa
-refresh and API verification.**
+**Choose between PR #17 and PR #18, then run the cleanup. Do not write new removal tooling —
+it already exists twice (see the blocker above).**
 
-Required outcome, all of which must be recorded with real measured numbers:
+1. **Decide, with both authors.** The recommendation on the evidence: take **PR #18** as the
+   base (stronger data-layer safety, and the backend is the `dev1/*` lane) and **port PR #17's
+   campus quality check onto it** (the regression guard is the one thing #18 is missing). Then
+   close the other. This is a human call between two contributors, not an agent's call.
+2. **Then** perform the removal with the surviving tooling, followed by a clean Tampa refresh
+   and API verification.
+
+Required outcome of step 2, all of which must be recorded with real measured numbers:
 
 1. Exact cleanup result — how many rows were removed, and by what criteria
 2. Final Tampa-only stored counts
@@ -201,8 +222,17 @@ approved later.
 
 ## Session Continuity
 
-Last session: 2026-09-09
-Stopped at: Real-data expansion validation results recorded in the planning docs. Cleanup of the
-47 contaminated rows has **not** been performed. No application code changed.
+Last session: 2026-09-11
+Stopped at: Added `scripts/project_status.py` plus `/resume-work` and `/wrap-up`, and recorded
+the duplicate-tooling collision. Cleanup of the 47 contaminated rows has **not** been performed.
+Both PR #17 and PR #18 remain open and unrun; no application code changed by this session.
 Resume file: None
-Next action: the targeted cleanup described under "Next Action" above.
+Next action: the PR #17-versus-#18 decision described under "Next Action" above, then the
+cleanup. Start by running `uv run python scripts/project_status.py`.
+
+**In flight as of 2026-09-11** (verify with `project_status.py`, never trust this list alone):
+
+| Branch | Author | What |
+|--------|--------|------|
+| `claude/main-branch-status-ya1inr` | aatif101 | PR #17 — cleanup tooling + campus quality check |
+| `dev1/tampa-data-cleanup` | kanishk-sc | PR #18 (draft) — cleanup tooling, stronger DB safety |

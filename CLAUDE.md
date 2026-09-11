@@ -3,8 +3,21 @@
 **Read [`AGENTS.md`](AGENTS.md) first.** It is the canonical agent entry point for this
 repository and is kept current; this file only points at it so the two cannot drift.
 
-Read order: `AGENTS.md` → `.planning/STATE.md` → `.planning/PROJECT.md` →
-`.planning/ROADMAP.md` → `README.md` for commands.
+## ⛔ Before writing anything, run this
+
+```bash
+uv run python scripts/project_status.py
+```
+
+Someone else may already be doing your task. This reports every unmerged branch, who owns
+it, and whether two branches are building the same thing. **It outranks every planning file
+below** — those describe the last *merged* state and are stale by exactly the work sitting
+in open pull requests. If it shows your task already in flight, stop and tell the user
+rather than writing a second implementation. `/resume-work` does this and the rest of the
+start-of-session routine; `/wrap-up` closes the session so the next person can resume.
+
+Read order: `scripts/project_status.py` → `AGENTS.md` → `.planning/STATE.md` →
+`.planning/PROJECT.md` → `.planning/ROADMAP.md` → `README.md` for commands.
 
 Six things that matter most, repeated here because they are easy to get wrong:
 
