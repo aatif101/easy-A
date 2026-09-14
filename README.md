@@ -2,12 +2,13 @@
 
 > **Scope note:** Sections below describe the application as it has grown; some predate Sprint 5.
 > Planning for the work ahead lives in [`.planning/`](.planning/). **Sprint 5 and real-data
-> expansion validation are both complete** — five Spring 2027 Tampa course targets are validated
-> (75 verified sections). Current work is a **Tampa-only data correction**: 47 non-Tampa sections
-> from an early expansion pass are still stored and must be removed before coverage numbers can
-> be trusted. RateMyProfessors links and seat alerts remain candidate later phases, not current
-> scope. For current position start at [`.planning/STATE.md`](.planning/STATE.md); AI agents
-> start at [`AGENTS.md`](AGENTS.md).
+> expansion validation are both complete** — five Spring 2027 Tampa course targets were validated
+> at 75 sections on 2026-09-09. The Tampa-only correction was executed on 2026-09-14: 47
+> non-Tampa sections were removed, and a clean refresh found 77 current Tampa sections because
+> AMH 2020 gained two legitimate sections. PR #18 contains the reviewed tooling and awaits merge.
+> RateMyProfessors links and seat alerts remain candidate later phases, not current scope. For
+> current position start at [`.planning/STATE.md`](.planning/STATE.md); AI agents start at
+> [`AGENTS.md`](AGENTS.md).
 
 Easy-A is a course-intelligence tool for University of South Florida Tampa students.
 
@@ -693,13 +694,21 @@ command deletes sections, so removal has its own reviewable step:
 
 ```powershell
 uv run python scripts/cleanup_non_tampa_sections.py --term 202701 --json
+```
+
+The 2026-09-14 correction then used the reviewed dry-run count:
+
+```powershell
 uv run python scripts/cleanup_non_tampa_sections.py --term 202701 --apply --expect-removed 47 --json
 ```
 
-**The command reports without writing anything unless `--apply` is given.** Run it once
-without `--apply` and retain the JSON audit output. For the known correction, stop any
-schedule/seat writers and proceed only if the report shows exactly 47 eligible rows, no
-ambiguous-campus rows, no candidate grade rows, and `apply_safe: true`.
+That apply is historical and must not be repeated with an expected count of 47. For any future
+incident, run the dry report first and supply its separately reviewed eligible count.
+
+**The command reports without writing anything unless `--apply` is given.** Run it without
+`--apply` and retain the JSON audit output. Before any apply, stop schedule/seat writers and
+proceed only if the exact eligible rows, ambiguous-campus rows, candidate grade rows and
+`apply_safe` result have been reviewed.
 
 Selection criteria are exactly: sections in the requested term that belong to a course in the
 configured beta target file and whose nonblank stored `campus` is not `Tampa`, compared
@@ -730,3 +739,25 @@ corrected Tampa-only counts.
 Run `scripts/check_data_quality.py --term 202701` before and after cleanup. It reports one
 `unsupported_campus_section` error for every stored section outside Tampa and exits nonzero,
 providing an independent regression check that no cross-campus rows remain.
+
+### Recorded correction result (2026-09-14)
+
+The reviewed apply removed exactly 47 non-Tampa sections, 47 linked seat snapshots and 47 linked
+instructor observations. It removed no syllabi, grade rows, Tampa sections, historical sections
+or unrelated-term sections. All 237 grade rows and 263 historical sections remained intact.
+
+After both required refreshes, storage, `/api/v1/rankings/search` and
+`GET /api/v1/metadata/coverage` agreed on the current configured Spring 2027 counts:
+
+| Course | Tampa sections |
+| --- | ---: |
+| MAC 1105 | 5 |
+| ENC 1101 | 41 |
+| AMH 2020 | 19 |
+| PSY 2012 | 10 |
+| BSC 1005 | 2 |
+| **Total** | **77** |
+
+There were zero stored other-campus target sections. The post-cleanup dry run found zero eligible
+rows, and data quality reported 0 errors, 31 warnings and 31 info. Do not rerun the destructive
+command expecting 47; use the dry run first and expect zero unless new contamination is found.

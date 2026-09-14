@@ -13,11 +13,11 @@ on the frontend. It has real Spring 2027 schedule ingestion, real historical gra
 configurable course coverage, seat freshness classification, GenEd metadata and a data-quality
 pipeline. The API and frontend have been smoke-tested end to end.
 
-**Current baseline: `origin/main` = `62fb2f189c8cac67a1500863f080e0f638469df1`** (Sprint 5 merged via PR #14 and
-PR #15; Tampa scope restriction via PR #16).
+**Current baseline: `origin/main` = `d72f8f3d77a11f301f2b74f56088a217226feefa`**
+(verified by fetch on 2026-09-14).
 
 **Sprint 5 and real-data expansion validation are both complete.**
-**Current activity: Tampa-only data correction — blocking. See "Current blocker" below.**
+**Current activity: Phase 2 is complete and verified on PR #18; review/merge is the current gate.**
 
 ## Core Value
 
@@ -79,10 +79,11 @@ plausible-looking result.
   **75 verified Tampa sections** total. Search performance was not sufficiently measured and is
   carved out to REQ-PERF-01.
 
-### Current — Tampa-only data correction (blocking)
+### Phase 2 — Tampa-only data correction — COMPLETE ON PR #18
 
-- [ ] **REQ-DATA-02** — Remove the 47 non-Tampa Spring 2027 sections inserted by the first
-  expansion pass; clean Tampa refresh; verify API and coverage counts
+- [x] **REQ-DATA-02** — Exactly 47 non-Tampa Spring 2027 sections removed; clean Tampa refresh,
+  stored counts, rankings API and coverage endpoint verified at 77 Tampa / 0 other-campus
+  sections on 2026-09-14. PR #18 awaits review and merge.
 
 ### Next — historical grade coverage
 
@@ -116,24 +117,16 @@ backlog for detail.
 - Provider-specific deployment infrastructure beyond minimal, portable preparation
 - A scoring methodology rewrite
 
-## Current blocker
+## Current gate
 
-**47 non-Tampa Spring 2027 sections are still stored in the beta database.**
+**The data correction is complete; PR #18 must be reviewed and merged.**
 
-The first expansion pass ran before the campus-scope bug was found: configured refresh queried all
-campuses and inserted 47 non-Tampa Spring 2027 sections into the existing beta database. PR #16
-fixed the cause — it pins `campus="T"` and rejects non-Tampa rows before ingestion — but its
-merged description states plainly that it "does not delete the 47 other-campus sections inserted
-by the initial validation pass… They remain visible in stored coverage/API counts until a
-separately reviewed cleanup."
-
-**Until REQ-DATA-02 completes, stored counts, `/api/v1/rankings/*` counts and
-`GET /api/v1/metadata/coverage` counts all still include the contaminated rows and do not equal
-the verified Tampa total of 75.** Any coverage figure read from the running database today is
-wrong.
-
-No section-deletion tooling exists — `scripts/` holds ingest, refresh, analysis and quality
-commands only. The cleanup must be written and reviewed, not merely run.
+The Phase 2 branch adds a dry-run-first cleanup with exact-count and preservation checks, plus an
+independent `unsupported_campus_section` quality error. The reviewed apply removed 47 sections,
+47 linked seat snapshots and 47 instructor observations; it removed zero syllabi, grade rows,
+Tampa sections, historical sections or unrelated-term sections. A post-cleanup dry run found zero
+remaining eligible rows. PR #17 overlaps this work; consolidate on PR #18 and close the duplicate
+after review.
 
 ## Context
 
@@ -163,22 +156,44 @@ details all worked, with no browser console errors.
 
 Search performance at the widened coverage was **not** sufficiently measured; that is REQ-PERF-01.
 
+**Tampa-only correction and refresh (executed 2026-09-14).** The cleanup selected only Spring
+2027 sections in configured target courses with a nonblank stored campus other than Tampa after
+stripping and case-folding. It excluded null/blank campus rows, unrelated terms and non-target
+courses. Before cleanup there were 122 configured Spring 2027 sections: 75 Tampa and 47
+other-campus. Immediately after cleanup there were 75 Tampa and zero other-campus sections.
+
+The required clean coverage and seat refreshes then observed two new legitimate AMH 2020 Tampa
+sections. Current stored, rankings API and coverage-endpoint counts agree:
+
+| Course | Current Tampa sections | Other-campus sections |
+|--------|------------------------|-----------------------|
+| MAC 1105 | 5 | 0 |
+| ENC 1101 | 41 | 0 |
+| AMH 2020 | 19 | 0 |
+| PSY 2012 | 10 | 0 |
+| BSC 1005 | 2 | 0 |
+| **Current total** | **77** | **0** |
+
+All 237 grade rows and 263 historical sections remain. Spring 2027 quality reports 0 errors, 31
+warnings and 31 info. Returning all 77 sections from `/api/v1/rankings/search` took about 10.1
+seconds locally; that first measurement confirms REQ-PERF-01 remains a hosted-beta concern.
+
 **Repository state.** Brownfield repo with a mapped codebase (`.planning/codebase/`, map date
 2026-09-05) and an ingested handoff document set (`.planning/intel/`). See "Handoff document
 status" below — those documents are proposals, and several of their claims are not adopted.
 
 **What exists now vs what comes next:**
 
-| Area | Exists at `62fb2f1` | Next |
+| Area | Exists now | Next |
 |------|---------------------|------|
-| Backend platform | FastAPI app factory, DI, schemas, domain services, ORM, Alembic | Deployment config (Phase 2) |
-| Course coverage | Configurable targets; 5 courses configured | **Validate 3 unvalidated targets against real data (Phase 1)** |
+| Backend platform | FastAPI app factory, DI, schemas, domain services, ORM, Alembic | Deployment config (Phase 4) |
+| Course coverage | Five configured targets; current clean source-backed total is 77 Tampa sections | Historical grades for AMH/PSY/BSC (Phase 3) |
 | Scoring | Historical easiness score, shrinkage, confidence labels, fallback | **Unchanged — preserved as baseline** |
 | Seats | Freshness classification, seat-only refresh, API fields, freshness UI | — |
 | Frontend | Explicit mock opt-in, pagination hardening, coverage UX, relative timestamps | — |
-| Tests | 192 passed / 1 skipped Python, 78 frontend; PostgreSQL integration present but skippable | Widen PostgreSQL coverage (unscheduled) |
-| CI | Nothing — no `.github/` directory | Net-new, Phase 2 |
-| Deployment | `docker-compose.yml` provisions PostgreSQL only | Minimal, portable (Phase 2) |
+| Tests | Phase 2: 216 passed / 2 skipped default; 218 passed with PostgreSQL; historical frontend baseline 78 | Widen PostgreSQL coverage (unscheduled) |
+| CI | Nothing — no `.github/` directory | Net-new, Phase 4 |
+| Deployment | `docker-compose.yml` provisions PostgreSQL only | Minimal, portable (Phase 4) |
 
 **Fixed in Sprint 5** (historical — do not re-plan):
 
@@ -190,11 +205,12 @@ status" below — those documents are proposals, and several of their claims are
 
 **Still open** (evidence-backed observations, not product requirements):
 
-- `GET /api/v1/rankings/search` ranks sections before slicing pagination — needs measurement at
-  the widened coverage rather than extrapolation from two courses
+- `GET /api/v1/rankings/search` ranks sections before slicing pagination — an initial local
+  measurement took about 10.1 seconds for all 77 corrected sections; hosted sizing and
+  improvement remain open
 - `src/easy_a/grades/parser.py` converts every blank cell to `0` with no suppression path.
   Unresolved: answering it needs a real or sample InfoCenter export.
-- 47 non-Tampa Spring 2027 sections remain stored — the current blocker (REQ-DATA-02)
+- PR #18 remains to be reviewed and merged; the live correction and verification are complete
 - AMH 2020, PSY 2012 and BSC 1005 have no imported historical grade data; each falls back to a
   global prior with `effective_n = 0` (REQ-GRADES-01)
 - Grade import initializes `course_id` to null; grade rows are unique by term/CRN/**source**, so
@@ -232,13 +248,14 @@ Treat it as input, never as an approved requirement.
   validated against real Spring 2027 data on 2026-09-09 — **75 verified Tampa sections**. Section
   presence is validated for all five; *historical grade coverage* is not — AMH 2020, PSY 2012 and
   BSC 1005 have none. Distinguish the two when reporting coverage. Do not claim campus-wide
-  support: five courses is the declared scope, and stored counts remain contaminated until
-  REQ-DATA-02 completes.
+  support: five courses is the declared scope. A clean refresh on 2026-09-14 found 77 current
+  Tampa sections because AMH 2020 increased from 17 to 19; this does not rewrite the dated 75
+  count above.
 - **Preserve the existing scoring model**: the historical easiness score, its grade/withdrawal
   composition, Bayesian shrinkage, confidence labels, and course / instructor-course fallback
   behavior all stay. Seats, modality, GenEd and syllabus signals must not influence the score.
-- **Baseline and branch safety**: `origin/main` is
-  `62fb2f189c8cac67a1500863f080e0f638469df1`. Fetch and verify current `origin/main` before
+- **Baseline and branch safety**: `origin/main` was
+  `d72f8f3d77a11f301f2b74f56088a217226feefa` when verified on 2026-09-14. Fetch and verify current `origin/main` before
   planning rather than trusting a recorded SHA. Work from branches or worktrees descended from it.
   A local checkout may lag behind `origin/main` and may hold untracked work — **do not check out,
   merge or fast-forward a local `main` you did not verify.**
@@ -283,7 +300,7 @@ Treat it as input, never as an approved requirement.
 ### Current sprint scope
 
 - **D-14 [complete]:** Sprint 5 delivered configurable course targets, one-pass coverage refresh, seat-only refresh, seat freshness classification and API fields, a coverage metadata endpoint, explicit frontend mock opt-in, pagination hardening, freshness UX and PostgreSQL integration coverage. Merged via PR #14 and PR #15 at `62fb2f1`.
-- **D-15 [current-scope]:** Real-data expansion validation is complete (2026-09-09). Current activity is Tampa-only data correction (REQ-DATA-02), then historical grade coverage for AMH/PSY/BSC, then hosted beta. Still excludes a scoring rewrite, email alerts, auth/accounts, RMP, LLM features, and provider-specific deployment infrastructure.
+- **D-15 [current-scope]:** Real-data expansion validation is complete (2026-09-09), and Tampa-only data correction is complete and verified on PR #18 (2026-09-14). Current gate is merging PR #18; next is historical grade coverage for AMH/PSY/BSC, then hosted beta. Still excludes a scoring rewrite, email alerts, auth/accounts, RMP, LLM features, and provider-specific deployment infrastructure.
 - **D-20 [locked]:** A global-prior fallback score is not course history. Never present a course with `effective_n = 0` as having evidence-backed historical analytics.
 - **D-19 [locked]:** Never commit raw grade export files.
 
@@ -301,9 +318,9 @@ Treat it as input, never as an approved requirement.
 |----|----------|--------|------------|
 | OQ-01 (resolved) | Where does implementation happen? Resolved 2026-09-08: branches and worktrees descended from current `origin/main`, verified by fetch rather than a recorded SHA. Do not check out, merge or fast-forward an unverified local `main`. | Nothing | Resolved |
 | OQ-02 (resolved) | Exact test baseline. Re-measured 2026-09-08 at `62fb2f1`: **192 Python passed / 1 skipped, 78 frontend passed**. The skip is the PostgreSQL integration test, which needs `EASY_A_TEST_POSTGRES_URL`. Supersedes the pre-Sprint-5 figure of 166/19 and `.planning/codebase/TESTING.md`'s "~154". | Nothing | Resolved |
-| OQ-03 | How does search perform at the widened coverage? Phase 1 did not measure it sufficiently. Search still ranks sections before slicing pagination. | Hosted beta sizing | REQ-PERF-01, by measurement against the corrected dataset |
+| OQ-03 | Initial corrected-dataset measurement on 2026-09-14: about 10.1 seconds locally to return all 77 sections. Search still ranks sections before slicing pagination; hosted performance and remediation remain open. | Hosted beta sizing | REQ-PERF-01 in Phase 4 |
 | OQ-04 | Do real USF InfoCenter grade exports contain suppression markers, or is blank genuinely zero? `src/easy_a/grades/parser.py` currently converts every blank cell to `0` unconditionally, with no suppression path. Answering needs a real or sample export. | Grade-import correctness at broader coverage | Needs a real export file; owner is whoever holds ODS/registrar access |
-| OQ-05 | External dependencies not yet supplied: deployment host and domain. | Phase 2 deployment | Before hosted beta |
+| OQ-05 | External dependencies not yet supplied: deployment host and domain. | Phase 4 deployment | Before hosted beta |
 | OQ-06 (resolved) | Do `AMH 2020`, `PSY 2012` and `BSC 1005` resolve in the catalog, and what coverage do they have? Resolved 2026-09-09: all three present, with 17 / 10 / 2 verified Tampa sections. **None has imported historical grade data** — all three use a global fallback with `effective_n = 0`. | Nothing | Resolved |
 | OQ-07 | Are approved historical grade exports available for AMH 2020, PSY 2012 and BSC 1005? External input with a named owner. | REQ-GRADES-01 | Before Phase 3 |
 
@@ -319,4 +336,5 @@ Treat it as input, never as an approved requirement.
 | Demote the handoff docs to low-precedence archival inputs in the ingest manifest | Leaving `gsd-core-mvp-prompt.md` as a precedence-0 ADR meant any future `/gsd-ingest-docs` run could re-promote alerts, RMP, a scoring rewrite and campus-wide scope over current planning. | Applied 2026-09-08 |
 
 ---
-*Last updated: 2026-09-09 — real-data expansion validation recorded with measured results; the 47-section contamination recorded as the current blocker.*
+*Last updated: 2026-09-14 — Phase 2 cleanup and live verification recorded; PR #18 is the current
+merge gate, followed by approved grade exports for Phase 3.*
