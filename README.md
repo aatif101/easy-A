@@ -2,12 +2,13 @@
 
 > **Scope note:** Sections below describe the application as it has grown; some predate Sprint 5.
 > Planning for the work ahead lives in [`.planning/`](.planning/). **Sprint 5 and real-data
-> expansion validation are both complete** — five Spring 2027 Tampa course targets are validated
-> (75 verified sections). Current work is a **Tampa-only data correction**: 47 non-Tampa sections
-> from an early expansion pass are still stored and must be removed before coverage numbers can
-> be trusted. RateMyProfessors links and seat alerts remain candidate later phases, not current
-> scope. For current position start at [`.planning/STATE.md`](.planning/STATE.md); AI agents
-> start at [`AGENTS.md`](AGENTS.md).
+> expansion validation are both complete** — five Spring 2027 Tampa course targets were validated
+> at 75 sections on 2026-09-09. The Tampa-only correction was executed on 2026-09-14: 47
+> non-Tampa sections were removed, and a clean refresh found 77 current Tampa sections because
+> AMH 2020 gained two legitimate sections. PR #18 contains the reviewed tooling and awaits merge.
+> RateMyProfessors links and seat alerts remain candidate later phases, not current scope. For
+> current position start at [`.planning/STATE.md`](.planning/STATE.md); AI agents start at
+> [`AGENTS.md`](AGENTS.md).
 
 Easy-A is a course-intelligence tool for University of South Florida Tampa students.
 
@@ -684,3 +685,79 @@ test, set `EASY_A_TEST_POSTGRES_URL` to a test database URL with schema-creation
 permission, then run `uv run pytest`. That test creates a uniquely named schema in a
 transaction and rolls it back; it verifies coverage aggregation, snapshot history,
 and timestamp/id ordering on PostgreSQL. It is skipped when the URL is absent.
+
+## Removing sections from an unsupported campus
+
+Coverage refresh pins `campus="T"` and rejects non-Tampa rows before ingestion, but an
+earlier expansion pass ran before that fix and left other-campus sections stored. No other
+command deletes sections, so removal has its own reviewable step:
+
+```powershell
+uv run python scripts/cleanup_non_tampa_sections.py --term 202701 --json
+```
+
+The 2026-09-14 correction then used the reviewed dry-run count:
+
+```powershell
+uv run python scripts/cleanup_non_tampa_sections.py --term 202701 --apply --expect-removed 47 --json
+```
+
+That apply is historical and must not be repeated with an expected count of 47. For any future
+incident, run the dry report first and supply its separately reviewed eligible count.
+
+**The command reports without writing anything unless `--apply` is given.** Run it without
+`--apply` and retain the JSON audit output. Before any apply, stop schedule/seat writers and
+proceed only if the exact eligible rows, ambiguous-campus rows, candidate grade rows and
+`apply_safe` result have been reviewed.
+
+Selection criteria are exactly: sections in the requested term that belong to a course in the
+configured beta target file and whose nonblank stored `campus` is not `Tampa`, compared
+case-insensitively after stripping. Blank or null campus values are reported separately as
+ambiguous and are never auto-deleted. Other terms and non-target courses are out of scope.
+Matched sections are locked when supported and deleted by the explicit primary keys captured
+inside the transaction. A second apply with `--expect-removed 0` is a no-op.
+
+Apply mode requires `--expect-removed N` and refuses to proceed unless exactly that many
+sections match. It also refuses if any grade row shares a candidate's term and CRN.
+
+The same transaction explicitly removes each candidate section's seat snapshots, instructor
+observations, and linked syllabus rows before removing the section. It never deletes
+`grade_distributions`. Before commit it verifies exact ID sets so Tampa sections, ambiguous
+sections, historical sections, unrelated current-term sections, grade rows, and unrelated
+dependent records must all remain unchanged. Any failed check rolls back the entire operation.
+
+Both modes report per-course and per-campus target counts, ambiguous rows, candidate CRNs and
+dependent counts, term and historical section counts, and grade totals. Apply mode also reports
+every removed-record category and all preservation counters. Use `--json` for the durable audit
+record.
+
+Removing stored rows does not re-check the source. After a successful apply, run both
+`scripts/refresh_course_coverage.py --term 202701` and `scripts/refresh_seats.py --term 202701`,
+then verify the database, `GET /api/v1/metadata/coverage`, and the rankings API agree on the
+corrected Tampa-only counts.
+
+Run `scripts/check_data_quality.py --term 202701` before and after cleanup. It reports one
+`unsupported_campus_section` error for every stored section outside Tampa and exits nonzero,
+providing an independent regression check that no cross-campus rows remain.
+
+### Recorded correction result (2026-09-14)
+
+The reviewed apply removed exactly 47 non-Tampa sections, 47 linked seat snapshots and 47 linked
+instructor observations. It removed no syllabi, grade rows, Tampa sections, historical sections
+or unrelated-term sections. All 237 grade rows and 263 historical sections remained intact.
+
+After both required refreshes, storage, `/api/v1/rankings/search` and
+`GET /api/v1/metadata/coverage` agreed on the current configured Spring 2027 counts:
+
+| Course | Tampa sections |
+| --- | ---: |
+| MAC 1105 | 5 |
+| ENC 1101 | 41 |
+| AMH 2020 | 19 |
+| PSY 2012 | 10 |
+| BSC 1005 | 2 |
+| **Total** | **77** |
+
+There were zero stored other-campus target sections. The post-cleanup dry run found zero eligible
+rows, and data quality reported 0 errors, 31 warnings and 31 info. Do not rerun the destructive
+command expecting 47; use the dry run first and expect zero unless new contamination is found.

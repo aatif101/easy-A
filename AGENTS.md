@@ -19,31 +19,30 @@ imports, configurable course coverage, and seat freshness classification.
 
 | | |
 |---|---|
-| Baseline | `origin/main` = `62fb2f189c8cac67a1500863f080e0f638469df1` |
+| Baseline | `origin/main` = `d72f8f3d77a11f301f2b74f56088a217226feefa` (verified 2026-09-14) |
 | Sprint 5 | ✓ **Complete** — merged via PR #14 and PR #15. Do not re-plan or re-implement it. |
 | PR #16 | ✓ **Merged** — pins `campus="T"` and rejects non-Tampa rows before ingestion |
 | Real-data validation | ✓ **Complete** (2026-09-09) — five targets verified, **75 Tampa sections** |
-| **Now** | ⛔ **Tampa-only data correction — BLOCKING.** 47 non-Tampa rows still stored. |
-| Then | Historical grade imports for AMH 2020 → PSY 2012 → BSC 1005 |
+| Tampa-only correction | ✓ **Verified 2026-09-14** — 47 non-Tampa rows removed; PR #18 awaits merge |
+| **Now** | Review and merge PR #18, then historical grade imports for AMH 2020 → PSY 2012 → BSC 1005 |
 | Then | Hosted beta — deployment, CI, performance measurement, observability, runbook |
 
 Fetch and verify current `origin/main` before planning rather than trusting the SHA above.
 
-### ⛔ Current blocker — read before touching data
+### Tampa-only correction — completed and verified on PR #18
 
-The first expansion pass ran before the campus-scope bug was found: configured refresh queried all
-campuses and inserted **47 non-Tampa Spring 2027 sections** into the beta database. PR #16 fixed
-the cause but **did not remove the rows** — its merged description says they "remain visible in
-stored coverage/API counts until a separately reviewed cleanup."
+The first expansion pass inserted **47 non-Tampa Spring 2027 sections** before PR #16 fixed the
+cause. On 2026-09-14 the Phase 2 cleanup removed exactly those 47 sections: current term,
+configured target course, nonblank stored campus other than Tampa after trimming and
+case-folding. It also removed 47 linked seat snapshots and 47 instructor observations, with zero
+syllabi and zero grade rows removed. Blank/null campus rows were excluded from deletion.
 
-**Stored counts, API counts and `GET /api/v1/metadata/coverage` counts are therefore still
-contaminated and do not equal 75.** Any coverage figure read from the running database today is
-wrong. No section-deletion tooling exists in `scripts/` — the cleanup has to be written and
-reviewed.
-
-The cleanup must record: rows removed and the criteria used; final Tampa-only stored counts;
-final API counts; final coverage-endpoint counts; and explicit confirmation that **no historical
-grades and no Tampa sections were deleted** (237 grade rows and all 75 Tampa sections intact).
+The required clean refresh then produced **77 current Tampa sections and zero other-campus
+sections**: MAC 1105 = 5, ENC 1101 = 41, AMH 2020 = 19, PSY 2012 = 10, BSC 1005 = 2. Stored,
+rankings API and `GET /api/v1/metadata/coverage` counts agreed. The two-section increase from the
+75 observed on 2026-09-09 is real source drift in AMH 2020, not contamination. All 237 grade rows,
+all 263 historical sections and every pre-cleanup Tampa section remained intact. The current
+remaining action is to review and merge PR #18; do not rerun the destructive cleanup expecting 47.
 
 ### Test baseline
 
@@ -58,6 +57,10 @@ Measured 2026-09-09 at `62fb2f1`:
 Both facts are true: a **default run does not use PostgreSQL** — most of the suite runs on SQLite
 and the integration test skips unless `EASY_A_TEST_POSTGRES_URL` is set; with it set, all 193
 pass. Do not state only one.
+
+Phase 2 branch verification on 2026-09-14: **216 passed, 2 skipped** without PostgreSQL;
+**218 passed** with PostgreSQL configured; ruff and strict mypy passed. The frontend baseline was
+not re-measured during this backend/data-correction phase.
 
 ### Configured course targets
 
@@ -79,7 +82,8 @@ only two have historical grade data. **The AMH / PSY / BSC fallback scores are n
 course history** — they are global priors with zero observed outcomes. Never present them as
 course history. Import priority: AMH 2020 → PSY 2012 → BSC 1005.
 
-75 is the *verified* Tampa count, not the *currently stored* count — see the blocker above.
+The 75 total above is the dated 2026-09-09 validation result. The clean 2026-09-14 refresh found
+77 Tampa sections because AMH 2020 increased from 17 to 19.
 
 ## Hard constraints
 
@@ -132,11 +136,12 @@ restore them to ADR/PRD/SPEC.
 
 Real and unresolved. Do not paper over them, and do not treat them as licence to redesign:
 
-- **47 non-Tampa sections stored** — the current blocker, above (REQ-DATA-02)
+- **PR #18 not yet merged** — the Tampa-only correction is verified on its branch, but `main`
+  does not yet contain the cleanup tooling and campus quality guard
 - **No historical grades for AMH 2020, PSY 2012, BSC 1005** — global fallback, `effective_n = 0`
   (REQ-GRADES-01)
-- **Search performance unmeasured at widened coverage** — `GET /api/v1/rankings/search` ranks
-  sections before slicing pagination; Phase 1 did not measure it (REQ-PERF-01)
+- **Search performance needs work at widened coverage** — an initial local measurement on the
+  corrected 77-section dataset took about 10.1 seconds; hosted measurement remains REQ-PERF-01
 - **Blank grade-cell / suppression semantics** — `src/easy_a/grades/parser.py` converts every
   blank cell to `0` with no suppression path. Needs a real or sample InfoCenter export nobody
   currently has.
@@ -144,7 +149,7 @@ Real and unresolved. Do not paper over them, and do not treat them as licence to
 
 Fixed, do **not** re-plan: silent frontend fixture fallback, missing seat freshness contract,
 absent PostgreSQL integration coverage, hard-coded Spring 2027 term preference (all Sprint 5);
-configured refresh querying all campuses (PR #16 — cause fixed, rows still need cleanup).
+configured refresh querying all campuses (PR #16); stored cross-campus contamination (Phase 2).
 
 Confirmed healthy by the validation run: zero data-quality errors across 202408 / 202501 / 202508
 / 202701; seat refresh preserved previous snapshots, section identity and all 237 grade rows;
@@ -155,8 +160,8 @@ frontend and API verification passed with no console errors.
 This repo uses GSD. Planning artifacts live in `.planning/`, not `.gsd/`.
 
 - `/gsd-progress` — check state and get the next action
-- `/gsd-plan-phase 2` — plan Phase 2 (Tampa-Only Data Correction), the current work. **Not
-  Sprint 5 and not Phase 1** — both are already complete.
+- Review and merge PR #18 to land Phase 2; do not re-plan or rerun its 47-row cleanup.
+- `/gsd-plan-phase 3` — plan historical grade coverage after approved exports are available.
 - `/gsd-execute-phase N` — execute a planned phase
 
 If you are not running GSD, read `.planning/STATE.md` and `.planning/ROADMAP.md` before changing
