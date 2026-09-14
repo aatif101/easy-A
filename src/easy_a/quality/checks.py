@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from easy_a.analytics.confidence import ConfidenceLabel
 from easy_a.analytics.queries import get_current_section_historical_analytics
+from easy_a.common.campus import SUPPORTED_CAMPUS, describe_campus, same_campus
 from easy_a.common.instructors import CurrentInstructorStatus, get_current_instructor_state
 from easy_a.common.terms import normalize_banner_term_code
 from easy_a.models import (
@@ -52,6 +53,7 @@ def run_quality_checks(
     stale_after: timedelta = timedelta(days=DEFAULT_STALE_AFTER_DAYS),
     as_of: datetime | None = None,
     targets: tuple[CourseTarget, ...] | None = None,
+    supported_campus: str = SUPPORTED_CAMPUS,
 ) -> QualityReport:
     if stale_after.total_seconds() < 0:
         raise ValueError("Stale observation threshold must be non-negative.")
@@ -93,6 +95,7 @@ def run_quality_checks(
         from easy_a.quality.coverage import coverage_findings
 
         findings.extend(coverage_findings(session, term, targets, generated_at))
+    findings.extend(_check_section_campus(term, sections, supported_campus))
     findings.extend(_check_grades(session, term_row))
     findings.extend(_check_orphan_instructor_observations(session))
     findings.extend(_check_seats(session, term_row, sections))
@@ -183,6 +186,29 @@ def check_seat_values(
                 )
             )
     return findings
+
+
+def _check_section_campus(
+    term: str,
+    sections: Sequence[Section],
+    supported_campus: str = SUPPORTED_CAMPUS,
+) -> list[QualityFinding]:
+    """Report every stored section outside the supported campus as an error."""
+    return [
+        QualityFinding(
+            check_id="unsupported_campus_section",
+            severity=FindingSeverity.error,
+            term=term,
+            crn=section.crn,
+            source_record=f"section:{section.id}",
+            message=(
+                f"Section campus {describe_campus(section.campus)} is outside the supported "
+                f"campus {supported_campus}. It inflates stored, API and coverage counts."
+            ),
+        )
+        for section in sections
+        if not same_campus(section.campus, supported_campus)
+    ]
 
 
 def _check_grades(session: Session, term: Term) -> list[QualityFinding]:

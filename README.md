@@ -726,3 +726,7 @@ Removing stored rows does not re-check the source. After a successful apply, run
 `scripts/refresh_course_coverage.py --term 202701` and `scripts/refresh_seats.py --term 202701`,
 then verify the database, `GET /api/v1/metadata/coverage`, and the rankings API agree on the
 corrected Tampa-only counts.
+
+Run `scripts/check_data_quality.py --term 202701` before and after cleanup. It reports one
+`unsupported_campus_section` error for every stored section outside Tampa and exits nonzero,
+providing an independent regression check that no cross-campus rows remain.

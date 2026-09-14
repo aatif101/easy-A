@@ -16,6 +16,7 @@ from sqlalchemy import Select, and_, delete, func, or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import ColumnElement
 
+from easy_a.common.campus import SUPPORTED_CAMPUS, same_campus
 from easy_a.common.terms import normalize_banner_term_code
 from easy_a.models import (
     Course,
@@ -27,8 +28,6 @@ from easy_a.models import (
     Term,
 )
 from easy_a.refresh.targets import CourseTarget
-
-SUPPORTED_CAMPUS = "Tampa"
 
 
 class CleanupError(ValueError):
@@ -136,7 +135,7 @@ class _IdentitySnapshot:
 def _campus_kind(stored: str | None) -> str:
     if stored is None or not stored.strip():
         return "ambiguous"
-    if stored.strip().casefold() == SUPPORTED_CAMPUS.casefold():
+    if same_campus(stored, SUPPORTED_CAMPUS):
         return "tampa"
     return "other"
 
