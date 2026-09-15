@@ -13,14 +13,14 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-09-14)
+See: .planning/PROJECT.md (updated 2026-09-15)
 
 **Core value:** Every number a student sees is a real observed outcome with a visible denominator,
 a named source and a timestamp — and when the evidence does not exist, the product says so instead
 of producing a plausible-looking result.
 
-**Current baseline:** `origin/main` = `d72f8f3d77a11f301f2b74f56088a217226feefa`
-(verified by fetch on 2026-09-14)
+**Current baseline:** `origin/main` = `9d686c01bca44b3bbf79a2277a4a1b2618df00a9`
+(verified by fetch on 2026-09-15)
 
 ## Current Position
 
@@ -28,36 +28,35 @@ of producing a plausible-looking result.
 |---|---|
 | Sprint 5 | ✓ **Complete** — merged via PR #14, PR #15; Tampa scope fix in PR #16 |
 | Phase 1 — Real-data expansion validation | ✓ **Complete** — executed; results below |
-| Phase 2 — Tampa-only data correction | ✓ **Complete and verified on PR #18; merge pending** |
-| Phase 3 — Historical grade coverage (AMH/PSY/BSC) | ◆ Next after merge and approved exports |
+| Phase 2 — Tampa-only data correction | ✓ **Complete and merged via PR #18; PR #17 superseded** |
+| Phase 3 — Historical grade coverage (AMH/PSY/BSC) | ◆ Current — preparation; approved exports pending, starting with AMH 2020 |
 | Phase 4 — Hosted beta | ○ After that |
 
-Phase: 2 of 4 (Tampa-Only Data Correction; completion gate)
+Phase: 3 of 4 (Historical Grade Coverage; preparation)
 Plan: 0 of TBD
-Status: Implementation and live-data verification complete on PR #18; review/merge pending
+Status: Phase 2 merged via PR #18; Phase 3 preparation and approved grade exports are next
 
 Progress: [█████░░░░░] 50%
 
-Last activity: 2026-09-14 — Removed 47 non-Tampa sections with the reviewed cleanup, refreshed
-the five configured targets, verified stored/API/coverage agreement at 77 Tampa sections, and
-added an independent campus-contamination quality guard.
+Last activity: 2026-09-15 — Phase 2 merged through PR #18 at
+`9d686c01bca44b3bbf79a2277a4a1b2618df00a9`; PR #17 was closed as superseded.
 
 ## Current gate
 
-**PR #18 must be reviewed and merged before Phase 2 is present on `main`.**
+**Phase 2 is present on `main` through PR #18; PR #17 is closed as superseded.**
 
-The live correction and its verification are complete. PR #18 contains the bounded cleanup
+The live correction and its verification are complete. PR #18 merged the bounded cleanup
 tooling, audit output, preservation checks, and an `unsupported_campus_section` quality error.
-PR #17 overlaps with that work; consolidate on PR #18 and close the duplicate only after review.
+The next gate is Phase 3 preparation and obtaining approved historical grade exports, starting
+with AMH 2020.
 Do not repeat the original destructive command with `--expect-removed 47`: the post-cleanup dry
 run reports zero eligible rows.
 
 ## Next Action
 
-1. Review and merge PR #18 into the verified current `origin/main`.
-2. Close overlapping PR #17 after confirming PR #18 contains the desired quality guard.
-3. Obtain approved historical grade exports for AMH 2020, then PSY 2012, then BSC 1005.
-4. Plan and execute Phase 3 without committing raw export files.
+1. Prepare Phase 3.
+2. Obtain approved historical grade exports for AMH 2020, then PSY 2012, then BSC 1005.
+3. Plan and execute Phase 3 without committing raw export files.
 
 The approved grade exports are the next external dependency. Until supplied, the three courses
 remain global-prior fallbacks with `effective_n = 0`.
@@ -216,7 +215,6 @@ refresh (PR #16); stored cross-campus contamination (Phase 2 / PR #18).
 
 ### Still open
 
-- **PR #18 pending review/merge** — Phase 2 is verified on its branch but not yet on `main`
 - **Search performance at widened coverage** — initial local measurement was about 10.1 seconds
   for 77 sections; hosted measurement and improvement remain REQ-PERF-01
 - **No historical grades for AMH / PSY / BSC** — global fallback, `effective_n = 0`
@@ -232,8 +230,9 @@ approved later.
 
 ## Session Continuity
 
-Last session: 2026-09-14
-Stopped at: Phase 2 implementation and live-data correction verified on PR #18. The live database
+Last session: 2026-09-15
+Stopped at: Phase 2 merged through PR #18 at
+`9d686c01bca44b3bbf79a2277a4a1b2618df00a9`; PR #17 closed as superseded. The live database
 contains 77 configured Tampa sections, zero other-campus target sections, and 237 grade rows.
 Resume file: None
-Next action: review and merge PR #18, then obtain the approved AMH 2020 grade export for Phase 3.
+Next action: prepare Phase 3 and obtain the approved AMH 2020 historical grade export.

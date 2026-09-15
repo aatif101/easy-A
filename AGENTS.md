@@ -19,17 +19,17 @@ imports, configurable course coverage, and seat freshness classification.
 
 | | |
 |---|---|
-| Baseline | `origin/main` = `d72f8f3d77a11f301f2b74f56088a217226feefa` (verified 2026-09-14) |
+| Baseline | `origin/main` = `9d686c01bca44b3bbf79a2277a4a1b2618df00a9` (verified 2026-09-15) |
 | Sprint 5 | ✓ **Complete** — merged via PR #14 and PR #15. Do not re-plan or re-implement it. |
 | PR #16 | ✓ **Merged** — pins `campus="T"` and rejects non-Tampa rows before ingestion |
 | Real-data validation | ✓ **Complete** (2026-09-09) — five targets verified, **75 Tampa sections** |
-| Tampa-only correction | ✓ **Verified 2026-09-14** — 47 non-Tampa rows removed; PR #18 awaits merge |
-| **Now** | Review and merge PR #18, then historical grade imports for AMH 2020 → PSY 2012 → BSC 1005 |
+| Tampa-only correction | ✓ **Complete** — verified 2026-09-14 and merged via PR #18; PR #17 closed as superseded |
+| **Now** | Prepare Phase 3 and obtain approved historical grade exports, starting with AMH 2020 |
 | Then | Hosted beta — deployment, CI, performance measurement, observability, runbook |
 
 Fetch and verify current `origin/main` before planning rather than trusting the SHA above.
 
-### Tampa-only correction — completed and verified on PR #18
+### Tampa-only correction — completed, verified and merged via PR #18
 
 The first expansion pass inserted **47 non-Tampa Spring 2027 sections** before PR #16 fixed the
 cause. On 2026-09-14 the Phase 2 cleanup removed exactly those 47 sections: current term,
@@ -41,8 +41,10 @@ The required clean refresh then produced **77 current Tampa sections and zero ot
 sections**: MAC 1105 = 5, ENC 1101 = 41, AMH 2020 = 19, PSY 2012 = 10, BSC 1005 = 2. Stored,
 rankings API and `GET /api/v1/metadata/coverage` counts agreed. The two-section increase from the
 75 observed on 2026-09-09 is real source drift in AMH 2020, not contamination. All 237 grade rows,
-all 263 historical sections and every pre-cleanup Tampa section remained intact. The current
-remaining action is to review and merge PR #18; do not rerun the destructive cleanup expecting 47.
+all 263 historical sections and every pre-cleanup Tampa section remained intact. PR #18 merged the
+verified correction and PR #17 was closed as superseded. The current remaining action is Phase 3
+preparation and obtaining the approved AMH 2020 historical grade export; do not rerun the
+destructive cleanup expecting 47.
 
 ### Test baseline
 
@@ -136,8 +138,6 @@ restore them to ADR/PRD/SPEC.
 
 Real and unresolved. Do not paper over them, and do not treat them as licence to redesign:
 
-- **PR #18 not yet merged** — the Tampa-only correction is verified on its branch, but `main`
-  does not yet contain the cleanup tooling and campus quality guard
 - **No historical grades for AMH 2020, PSY 2012, BSC 1005** — global fallback, `effective_n = 0`
   (REQ-GRADES-01)
 - **Search performance needs work at widened coverage** — an initial local measurement on the
@@ -160,7 +160,8 @@ frontend and API verification passed with no console errors.
 This repo uses GSD. Planning artifacts live in `.planning/`, not `.gsd/`.
 
 - `/gsd-progress` — check state and get the next action
-- Review and merge PR #18 to land Phase 2; do not re-plan or rerun its 47-row cleanup.
+- Phase 2 is merged through PR #18 and PR #17 is closed as superseded; do not re-plan or rerun its
+  47-row cleanup.
 - `/gsd-plan-phase 3` — plan historical grade coverage after approved exports are available.
 - `/gsd-execute-phase N` — execute a planned phase
 

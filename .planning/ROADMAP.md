@@ -9,11 +9,12 @@ imports, configurable course coverage, and seat freshness classification.
 This roadmap describes the sequence forward from that baseline. It is **not** a greenfield MVP
 plan, and it does not restart the project.
 
-**Current baseline: `origin/main` = `d72f8f3d77a11f301f2b74f56088a217226feefa`**
-(verified by fetch on 2026-09-14).
+**Current baseline: `origin/main` = `9d686c01bca44b3bbf79a2277a4a1b2618df00a9`**
+(verified by fetch on 2026-09-15).
 
-**Current position: Phase 2 — Tampa-only data correction — is complete and verified on PR #18.
-Review/merge is the current gate; Phase 3 historical grade coverage follows.**
+**Current position: Phase 2 — Tampa-only data correction — is merged through PR #18, and PR #17
+is closed as superseded. Phase 3 preparation and approved historical grade exports, starting with
+AMH 2020, are next.**
 
 ### How to read this roadmap
 
@@ -21,8 +22,8 @@ Review/merge is the current gate; Phase 3 historical grade coverage follows.**
 |---------|---------|
 | Sprint 5 | **Complete.** Merged. Not scope. |
 | Phase 1 — Real-data expansion validation | **Complete.** Executed; results recorded below. |
-| Phase 2 — Tampa-only data correction | **Complete on PR #18.** Live data verified; merge pending. |
-| Phase 3 — Historical grade coverage | Next after PR #18 and approved exports. |
+| Phase 2 — Tampa-only data correction | **Complete and merged via PR #18.** PR #17 closed as superseded. |
+| Phase 3 — Historical grade coverage | Current: preparation; approved exports pending, starting with AMH 2020. |
 | Phase 4 — Hosted beta | After that. |
 | Backlog | Candidate later phases. Not scheduled, not committed. |
 
@@ -90,14 +91,14 @@ REQ-PERF-01 under Phase 4 rather than being falsely marked complete.
 
 ---
 
-## Phase 2: Tampa-Only Data Correction — COMPLETE ON PR #18
+## Phase 2: Tampa-Only Data Correction — COMPLETE, MERGED VIA PR #18
 
 **Goal**: Stored, API and coverage-endpoint counts reflect Tampa-only reality, with the
 contaminated rows removed and nothing legitimate lost.
 
 **Depends on**: PR #16 (merged)
 
-**Status**: Executed and verified 2026-09-14. PR #18 awaits review and merge.
+**Status**: Executed and verified 2026-09-14; merged via PR #18. PR #17 is closed as superseded.
 
 **Why it exists**: the first expansion pass inserted 47 non-Tampa Spring 2027 sections. PR #16's
 merged description is explicit that it "does not delete the 47 other-campus sections inserted by
@@ -135,7 +136,8 @@ fallback.
 
 **Depends on**: Phase 2
 
-**Status**: Next after PR #18 merges and approved exports are supplied
+**Status**: Current preparation; approved historical grade exports are pending, starting with
+AMH 2020
 
 Currently `AMH 2020`, `PSY 2012` and `BSC 1005` have **no imported historical grade data**. They
 fall back to a global prior with `effective_n = 0`. Those fallback scores are not evidence-backed
@@ -236,8 +238,8 @@ rewrite is planned or approved.
 |-------|--------|----------|
 | Sprint 5 | ✓ Complete (PR #14, #15, #16) | 100% |
 | 1 — Real-data expansion validation | ✓ Complete | 100% |
-| 2 — Tampa-only data correction | ✓ Complete on PR #18; merge pending | 100% |
-| 3 — Historical grade coverage | ◆ Next after merge/exports | 0% |
+| 2 — Tampa-only data correction | ✓ Complete and merged via PR #18; PR #17 superseded | 100% |
+| 3 — Historical grade coverage | ◆ Current: preparation; approved exports pending, starting with AMH 2020 | 0% |
 | 4 — Hosted beta | ○ Later | 0% |
 
 ---
@@ -252,8 +254,8 @@ rewrite is planned or approved.
 | REQ-CONFIG-01 | Sprint 5 | ✓ Complete |
 | REQ-TEST-01 | Sprint 5 | ◐ Partial — PostgreSQL integration exists, skips without config |
 | REQ-COVERAGE-02 | 1 | ✓ Complete — search performance carved out to REQ-PERF-01 |
-| REQ-DATA-02 | 2 | ✓ Complete on PR #18; merge pending |
-| REQ-GRADES-01 | 3 | ○ Next |
+| REQ-DATA-02 | 2 | ✓ Complete and merged via PR #18 |
+| REQ-GRADES-01 | 3 | ◆ Current — approved exports pending |
 | REQ-PERF-01 | 4 | ◐ Initial local measurement recorded; hosted work remains |
 | REQ-OPS-01 | 4 | ○ Later |
 
@@ -261,5 +263,7 @@ Backlog requirements (`REQ-ALERT-*`, `REQ-RMP-01`) are deliberately unmapped —
 candidate later phases.
 
 ---
-*Last updated: 2026-09-14 — Phase 2 removed 47 contaminated sections and verified 77 current
-Tampa sections across storage and APIs; PR #18 awaits merge.*
+*Last updated: 2026-09-15 — Phase 2 removed 47 contaminated sections, verified 77 current Tampa
+sections across storage and APIs, and merged via PR #18 at
+`9d686c01bca44b3bbf79a2277a4a1b2618df00a9`; PR #17 is closed as superseded. Phase 3 preparation
+and approved historical grade exports, starting with AMH 2020, are next.*

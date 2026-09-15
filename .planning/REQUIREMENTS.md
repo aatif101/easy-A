@@ -4,9 +4,10 @@ Requirements for the sequence forward from the current working baseline. Easy-A 
 application with real ingestion, configurable course coverage and seat freshness — not a
 greenfield build.
 
-**Current baseline: `origin/main` = `d72f8f3`** (verified by fetch on 2026-09-14). Sprint 5 and
+**Current baseline: `origin/main` = `9d686c01bca44b3bbf79a2277a4a1b2618df00a9`** (verified by fetch on 2026-09-15). Sprint 5 and
 real-data expansion validation are complete.
-**Current activity: Phase 2 is complete and verified on PR #18; review/merge is the current gate.**
+**Current activity: Phase 2 is merged through PR #18 and PR #17 is closed as superseded. Phase 3
+preparation and approved historical grade exports, starting with AMH 2020, are next.**
 
 ## How requirements are classified
 
@@ -130,7 +131,7 @@ Kept for traceability. Verified present in code at `62fb2f1`.
 
 ---
 
-## Complete on PR #18 — Tampa-only data correction
+## Complete and merged via PR #18 — Tampa-only data correction
 
 - [x] **REQ-DATA-02**: Stored, API and coverage counts reflect Tampa-only reality.
   *Context*: the first expansion pass ran before the campus-scope bug was found — configured
@@ -152,12 +153,12 @@ Kept for traceability. Verified present in code at `62fb2f1`.
   grade rows and all 263 historical sections remained. A post-cleanup dry run found zero eligible
   rows, and Spring 2027 quality reported 0 errors, 31 warnings and 31 info.
 
-  *Delivery*: PR #18 contains the cleanup tooling, preservation checks, tests and independent
-  `unsupported_campus_section` quality guard. It is verified and awaits review/merge.
+  *Delivery*: PR #18 merged the cleanup tooling, preservation checks, tests and independent
+  `unsupported_campus_section` quality guard. PR #17 is closed as superseded.
 
 ---
 
-## Next — historical grade coverage
+## Current — historical grade coverage
 
 - [ ] **REQ-GRADES-01**: The three newly validated courses have real historical grade data.
   *Context*: `AMH 2020`, `PSY 2012` and `BSC 1005` currently have **no imported historical grade
@@ -227,7 +228,6 @@ Not committed. Not required for the hosted beta.
 
 | Observation | Evidence | Where it lands |
 |-------------|----------|----------------|
-| PR #18 not yet merged | Phase 2 implementation and live correction are verified on its branch | Current merge gate |
 | Search performance is slow at widened coverage | Initial local measurement: about 10.1 seconds for 77 sections; search ranks before slicing pagination | REQ-PERF-01 (hosted beta) |
 | AMH 2020, PSY 2012, BSC 1005 have no historical grade data | Validation run: global fallback, `effective_n = 0` for each | REQ-GRADES-01 |
 | Blank grade-cell / suppression semantics unresolved | `src/easy_a/grades/parser.py` converts every blank cell to `0` with no suppression path | Needs a real or sample InfoCenter export; owner holds ODS/registrar access |
@@ -259,5 +259,7 @@ Not committed. Not required for the hosted beta.
 - Committing raw grade export files
 
 ---
-*Last updated: 2026-09-14 — REQ-DATA-02 completed and verified on PR #18; initial corrected-data
-search latency recorded; PR merge and approved Phase 3 grade exports are next.*
+*Last updated: 2026-09-15 — REQ-DATA-02 is merged through PR #18 at
+`9d686c01bca44b3bbf79a2277a4a1b2618df00a9`; PR #17 is closed as superseded. Initial
+corrected-data search latency remains recorded; Phase 3 preparation and approved historical grade
+exports, starting with AMH 2020, are next.*

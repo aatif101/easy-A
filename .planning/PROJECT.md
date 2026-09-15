@@ -13,11 +13,12 @@ on the frontend. It has real Spring 2027 schedule ingestion, real historical gra
 configurable course coverage, seat freshness classification, GenEd metadata and a data-quality
 pipeline. The API and frontend have been smoke-tested end to end.
 
-**Current baseline: `origin/main` = `d72f8f3d77a11f301f2b74f56088a217226feefa`**
-(verified by fetch on 2026-09-14).
+**Current baseline: `origin/main` = `9d686c01bca44b3bbf79a2277a4a1b2618df00a9`**
+(verified by fetch on 2026-09-15).
 
 **Sprint 5 and real-data expansion validation are both complete.**
-**Current activity: Phase 2 is complete and verified on PR #18; review/merge is the current gate.**
+**Current activity: Phase 2 is merged through PR #18 and PR #17 is closed as superseded. Phase 3
+preparation and approved historical grade exports, starting with AMH 2020, are next.**
 
 ## Core Value
 
@@ -79,13 +80,13 @@ plausible-looking result.
   **75 verified Tampa sections** total. Search performance was not sufficiently measured and is
   carved out to REQ-PERF-01.
 
-### Phase 2 — Tampa-only data correction — COMPLETE ON PR #18
+### Phase 2 — Tampa-only data correction — COMPLETE, MERGED VIA PR #18
 
 - [x] **REQ-DATA-02** — Exactly 47 non-Tampa Spring 2027 sections removed; clean Tampa refresh,
   stored counts, rankings API and coverage endpoint verified at 77 Tampa / 0 other-campus
-  sections on 2026-09-14. PR #18 awaits review and merge.
+  sections on 2026-09-14. Merged via PR #18; PR #17 closed as superseded.
 
-### Next — historical grade coverage
+### Current — historical grade coverage
 
 - [ ] **REQ-GRADES-01** — Import approved historical grade exports for AMH 2020 → PSY 2012 →
   BSC 1005 and validate the resulting analytics
@@ -119,14 +120,14 @@ backlog for detail.
 
 ## Current gate
 
-**The data correction is complete; PR #18 must be reviewed and merged.**
+**The data correction is complete and merged through PR #18; PR #17 is closed as superseded.**
 
-The Phase 2 branch adds a dry-run-first cleanup with exact-count and preservation checks, plus an
+PR #18 adds a dry-run-first cleanup with exact-count and preservation checks, plus an
 independent `unsupported_campus_section` quality error. The reviewed apply removed 47 sections,
 47 linked seat snapshots and 47 instructor observations; it removed zero syllabi, grade rows,
 Tampa sections, historical sections or unrelated-term sections. A post-cleanup dry run found zero
-remaining eligible rows. PR #17 overlaps this work; consolidate on PR #18 and close the duplicate
-after review.
+remaining eligible rows. Phase 3 preparation and approved historical grade exports, starting with
+AMH 2020, are next.
 
 ## Context
 
@@ -210,7 +211,6 @@ status" below — those documents are proposals, and several of their claims are
   improvement remain open
 - `src/easy_a/grades/parser.py` converts every blank cell to `0` with no suppression path.
   Unresolved: answering it needs a real or sample InfoCenter export.
-- PR #18 remains to be reviewed and merged; the live correction and verification are complete
 - AMH 2020, PSY 2012 and BSC 1005 have no imported historical grade data; each falls back to a
   global prior with `effective_n = 0` (REQ-GRADES-01)
 - Grade import initializes `course_id` to null; grade rows are unique by term/CRN/**source**, so
@@ -255,7 +255,7 @@ Treat it as input, never as an approved requirement.
   composition, Bayesian shrinkage, confidence labels, and course / instructor-course fallback
   behavior all stay. Seats, modality, GenEd and syllabus signals must not influence the score.
 - **Baseline and branch safety**: `origin/main` was
-  `d72f8f3d77a11f301f2b74f56088a217226feefa` when verified on 2026-09-14. Fetch and verify current `origin/main` before
+  `9d686c01bca44b3bbf79a2277a4a1b2618df00a9` when verified on 2026-09-15. Fetch and verify current `origin/main` before
   planning rather than trusting a recorded SHA. Work from branches or worktrees descended from it.
   A local checkout may lag behind `origin/main` and may hold untracked work — **do not check out,
   merge or fast-forward a local `main` you did not verify.**
@@ -300,7 +300,7 @@ Treat it as input, never as an approved requirement.
 ### Current sprint scope
 
 - **D-14 [complete]:** Sprint 5 delivered configurable course targets, one-pass coverage refresh, seat-only refresh, seat freshness classification and API fields, a coverage metadata endpoint, explicit frontend mock opt-in, pagination hardening, freshness UX and PostgreSQL integration coverage. Merged via PR #14 and PR #15 at `62fb2f1`.
-- **D-15 [current-scope]:** Real-data expansion validation is complete (2026-09-09), and Tampa-only data correction is complete and verified on PR #18 (2026-09-14). Current gate is merging PR #18; next is historical grade coverage for AMH/PSY/BSC, then hosted beta. Still excludes a scoring rewrite, email alerts, auth/accounts, RMP, LLM features, and provider-specific deployment infrastructure.
+- **D-15 [current-scope]:** Real-data expansion validation is complete (2026-09-09), and Tampa-only data correction was verified 2026-09-14 and merged via PR #18; PR #17 is closed as superseded. Current work is Phase 3 preparation and obtaining approved historical grade exports, starting with AMH 2020, followed by PSY 2012 and BSC 1005, then hosted beta. Still excludes a scoring rewrite, email alerts, auth/accounts, RMP, LLM features, and provider-specific deployment infrastructure.
 - **D-20 [locked]:** A global-prior fallback score is not course history. Never present a course with `effective_n = 0` as having evidence-backed historical analytics.
 - **D-19 [locked]:** Never commit raw grade export files.
 
@@ -336,5 +336,6 @@ Treat it as input, never as an approved requirement.
 | Demote the handoff docs to low-precedence archival inputs in the ingest manifest | Leaving `gsd-core-mvp-prompt.md` as a precedence-0 ADR meant any future `/gsd-ingest-docs` run could re-promote alerts, RMP, a scoring rewrite and campus-wide scope over current planning. | Applied 2026-09-08 |
 
 ---
-*Last updated: 2026-09-14 — Phase 2 cleanup and live verification recorded; PR #18 is the current
-merge gate, followed by approved grade exports for Phase 3.*
+*Last updated: 2026-09-15 — Phase 2 is merged through PR #18 at
+`9d686c01bca44b3bbf79a2277a4a1b2618df00a9`; PR #17 is closed as superseded. Phase 3 preparation
+and approved historical grade exports, starting with AMH 2020, are next.*

@@ -5,7 +5,9 @@
 > expansion validation are both complete** — five Spring 2027 Tampa course targets were validated
 > at 75 sections on 2026-09-09. The Tampa-only correction was executed on 2026-09-14: 47
 > non-Tampa sections were removed, and a clean refresh found 77 current Tampa sections because
-> AMH 2020 gained two legitimate sections. PR #18 contains the reviewed tooling and awaits merge.
+> AMH 2020 gained two legitimate sections. PR #18 merged the reviewed tooling into `origin/main`
+> at `9d686c01bca44b3bbf79a2277a4a1b2618df00a9`; PR #17 is closed as superseded. Phase 3
+> preparation and approved historical grade exports, starting with AMH 2020, are next.
 > RateMyProfessors links and seat alerts remain candidate later phases, not current scope. For
 > current position start at [`.planning/STATE.md`](.planning/STATE.md); AI agents start at
 > [`AGENTS.md`](AGENTS.md).
