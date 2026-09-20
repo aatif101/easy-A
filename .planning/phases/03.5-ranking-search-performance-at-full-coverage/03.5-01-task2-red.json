@@ -1,0 +1,9 @@
+{
+  "command": ".venv/bin/python -m pytest tests/rankings/test_cache_parity.py -x -q",
+  "exitCode": 1,
+  "output": "TAP version 13\nok 1 - test_cache_module_contract_exists\nnot ok 2 - test_rank_section_accepts_explicit_as_of_for_deterministic_seat_parity\n1..2\n# tests 2\n# pass 1\n# fail 1\n",
+  "targetTest": "test_rank_section_accepts_explicit_as_of_for_deterministic_seat_parity",
+  "targetFile": "tests/rankings/test_cache_parity.py",
+  "expected": "rank_section accepts the same explicit as_of timestamp as cached hydration",
+  "actual": "rank_section signature has no as_of parameter"
+}
