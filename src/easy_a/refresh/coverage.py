@@ -4,6 +4,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Literal
 
+from bs4 import BeautifulSoup, Tag
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -13,11 +14,12 @@ from easy_a.catalog.ingest import upsert_catalog_courses
 from easy_a.catalog.parser import parse_catalog_html
 from easy_a.common.terms import normalize_banner_term_code
 from easy_a.models import Course, Section, Term
+from easy_a.rankings.cache import refresh_section_rankings
 from easy_a.refresh.targets import CourseTarget, CourseTargets
 from easy_a.schedule.client import ScheduleSearchQuery
 from easy_a.schedule.freshness import as_utc
 from easy_a.schedule.ingest import ingest_schedule_html
-from easy_a.schedule.parser import parse_schedule_html
+from easy_a.schedule.parser import ParsedScheduleRow, parse_schedule_html
 
 
 class TargetCoverage(BaseModel):
@@ -139,18 +141,34 @@ def refresh_targets(
             term=term, campus="T", subject=target.subject, course=target.number, crn=crn
         )
         html = search(query)
-        rows = parse_schedule_html(html)
+        parsed_rows = parse_schedule_html(html)
+        # Suffix variants such as CHM 2045L are separate configurable targets when wanted.
+        rows = [
+            row
+            for row in parsed_rows
+            if (row.subject, row.course_number) == (target.subject, target.number)
+        ]
         if any(
-            (r.subject, r.course_number) != (target.subject, target.number)
-            or r.campus.strip() != "Tampa"
-            or (crn is not None and r.crn != crn)
+            r.campus.strip() != "Tampa" or (crn is not None and r.crn != crn)
             for r in rows
         ):
             raise ValueError("Schedule response exceeded the requested Tampa/course/CRN scope.")
         if len({r.crn for r in rows}) != len(rows):
             raise ValueError("Schedule response contains duplicate CRNs.")
+        exact_html = _retain_exact_course_rows(
+            html,
+            parsed_rows=parsed_rows,
+            subject=target.subject,
+            course_number=target.number,
+        )
         result = ingest_schedule_html(
-            session, html, term, observed_at=observed_at or datetime.now(UTC)
+            session, exact_html, term, observed_at=observed_at or datetime.now(UTC)
+        )
+        refresh_section_rankings(
+            session,
+            term=term,
+            subject=target.subject,
+            course_number=target.number,
         )
         results.append(
             TargetRefresh(
@@ -162,3 +180,35 @@ def refresh_targets(
             )
         )
     return results
+
+
+def _retain_exact_course_rows(
+    html: str,
+    *,
+    parsed_rows: list[ParsedScheduleRow],
+    subject: str,
+    course_number: str,
+) -> str:
+    """Remove source rows excluded by the exact-course pre-filter before ingestion."""
+    soup = BeautifulSoup(html, "lxml")
+    header = next(
+        (
+            row
+            for row in soup.find_all("tr")
+            if isinstance(row, Tag) and len(row.find_all("th", recursive=False)) == 24
+        ),
+        None,
+    )
+    if header is None:
+        return html
+    html_rows = [
+        row
+        for row in header.find_all_next("tr")
+        if isinstance(row, Tag) and len(row.find_all("td", recursive=False)) == 24
+    ]
+    if len(html_rows) != len(parsed_rows):
+        raise ValueError("Parsed schedule rows no longer match the schedule response.")
+    for html_row, parsed_row in zip(html_rows, parsed_rows, strict=True):
+        if (parsed_row.subject, parsed_row.course_number) != (subject, course_number):
+            html_row.decompose()
+    return str(soup)

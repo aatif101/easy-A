@@ -80,10 +80,14 @@ def test_refresh_targets_populates_and_updates_rankings_cache(db_session: Sessio
     assert refreshed is not None
     assert refreshed.effective_n > 0
     assert refreshed.easiness_score != original_score
-    assert hydrate_ranking(db_session, refreshed).model_dump(mode="json") == rank_section(
+    as_of = datetime(2026, 9, 8, 1, tzinfo=UTC)
+    assert hydrate_ranking(db_session, refreshed, as_of=as_of).model_dump(
+        mode="json"
+    ) == rank_section(
         db_session,
         term="202701",
         crn="13173",
+        as_of=as_of,
     ).model_dump(mode="json")
 
 
