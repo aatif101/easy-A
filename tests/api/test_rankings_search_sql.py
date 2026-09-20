@@ -189,7 +189,9 @@ def test_sql_search_applies_each_filter(
     )
 
     assert response.status_code == 200
-    assert {item["crn"] for item in response.json()["items"]} == expected_crns
+    body = response.json()
+    assert {item["crn"] for item in body["items"]} == expected_crns
+    assert len(body["items"]) == body["total"] == len(expected_crns)
 
 
 def test_sql_search_treats_sql_metacharacters_as_literal_filter_text(
@@ -241,6 +243,11 @@ def _seed_sql_search_data(session: Session) -> None:
     session.add_all(
         [
             CourseAttribute(course_id=10, attribute_code="SMEL", attribute_label="Mathematics"),
+            CourseAttribute(
+                course_id=10,
+                attribute_code="SMEL",
+                attribute_label="Duplicate source row",
+            ),
             CourseAttribute(course_id=20, attribute_code="WRIN", attribute_label="Writing"),
         ]
     )

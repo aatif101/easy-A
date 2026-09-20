@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import case, func, select
+from sqlalchemy import case, exists, func, select
 from sqlalchemy.sql.elements import ColumnElement
 
 from easy_a.analytics.confidence import ConfidenceLabel
@@ -131,11 +131,16 @@ def search_rankings(
             SectionRankingCache.course_number == normalized_course_number
         )
     if normalized_gened_code is not None:
-        filtered = (
-            filtered.join(Course, Section.course_id == Course.id)
+        gened_match = exists(
+            select(1)
+            .select_from(Course)
             .join(CourseAttribute, CourseAttribute.course_id == Course.id)
-            .where(func.upper(CourseAttribute.attribute_code) == normalized_gened_code)
+            .where(
+                Course.id == Section.course_id,
+                func.upper(CourseAttribute.attribute_code) == normalized_gened_code,
+            )
         )
+        filtered = filtered.where(gened_match)
     if normalized_delivery_method is not None:
         filtered = filtered.where(
             func.upper(SectionRankingCache.delivery_method) == normalized_delivery_method
