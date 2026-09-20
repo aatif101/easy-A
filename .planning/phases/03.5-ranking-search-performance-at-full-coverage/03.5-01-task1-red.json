@@ -1,0 +1,9 @@
+{
+  "command": ".venv/bin/python -m pytest tests/rankings/test_cache_parity.py -x -q",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - test_cache_module_contract_exists\n1..1\n# tests 1\n# pass 0\n# fail 1\n",
+  "targetTest": "test_cache_module_contract_exists",
+  "targetFile": "tests/rankings/test_cache_parity.py",
+  "expected": "easy_a.rankings.cache exists and exposes the derived-cache spine",
+  "actual": "find_spec returned None before production implementation"
+}
