@@ -163,12 +163,79 @@ files.
 
 ---
 
-## Phase 4: Hosted Beta — Deployment, CI, Performance, Observability
+## Phase 3.5: Ranking Search Performance at Full Coverage
+
+**Goal**: Ranking search is fast enough to serve all ~3,782 Spring 2027 Tampa sections over the
+hosted Supabase database — search-page latency well under ~1.5s p95 — with the easiness scoring
+model and the API response contract both unchanged.
+
+**Depends on**: Phase 2 (independent of Phase 3 grade imports; unblocked)
+
+**Status**: Next — critical. Carved out of Phase 4 because REQ-PERF-01 is now a blocker, not a
+deferred concern.
+
+**Why it exists**: after the move to hosted Supabase and widened coverage, a 132-section pilot
+measured ~600s for a single rankings search. Root cause (confirmed in
+`src/easy_a/api/routes/rankings.py`, `_rank_candidate_sections`): the endpoint ranks the *whole*
+term on every request — selecting every candidate section, then looping CRN-by-CRN through
+`rank_section()`, which fires several per-section queries (course, instructor, seats, attributes,
+analytics, signals) — and only sorts/paginates afterward. This N+1 was invisible on sub-ms local
+Postgres and explodes over remote Supabase (a network round-trip per query).
+
+**Scope**
+
+1. Precompute rankings into a derived/cached table (e.g. `section_rankings`), refreshed as part of
+   / right after the refresh pipeline. Alembic migration chained after
+   `0002_create_section_syllabus_tables`.
+2. Rewrite the search path to read from that table with sort, filter (subject/course/gened/
+   delivery/open-seats/min-easiness/confidence) and pagination done in SQL — O(one page), not
+   O(whole term). Eliminate the per-section N+1.
+3. Keep seat freshness / "latest observed seats" semantics correct: cached ranking vs. live seat
+   snapshot relationship decided and documented; stale seats must not corrupt scores.
+4. Fix the CHM 2045 vs CHM 2045L (course-number suffix / lab-section) matching in ingest and the
+   campus/target guard so full-scale runs stay clean.
+
+**Hard constraints**
+
+- **D-02**: easiness scoring model UNCHANGED. Cached values must be byte-for-byte identical to what
+  the current on-demand `rank_section()` produces. No scoring rewrite.
+- API response contract identical: `items`/`total`/`limit`/`offset`, and existing sort values
+  (`easiness_desc`, `easiness_asc`, `withdrawal_asc`, `seats_desc`, `course`).
+- Honest-data semantics preserved: unavailable stays unavailable; provenance / confidence /
+  `effective_n` intact; no fabricated values.
+- Do not touch grades or syllabi ingestion. No secrets in git.
+
+**Success criteria**
+
+1. Correctness parity: cached-table results match current on-demand rankings exactly (same order,
+   scores, fields) for sampled sections and full-course searches — enforced by an automated parity
+   test.
+2. Performance: rankings search measured against Supabase before/after, at pilot size and against a
+   larger seeded set; after ≈ search page < ~1.5s p95, with real numbers, dataset size, environment.
+3. Quality unchanged: `check_data_quality.py` still 0 errors; Tampa-only guard clean.
+4. Cache freshness: how/when `section_rankings` is refreshed is documented and tested so it cannot
+   silently go stale after an ingestion.
+5. Full test suite green, including the PostgreSQL integration path.
+
+**Requirements**: REQ-PERF-01
+
+**Plans:** 5 plans (tracer-first; Wave 1 → Wave 2 ×3 parallel → Wave 3)
+
+Plans:
+- [ ] 03.5-01-PLAN.md — Tracer: `section_rankings` table + batch-by-course population + hydrate, proven by byte-for-byte parity (D-01/D-02/D-04/D-07/D-08)
+- [ ] 03.5-02-PLAN.md — Rewrite `/rankings/search` to SQL filter/sort/paginate + live seat join; remove the N+1 (D-03/D-06/D-08)
+- [ ] 03.5-03-PLAN.md — Refresh-pipeline wiring (atomic cache population) + CHM 2045/2045L suffix pre-filter (D-09/D-10)
+- [ ] 03.5-04-PLAN.md — Extend cleanup cascade + identity verification to `section_rankings` (no orphans)
+- [ ] 03.5-05-PLAN.md — Benchmark harness + real Supabase before/after p95 measurement + full Postgres-path suite (criteria 2/5)
+
+---
+
+## Phase 4: Hosted Beta — Deployment, CI, Observability
 
 **Goal**: The corrected application runs as a hosted beta with enough automation and measurement
 to keep it running.
 
-**Depends on**: Phase 2 (and Phase 3 for meaningful coverage)
+**Depends on**: Phase 2, Phase 3.5 (and Phase 3 for meaningful coverage)
 
 **Status**: Later
 
@@ -176,19 +243,16 @@ to keep it running.
 
 1. Deployment — minimal and portable, no provider-specific infrastructure
 2. CI for Python and frontend checks (net-new; there is no `.github/` directory today)
-3. **Search performance measurement and improvement at the widened coverage** — an initial local
-   request returning all 77 corrected sections took about 10.1 seconds on 2026-09-14
-4. Observability — refresh success/failure, search latency
-5. Operator runbook — refreshing data, recovering from a failed refresh
+3. Observability — refresh success/failure, search latency
+4. Operator runbook — refreshing data, recovering from a failed refresh
 
 **Success criteria**
 
 1. The hosted beta is reachable and serves real data
 2. CI runs Python and frontend checks on push
-3. Search latency at validated coverage is measured and recorded
-4. An operator can follow the runbook to refresh data and recover from a failed refresh
+3. An operator can follow the runbook to refresh data and recover from a failed refresh
 
-**Requirements**: REQ-PERF-01, REQ-OPS-01
+**Requirements**: REQ-OPS-01
 
 ---
 
