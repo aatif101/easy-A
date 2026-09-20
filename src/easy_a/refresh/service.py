@@ -14,6 +14,7 @@ from easy_a.db import get_session_factory
 from easy_a.grades.ingest import GradeIngestResult, ingest_grade_file
 from easy_a.models import GradeDistribution, Section, Syllabus, Term
 from easy_a.quality.checks import run_quality_checks
+from easy_a.rankings.cache import refresh_section_rankings
 from easy_a.refresh.models import (
     CatalogInput,
     RefreshConfig,
@@ -83,6 +84,11 @@ def refresh_data(
                 fetched_at=captured_at,
             ),
         )
+
+    _run_stage(
+        "rankings cache",
+        lambda: _refresh_rankings_cache(factory, config.term),
+    )
 
     with factory() as session:
         term_row = session.scalar(select(Term).where(Term.banner_code == config.term))
@@ -219,6 +225,11 @@ def _refresh_syllabi(
             )
         )
     return results
+
+
+def _refresh_rankings_cache(factory: sessionmaker[Session], term: str) -> int:
+    with factory.begin() as session:
+        return refresh_section_rankings(session, term=term)
 
 
 def _ingest_one_syllabus(
