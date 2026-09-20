@@ -174,13 +174,17 @@ Kept for traceability. Verified present in code at `62fb2f1`.
 
 ## Later — hosted beta
 
-- [◐] **REQ-PERF-01**: Search performance is measured at the widened coverage.
-  *Context*: an initial local measurement on 2026-09-14 returned all 77 corrected sections in
-  about **10.1 seconds**. This establishes a baseline and confirms the hosted-beta concern.
-  `GET /api/v1/rankings/search` ranks sections before slicing pagination.
-  *Remaining acceptance*: repeat the measurement in the hosted environment, define the target,
-  and improve or explicitly accept the result. Report real numbers with the dataset size and
-  environment where they were measured.
+- [◐] **REQ-PERF-01** (now **Phase 3.5**, pulled ahead of the hosted beta as a blocker): Ranking
+  search is fast at the widened coverage.
+  *Context*: a local measurement on 2026-09-14 returned all 77 corrected sections in about
+  **10.1 seconds**; over hosted Supabase a 132-section pilot rankings search measured **~600
+  seconds**. `GET /api/v1/rankings/search` ranks the whole term before slicing pagination
+  (`_rank_candidate_sections` in `src/easy_a/api/routes/rankings.py` — a per-section N+1 that
+  explodes over remote round-trips).
+  *Acceptance*: search page latency well under **~1.5s p95** against Supabase at full ~3,782-section
+  coverage, achieved without changing the easiness scoring model or the API response contract.
+  Report real numbers with dataset size and environment. Cached rankings must be byte-for-byte
+  identical to the current on-demand results (automated parity test).
 
 - [ ] **REQ-OPS-01**: The hosted beta is deployable, observable and reproducible.
   *Acceptance*: Minimal, portable deployment configuration — no provider-specific infrastructure.

@@ -1,15 +1,52 @@
 ---
-gsd_state_version: '1.0'
-status: active
+gsd_state_version: "1.0"
+current_phase: "03.5"
+current_phase_name: Ranking Search Performance at Full Coverage
+status: executing
+stopped_at: Completed 03.5-04-PLAN.md
+last_updated: "2026-09-20T18:30:57.890Z"
+last_activity: 2026-09-20
+last_activity_desc: Phase 03.5 execution started
+state_head: c51a68ef5fe51fedbe3c702a587868aabae91405
 progress:
-  total_phases: 4
+  total_phases: 5
   completed_phases: 2
-  total_plans: 0
-  completed_plans: 0
-  percent: 50
+  total_plans: 5
+  completed_plans: 4
+  percent: 40
 ---
 
 # Project State
+
+## Current update — 2026-09-20 Tampa coverage pilot
+
+This update supersedes the older **Current Position**, **Current gate**, and **Next Action**
+sections below; those sections retain the dated local-database history.
+
+- Fetched `origin/main`: `a70a85346796d886f5f04741b5fd2330b660e2cc`. PR #18 (Tampa guard)
+  and PR #19 (Supabase wiring) are merged. Working branch: `dev1/tampa-coverage-pilot`.
+- User explicitly authorized Spring 2027 (`202701`) undergraduate Tampa coverage expansion,
+  with a stop after pilot verification. Grades, syllabi, scoring, frontend, and deletions are
+  excluded. This takes precedence over the earlier deferred coverage-breadth decision.
+- Enumerated all 265 public undergraduate catalog prefixes sequentially: **1,402 courses /
+  3,782 Tampa sections** across 212 subjects; 53 subjects had no undergraduate Tampa offerings.
+  `courses.csv` is Git-ignored. No unresolved schedule searches; non-pilot catalog lookups pending.
+- Hosted Supabase started empty. Existing coverage refresh populated **10 courses / 132 Tampa
+  sections / 132 seat snapshots**, including five new targets contributing 55 sections:
+  ACG 2021 (17), ACG 2071 (15), ANT 2000 (5), ECO 2013 (3), MAC 2311 (15).
+- Independent quality CLI: **0 errors, 132 low-confidence warnings, 132 no-history info**.
+  Coverage and rankings APIs returned 200; both matched SQL at 132 sections and per course.
+  Coverage took 1.88 seconds; rankings took **600.61 seconds** against Supabase. Seat freshness
+  during that request: 97 fresh / 35 aging; all 132 have complete seat fields and snapshots.
+  Grades and syllabi remain **0 before / 0 after**, with unchanged full-row hashes.
+- First pilot attempt rolled back completely: USF's CHM 2045 query also returns CHM 2045L,
+  which the exact-course guard correctly rejects. ACG 2071 replaced CHM 2045 in the pilot.
+  The full CSV has 33 base courses with suffix variants; their query behavior needs attention
+  before scaling. Do not weaken the guard or blindly run the full list.
+- Audit: `phase1_report.md`; ignored evidence: `data/coverage-pilot-2026-09-20/`.
+- **Stopped at the user's pilot checkpoint.** Await confirmation before scaling. Resolve the
+  confirmed suffix-query incompatibility using existing tooling and account for rankings
+  latency before a full run. Full-scale ingestion/verification remain pending; no grade import.
 
 ## Project Reference
 
@@ -32,13 +69,13 @@ of producing a plausible-looking result.
 | Phase 3 — Historical grade coverage (AMH/PSY/BSC) | ◆ Next after merge and approved exports |
 | Phase 4 — Hosted beta | ○ After that |
 
-Phase: 2 of 4 (Tampa-Only Data Correction; completion gate)
-Plan: 0 of TBD
-Status: Implementation and live-data verification complete on PR #18; review/merge pending
+Phase: 03.5 (Ranking Search Performance at Full Coverage) — EXECUTING
+Plan: 5 of 5
+Status: Ready to execute
 
-Progress: [█████░░░░░] 50%
+Progress: [████░░░░░░] 40%
 
-Last activity: 2026-09-14 — Removed 47 non-Tampa sections with the reviewed cleanup, refreshed
+Last activity: 2026-09-20 — Phase 03.5 execution started
 the five configured targets, verified stored/API/coverage agreement at 77 Tampa sections, and
 added an independent campus-contamination quality guard.
 
@@ -207,6 +244,14 @@ Constraints live in the PROJECT.md `<decisions>` block (`D-01`..`D-19`). Load-be
 - D-10: verify current `origin/main` by fetch; do not check out or merge an unverified local `main`
 - D-16 / D-17 / D-18: alerts, RMP and broader launch coverage stay deferred
 - D-19: never commit raw grade export files
+- [Phase 03.5]: Cache every non-seat ranking field and hydrate live seat state at read time.
+- [Phase 03.5]: Batch historical analytics once per course while reusing ranking service helpers.
+- [Phase 03.5]: Use one portable window-function latest-seat join for SQLite and PostgreSQL.
+- [Phase 03.5]: Keep ranking search cache-only and hydrate explicitly joined seat state without per-row queries.
+- [Phase 03.5]: [Phase 03.5]: Refresh configured target cache rows inside the caller-owned ingest transaction.
+- [Phase 03.5]: [Phase 03.5]: Rebuild whole-term ranking cache as a wrapped refresh_data stage after syllabi.
+- [Phase 03.5]: [Phase 03.5]: Filter non-exact schedule rows from the ingestion payload before strict Tampa and CRN validation.
+- [Phase 03.5]: Extended cleanup.py's explicit-delete + identity-verification cascade to cover section_rankings as a fourth dependent table, closing the orphaned/stale-cache regression a future non-Tampa cleanup would reintroduce
 
 ### Fixed — do not re-plan
 
@@ -232,8 +277,17 @@ approved later.
 
 ## Session Continuity
 
-Last session: 2026-09-14
-Stopped at: Phase 2 implementation and live-data correction verified on PR #18. The live database
+Last session: 2026-09-20T18:30:57.861Z
+Stopped at: Completed 03.5-04-PLAN.md
 contains 77 configured Tampa sections, zero other-campus target sections, and 237 grade rows.
 Resume file: None
 Next action: review and merge PR #18, then obtain the approved AMH 2020 grade export for Phase 3.
+
+## Performance Metrics
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 03.5 P01 | 15min | 2 tasks | 7 files |
+| Phase 03.5 P02 | 7min | 2 tasks | 5 files |
+| Phase 03.5 P03 | 8min | 3 tasks | 8 files |
+| Phase 03.5 P04 | 20min | 2 tasks | 2 files |

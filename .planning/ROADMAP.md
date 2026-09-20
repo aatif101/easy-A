@@ -219,14 +219,14 @@ Postgres and explodes over remote Supabase (a network round-trip per query).
 
 **Requirements**: REQ-PERF-01
 
-**Plans:** 2/5 plans executed (tracer-first; Wave 1 → Wave 2 ×3 parallel → Wave 3)
+**Plans:** 4/5 plans executed (tracer-first; Wave 1 → Wave 2 ×3 parallel → Wave 3)
 
 Plans:
 
 - [x] 03.5-01-PLAN.md — Tracer: `section_rankings` table + batch-by-course population + hydrate, proven by byte-for-byte parity (D-01/D-02/D-04/D-07/D-08)
 - [x] 03.5-02-PLAN.md — Rewrite `/rankings/search` to SQL filter/sort/paginate + live seat join; remove the N+1 (D-03/D-06/D-08)
-- [ ] 03.5-03-PLAN.md — Refresh-pipeline wiring (atomic cache population) + CHM 2045/2045L suffix pre-filter (D-09/D-10)
-- [ ] 03.5-04-PLAN.md — Extend cleanup cascade + identity verification to `section_rankings` (no orphans)
+- [x] 03.5-03-PLAN.md — Refresh-pipeline wiring (atomic cache population) + CHM 2045/2045L suffix pre-filter (D-09/D-10)
+- [x] 03.5-04-PLAN.md — Extend cleanup cascade + identity verification to `section_rankings` (no orphans)
 - [ ] 03.5-05-PLAN.md — Benchmark harness + real Supabase before/after p95 measurement + full Postgres-path suite (criteria 2/5)
 
 ---
