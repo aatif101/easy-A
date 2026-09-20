@@ -68,7 +68,11 @@ def test_cached_rankings_match_on_demand_for_history_and_global_fallback(
 
 
 def test_cache_schema_excludes_all_seat_display_fields(db_session: Session) -> None:
-    columns = {column["name"] for column in inspect(db_session.bind).get_columns("section_rankings")}
+    assert db_session.bind is not None
+    columns = {
+        column["name"]
+        for column in inspect(db_session.bind).get_columns("section_rankings")
+    }
 
     assert {
         "observed_at",
