@@ -27,6 +27,7 @@ from easy_a.models import (
     Syllabus,
     Term,
 )
+from easy_a.rankings.cache import SectionRankingCache
 from easy_a.refresh.targets import CourseTarget
 
 
@@ -129,6 +130,7 @@ class _IdentitySnapshot:
     seat_snapshot_ids: frozenset[int]
     instructor_observation_ids: frozenset[int]
     syllabus_ids: frozenset[int]
+    section_ranking_ids: frozenset[int]
     grade_row_ids: frozenset[int]
 
 
@@ -403,11 +405,13 @@ def clean_other_campus_sections(
     candidate_seat_ids = _dependent_ids(session, SeatSnapshot, candidate_ids)
     candidate_instructor_ids = _dependent_ids(session, SectionInstructor, candidate_ids)
     candidate_syllabus_ids = _dependent_ids(session, Syllabus, candidate_ids)
+    candidate_ranking_ids = _dependent_ids(session, SectionRankingCache, candidate_ids)
 
     _lock_candidate_dependencies(session, candidate_ids)
     _delete_ids(session, SeatSnapshot, candidate_seat_ids)
     _delete_ids(session, SectionInstructor, candidate_instructor_ids)
     _delete_ids(session, Syllabus, candidate_syllabus_ids)
+    _delete_ids(session, SectionRankingCache, candidate_ranking_ids)
     _delete_ids(session, Section, candidate_ids)
     session.flush()
 
@@ -420,6 +424,7 @@ def clean_other_campus_sections(
         candidate_seat_ids=candidate_seat_ids,
         candidate_instructor_ids=candidate_instructor_ids,
         candidate_syllabus_ids=candidate_syllabus_ids,
+        candidate_ranking_ids=candidate_ranking_ids,
     )
     after = stored_counts(session, term, targets)
     if after.other_campus_target_sections:
@@ -479,13 +484,14 @@ def _identity_snapshot(
         seat_snapshot_ids=frozenset(session.scalars(select(SeatSnapshot.id))),
         instructor_observation_ids=frozenset(session.scalars(select(SectionInstructor.id))),
         syllabus_ids=frozenset(session.scalars(select(Syllabus.id))),
+        section_ranking_ids=frozenset(session.scalars(select(SectionRankingCache.id))),
         grade_row_ids=frozenset(session.scalars(select(GradeDistribution.id))),
     )
 
 
 def _dependent_ids(
     session: Session,
-    model: type[SeatSnapshot] | type[SectionInstructor] | type[Syllabus],
+    model: type[SeatSnapshot] | type[SectionInstructor] | type[Syllabus] | type[SectionRankingCache],
     section_ids: frozenset[int],
 ) -> frozenset[int]:
     if not section_ids:
@@ -498,7 +504,7 @@ def _dependent_ids(
 def _lock_candidate_dependencies(session: Session, section_ids: frozenset[int]) -> None:
     if not section_ids:
         return
-    for model in (SeatSnapshot, SectionInstructor, Syllabus):
+    for model in (SeatSnapshot, SectionInstructor, Syllabus, SectionRankingCache):
         session.scalars(
             select(model.id).where(model.section_id.in_(section_ids)).with_for_update()
         ).all()
@@ -520,12 +526,14 @@ def _verify_identities(
     candidate_seat_ids: frozenset[int],
     candidate_instructor_ids: frozenset[int],
     candidate_syllabus_ids: frozenset[int],
+    candidate_ranking_ids: frozenset[int],
 ) -> None:
     expected = {
         "section": before.section_ids - candidate_ids,
         "seat snapshot": before.seat_snapshot_ids - candidate_seat_ids,
         "instructor observation": before.instructor_observation_ids - candidate_instructor_ids,
         "syllabus": before.syllabus_ids - candidate_syllabus_ids,
+        "section ranking": before.section_ranking_ids - candidate_ranking_ids,
         "grade row": before.grade_row_ids,
         "Tampa target section": before.tampa_target_ids,
         "ambiguous-campus target section": before.ambiguous_target_ids,
@@ -537,6 +545,7 @@ def _verify_identities(
         "seat snapshot": after.seat_snapshot_ids,
         "instructor observation": after.instructor_observation_ids,
         "syllabus": after.syllabus_ids,
+        "section ranking": after.section_ranking_ids,
         "grade row": after.grade_row_ids,
         "Tampa target section": after.tampa_target_ids,
         "ambiguous-campus target section": after.ambiguous_target_ids,
