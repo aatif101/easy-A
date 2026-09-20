@@ -10,13 +10,11 @@ from sqlalchemy.orm import Mapped, Session, mapped_column
 from sqlalchemy.sql import func
 
 from easy_a.analytics.confidence import ConfidenceLabel, ScoreSource
-from easy_a.analytics.queries import get_current_section_historical_analytics
 from easy_a.analytics.scoring import ScoreConfig
 from easy_a.common.terms import normalize_banner_term_code
 from easy_a.db import Base
 from easy_a.models.core import Course, Term
 from easy_a.models.sections import SeatSnapshot, Section
-from easy_a.signals.resolver import resolve_section_signals
 
 if TYPE_CHECKING:
     from easy_a.rankings.models import SectionRanking
@@ -108,6 +106,13 @@ def refresh_section_rankings(
             Course.subject == subject.strip().upper(),
             Course.number == course_number.strip().upper(),
         )
+
+    # Imported lazily to avoid a circular import: easy_a.models.__init__ imports
+    # this module (SectionRankingCache), and both of these depend (directly or
+    # transitively) on easy_a.models — a top-level import here would deadlock
+    # that cycle. Both are only used inside this function.
+    from easy_a.analytics.queries import get_current_section_historical_analytics
+    from easy_a.signals.resolver import resolve_section_signals
 
     section_course_rows = list(session.execute(stmt).all())
     analytics_by_crn = {}

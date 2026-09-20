@@ -5,7 +5,6 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from easy_a.analytics.queries import get_current_section_historical_analytics
 from easy_a.analytics.scoring import HistoricalOutcomeStats, ScoreConfig
 from easy_a.common.instructors import CurrentInstructorStatus, get_current_instructor_state
 from easy_a.common.terms import normalize_banner_term_code
@@ -325,6 +324,11 @@ def _historical_stats_for_section(
     course: Course,
     config: ScoreConfig | None,
 ) -> HistoricalOutcomeStats:
+    # Imported lazily to avoid a circular import (see easy_a.rankings.cache):
+    # easy_a.models imports the rankings package, and easy_a.analytics.queries
+    # imports easy_a.models.
+    from easy_a.analytics.queries import get_current_section_historical_analytics
+
     analytics_rows = get_current_section_historical_analytics(
         session,
         term_code=term_code,
