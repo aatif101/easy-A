@@ -1,18 +1,31 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
+from easy_a.api.dependencies import get_db_session
 from easy_a.api.routes import metadata, rankings
 from easy_a.api.schemas import HealthResponse
 from easy_a.config import get_settings
 
 
+@asynccontextmanager
+async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    # Fail at startup, not on first request, when DATABASE_URL is missing.
+    if get_db_session not in app.dependency_overrides:
+        get_settings().require_database_url()
+    yield
+
+
 def create_app() -> FastAPI:
     settings = get_settings()
     app = FastAPI(
+        lifespan=_lifespan,
         title="Easy-A API",
         version="0.1.0",
         description="Thin API over computed Easy-A section rankings.",

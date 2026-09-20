@@ -170,6 +170,43 @@ The default local connection string is:
 postgresql+psycopg://easy_a:easy_a@localhost:5432/easy_a
 ```
 
+## Hosted Supabase Postgres
+
+`DATABASE_URL` is required everywhere (API, `scripts/`, alembic); if unset the
+process fails with a clear error. There is no localhost fallback, so copy
+`.env.example` to `.env` even for local Docker. Never commit `.env` or real
+credentials.
+
+| Variable | Used by | Supabase value |
+| --- | --- | --- |
+| `DATABASE_URL` | API and scripts | Transaction pooler, port `6543` |
+| `MIGRATION_DATABASE_URL` | alembic only (optional) | Session pooler (IPv4) or direct connection, port `5432` |
+
+```text
+DATABASE_URL=postgresql+psycopg://postgres.<PROJECT_REF>:<PASSWORD>@aws-0-<REGION>.pooler.supabase.com:6543/postgres?sslmode=require
+MIGRATION_DATABASE_URL=postgresql+psycopg://postgres.<PROJECT_REF>:<PASSWORD>@aws-0-<REGION>.pooler.supabase.com:5432/postgres?sslmode=require
+```
+
+The direct host (`db.<PROJECT_REF>.supabase.co`) is IPv6-only unless you buy
+Supabase's IPv4 add-on, so it fails with "Network is unreachable" on IPv4-only
+machines (including default WSL). Use the **session pooler** (same host as
+`DATABASE_URL`, port `5432`) for migrations instead. Replace every `<...>`
+placeholder, including `<REGION>`, with the real value.
+
+Supabase's copy button gives plain `postgresql://`; plain `postgresql://` and
+`postgres://` are rewritten to `postgresql+psycopg://` automatically. Pooler
+URLs (port 6543 or `pooler.supabase.com`) automatically disable prepared
+statements; `pool_pre_ping` is always on. Local Docker URLs are unaffected.
+
+Migrate and smoke test:
+
+```bash
+uv run alembic upgrade head
+uv run uvicorn easy_a.api.app:app
+curl http://127.0.0.1:8000/health
+curl http://127.0.0.1:8000/api/v1/metadata/terms
+```
+
 ## Migrations
 
 Run Alembic migrations after the database is healthy:
