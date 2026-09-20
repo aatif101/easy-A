@@ -1,0 +1,9 @@
+{
+  "command": "timeout 40s .venv/bin/pytest tests/api/test_rankings_search_sql.py::test_sql_search_orders_every_supported_sort_with_deterministic_ties -x -q",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - test_sql_search_orders_every_supported_sort_with_deterministic_ties[easiness_desc-expected_crns0]\n1..1\n# tests 1\n# pass 0\n# fail 1\n",
+  "targetTest": "test_sql_search_orders_every_supported_sort_with_deterministic_ties[easiness_desc-expected_crns0]",
+  "targetFile": "tests/api/test_rankings_search_sql.py",
+  "expected": "SQL search returns cache-defined easiness_desc order 30001, 20001, 10001, 40001, 10002",
+  "actual": "Legacy per-section ranking search returned 40001 first"
+}
