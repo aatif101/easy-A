@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -34,6 +36,7 @@ def rank_section(
     term: str | int,
     crn: str,
     config: ScoreConfig | None = None,
+    as_of: datetime | None = None,
 ) -> SectionRanking:
     normalized_term = normalize_banner_term_code(term)
     normalized_crn = crn.strip()
@@ -48,7 +51,12 @@ def rank_section(
         term_code=term_row.banner_code,
     )
     modality = _modality_for(section, term_code=term_row.banner_code)
-    seats = _seat_info_for(session, section=section, term_code=term_row.banner_code)
+    seats = _seat_info_for(
+        session,
+        section=section,
+        term_code=term_row.banner_code,
+        as_of=as_of,
+    )
     gened_attributes = _gened_attributes_for(session, course)
     analytics_stats = _historical_stats_for_section(
         session,
@@ -207,7 +215,13 @@ def _modality_for(section: Section, *, term_code: str) -> ModalityInfo:
     )
 
 
-def _seat_info_for(session: Session, *, section: Section, term_code: str) -> SeatInfo:
+def _seat_info_for(
+    session: Session,
+    *,
+    section: Section,
+    term_code: str,
+    as_of: datetime | None = None,
+) -> SeatInfo:
     latest_snapshot = (
         session.execute(
             select(SeatSnapshot)
@@ -220,7 +234,7 @@ def _seat_info_for(session: Session, *, section: Section, term_code: str) -> Sea
     )
     if latest_snapshot is not None:
         return SeatInfo(
-            **snapshot_freshness(latest_snapshot).model_dump(),
+            **snapshot_freshness(latest_snapshot, as_of=as_of).model_dump(),
             capacity=latest_snapshot.capacity,
             enrollment=latest_snapshot.enrollment,
             seats_remaining=latest_snapshot.seats_remaining,
