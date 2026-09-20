@@ -5,7 +5,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -98,6 +99,43 @@ def test_sql_search_total_matches_complete_paging_without_gaps_or_duplicates(
     assert len(crns) == total == 5
     assert len(set(crns)) == total
     assert crns == ["40001", "30001", "20001", "10001", "10002"]
+
+
+def test_sql_search_executes_one_count_and_one_page_query(
+    sql_search_client: TestClient,
+    sql_search_session_factory: sessionmaker[Session],
+) -> None:
+    engine = sql_search_session_factory.kw["bind"]
+    assert isinstance(engine, Engine)
+    statements: list[str] = []
+
+    def record_statement(
+        _connection: object,
+        _cursor: object,
+        statement: str,
+        _parameters: object,
+        _context: object,
+        _executemany: bool,
+    ) -> None:
+        statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", record_statement)
+    try:
+        response = sql_search_client.get(
+            "/api/v1/rankings/search",
+            params={"term": "202701", "limit": 2},
+        )
+    finally:
+        event.remove(engine, "before_cursor_execute", record_statement)
+
+    assert response.status_code == 200
+    selects = [
+        statement
+        for statement in statements
+        if statement.lstrip().upper().startswith("SELECT")
+    ]
+    assert len(selects) == 2
+    assert all("section_rankings" in statement for statement in selects)
 
 
 def test_sql_search_uses_live_snapshot_and_section_column_seat_fallbacks(
@@ -249,7 +287,7 @@ def _seed_sql_search_data(session: Session) -> None:
                 easiness_score=easiness,
                 smoothed_withdrawal_rate=withdrawal,
                 confidence_label=confidence,
-                score_source="global_prior",
+                score_source="global",
                 effective_n=0.0,
                 delivery_method=delivery,
                 historical_analytics=_historical_analytics(
@@ -314,7 +352,7 @@ def _historical_analytics(
         "smoothed_withdrawal_rate": withdrawal,
         "confidence_label": confidence,
         "effective_n": 0.0,
-        "score_source": "global_prior",
+        "score_source": "global",
         "prior_level": "global",
         "completed_grade_count": 0,
         "total_grade_count": 0,

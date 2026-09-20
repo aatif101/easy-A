@@ -22,6 +22,7 @@ from easy_a.models import (
     Syllabus,
     Term,
 )
+from easy_a.rankings.cache import refresh_section_rankings
 
 NOW = datetime(2026, 9, 1, tzinfo=UTC)
 
@@ -465,6 +466,8 @@ def _seed_search_data(session: Session) -> None:
         delivery_method="CL",
         seats_remaining=20,
     )
+    session.flush()
+    refresh_section_rankings(session, term="202701")
 
 
 def _add_grade(

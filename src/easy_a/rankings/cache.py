@@ -22,6 +22,13 @@ if TYPE_CHECKING:
     from easy_a.rankings.models import SectionRanking
 
 
+class _LoadLatestSeatSnapshot:
+    pass
+
+
+_LOAD_LATEST_SEAT_SNAPSHOT = _LoadLatestSeatSnapshot()
+
+
 class SectionRankingCache(Base):
     __tablename__ = "section_rankings"
     __table_args__ = (
@@ -195,7 +202,7 @@ def hydrate_ranking(
     session: Session,
     cache_row: SectionRankingCache,
     *,
-    seat_snapshot: SeatSnapshot | None = None,
+    seat_snapshot: SeatSnapshot | None | _LoadLatestSeatSnapshot = _LOAD_LATEST_SEAT_SNAPSHOT,
     seat_columns: Section | Mapping[str, int | None] | None = None,
     as_of: datetime | None = None,
 ) -> SectionRanking:
@@ -216,14 +223,15 @@ def hydrate_ranking(
     if section is None:
         raise ValueError(f"No section found for cached section_id={cache_row.section_id}.")
 
-    latest_snapshot = seat_snapshot
-    if latest_snapshot is None:
+    if isinstance(seat_snapshot, _LoadLatestSeatSnapshot):
         latest_snapshot = session.scalars(
             select(SeatSnapshot)
             .where(SeatSnapshot.section_id == cache_row.section_id)
             .order_by(SeatSnapshot.observed_at.desc(), SeatSnapshot.id.desc())
             .limit(1)
         ).first()
+    else:
+        latest_snapshot = seat_snapshot
 
     if latest_snapshot is not None:
         seats = SeatInfo(
