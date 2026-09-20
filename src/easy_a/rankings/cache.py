@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import sqlalchemy as sa
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, UniqueConstraint, select
@@ -16,17 +16,10 @@ from easy_a.common.terms import normalize_banner_term_code
 from easy_a.db import Base
 from easy_a.models.core import Course, Term
 from easy_a.models.sections import SeatSnapshot, Section
-from easy_a.rankings.models import (
-    GenEdAttribute,
-    HistoricalAnalyticsSummary,
-    ModalityInfo,
-    RankingFreshness,
-    RankingProvenance,
-    RankingSignal,
-    SeatInfo,
-    SectionRanking,
-)
 from easy_a.signals.resolver import resolve_section_signals
+
+if TYPE_CHECKING:
+    from easy_a.rankings.models import SectionRanking
 
 
 class SectionRankingCache(Base):
@@ -81,6 +74,7 @@ def refresh_section_rankings(
     config: ScoreConfig | None = None,
 ) -> int:
     """Populate or refresh derived ranking rows without committing the caller's transaction."""
+    from easy_a.rankings.models import RankingFreshness, RankingProvenance
     from easy_a.rankings.service import (
         _gened_attributes_for,
         _gened_provenance,
@@ -206,6 +200,16 @@ def hydrate_ranking(
     as_of: datetime | None = None,
 ) -> SectionRanking:
     """Rebuild a ranking from cached non-seat data and the latest live seat state."""
+    from easy_a.rankings.models import (
+        GenEdAttribute,
+        HistoricalAnalyticsSummary,
+        ModalityInfo,
+        RankingFreshness,
+        RankingProvenance,
+        RankingSignal,
+        SeatInfo,
+        SectionRanking,
+    )
     from easy_a.schedule.freshness import snapshot_freshness
 
     section = session.get(Section, cache_row.section_id)
