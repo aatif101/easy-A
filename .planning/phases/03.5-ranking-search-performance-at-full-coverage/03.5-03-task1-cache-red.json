@@ -1,0 +1,9 @@
+{
+  "command": ".venv/bin/pytest tests/refresh/test_rankings_cache_refresh.py::test_refresh_targets_populates_and_updates_rankings_cache -x -q",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - test_refresh_targets_populates_and_updates_rankings_cache\n1..1\n# tests 1\n# pass 0\n# fail 1\n",
+  "targetTest": "test_refresh_targets_populates_and_updates_rankings_cache",
+  "targetFile": "tests/refresh/test_rankings_cache_refresh.py",
+  "expected": "refresh_targets creates two scoped section_rankings rows and refreshes them after historical data changes",
+  "actual": "refresh_targets ingested both MAC sections but left section_rankings empty"
+}

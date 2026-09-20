@@ -1,0 +1,9 @@
+{
+  "command": ".venv/bin/pytest tests/refresh/test_rankings_cache_refresh.py::test_refresh_data_populates_rankings_for_a_fresh_term -x -q",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - test_refresh_data_populates_rankings_for_a_fresh_term\n1..1\n# tests 1\n# pass 0\n# fail 1\n",
+  "targetTest": "test_refresh_data_populates_rankings_for_a_fresh_term",
+  "targetFile": "tests/refresh/test_rankings_cache_refresh.py",
+  "expected": "refresh_data populates section_rankings for both freshly ingested sections",
+  "actual": "refresh_data completed with two canonical sections and zero section_rankings rows"
+}
