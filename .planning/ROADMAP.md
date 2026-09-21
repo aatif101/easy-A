@@ -374,6 +374,21 @@ Plans:
 
 **Requirements**: REQ-COVERAGE-03
 
+**Plans:** 3 plans (tracer-first; Wave 1 → Wave 2 → Wave 3)
+
+Plans:
+**Wave 1**
+
+- [ ] 06-01-PLAN.md — Tracer: target-list generator + committed full ~1,402-entry `config/course_targets.toml`, one-subject (CHM) end-to-end ingest with campus + suffix guards, quality 0 errors, honest coverage; generalized suffix-guard regression test
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 06-02-PLAN.md — Resumable, paced per-subject orchestrator + runbook, blocking-human go-live checkpoint, full-scale all-Tampa ingestion (~1,402 courses / ~3,782 sections) into hosted Supabase
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 06-03-PLAN.md — Scale validation: all 33 suffix-variant base courses exact-only, 0 non-Tampa, quality 0 errors, stored/coverage/API counts agree, config vs stored reconciled, honest-coverage (D-20) at scale
+
 ---
 
 ## Phase 7: MVP1-P4 — Full-scale cache build + search performance (p95 < ~1.5s)
