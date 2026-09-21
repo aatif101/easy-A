@@ -229,6 +229,16 @@ Plans:
 - [x] 03.5-04-PLAN.md — Extend cleanup cascade + identity verification to `section_rankings` (no orphans)
 - [x] 03.5-05-PLAN.md — Benchmark harness + real Supabase before/after p95 measurement + full Postgres-path suite (criteria 2/5)
 
+**Status: NOT closed — delivered with the performance goal deferred.** All 5 plans are built and
+committed; the circular-import regression they surfaced is fixed. Success criteria 3 (quality 0
+errors) and 5 (full Postgres-path suite green, 256 passed) are met, and the scoring model + API
+contract are unchanged. **Success criterion 2 (p95 < ~1.5s at full ~3,782-section scale) is NOT
+met — measured ~2.40s — and is deliberately deferred to [Phase 999.6](#phase-9996-full-scale-ranking-search-tuning-deferred)
+as an accepted deviation** (recorded in `.planning/WINDOWS.md`, detail in `03.5-PERF-REPORT.md`).
+The miss is at a synthetic projected scale, not the current pilot; the residual work is additive
+index/query tuning, not a rewrite. Phase 3.5 therefore stays open (goal partially met) rather than
+being marked complete.
+
 ---
 
 ## Phase 4: Hosted Beta — Deployment, CI, Observability
@@ -285,6 +295,21 @@ Depends on named-instructor coverage in the source data.
 ### Phase 999.4: Additional UX features (candidate later phase)
 
 Deep links, a methodology page, and expanded accessibility work.
+
+### Phase 999.6: Full-scale ranking search tuning (deferred)
+
+**Deferred future addition** (moved out of Phase 3.5's blocking goal by explicit decision,
+2026-09-20). Phase 3.5 delivered the SQL rewrite that removed the N+1; what remains is closing the
+performance goal at full projected coverage:
+
+- Rankings-search p95 measured ~2.40s at a 3,782-section synthetic fixture — above the ~1.5s target.
+- Work is additive: `EXPLAIN ANALYZE` at scale, add/adjust index(es) on `section_rankings`
+  sort/filter columns, re-measure. No scoring or contract change.
+- Also fix `scripts/benchmark_rankings_search.py` to label the environment/pooler from the resolved
+  engine URL (not only `--url`), so a `DATABASE_URL`-driven run reports its real target.
+
+**Not blocking the pilot:** at the current ~132-section scale the rewritten path replaces the ~600s
+N+1 and is expected to be well under target. Recommended before broad (non-pilot) coverage ships.
 
 ### Phase 999.5: Methodology review (optional research item)
 
