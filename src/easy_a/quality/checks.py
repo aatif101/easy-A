@@ -245,6 +245,20 @@ def _check_grades(session: Session, term: Term) -> list[QualityFinding]:
                     ),
                 )
             )
+        if distribution.course_id is None:
+            findings.append(
+                QualityFinding(
+                    check_id="unattributed_grade_row",
+                    severity=FindingSeverity.error,
+                    term=term.banner_code,
+                    crn=distribution.crn,
+                    source_record=f"grade_distribution:{distribution.id}",
+                    message=(
+                        "Grade distribution has no attributed course (course_id is null); "
+                        "it cannot supply course historical analytics until attributed."
+                    ),
+                )
+            )
 
     orphan_rows = session.execute(
         select(GradeDistribution.id, GradeDistribution.crn)

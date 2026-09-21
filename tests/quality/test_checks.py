@@ -56,6 +56,33 @@ def test_orphan_grade_row_is_an_error(db_session: Session) -> None:
     assert finding.crn == "99999"
 
 
+def test_unattributed_grade_row_is_an_error(db_session: Session) -> None:
+    section = _section(crn="12345")
+    db_session.add(section)
+    db_session.flush()
+    db_session.add(_grade(crn="12345", total_grades=10, course_id=None))
+
+    report = run_quality_checks(db_session, "202701", as_of=NOW)
+
+    finding = _finding(report.findings, "unattributed_grade_row")
+    assert finding.severity == "error"
+    assert finding.term == "202701"
+    assert finding.crn == "12345"
+    assert finding.source_record is not None
+    assert finding.source_record.startswith("grade_distribution:")
+
+
+def test_attributed_grade_row_has_no_unattributed_finding(db_session: Session) -> None:
+    section = _section(crn="12345")
+    db_session.add(section)
+    db_session.flush()
+    db_session.add(_grade(crn="12345", total_grades=10, course_id=10))
+
+    report = run_quality_checks(db_session, "202701", as_of=NOW)
+
+    assert [f for f in report.findings if f.check_id == "unattributed_grade_row"] == []
+
+
 def test_orphan_instructor_observation_is_an_error(db_session: Session) -> None:
     db_session.add(
         SectionInstructor(
@@ -255,11 +282,11 @@ def _section(
     )
 
 
-def _grade(*, crn: str, total_grades: int) -> GradeDistribution:
+def _grade(*, crn: str, total_grades: int, course_id: int | None = 10) -> GradeDistribution:
     return GradeDistribution(
         term_id=1,
         crn=crn,
-        course_id=10,
+        course_id=course_id,
         section_number_raw="001",
         a_count=10,
         b_count=0,
