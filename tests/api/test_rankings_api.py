@@ -555,7 +555,29 @@ def _add_section(
 def test_seat_freshness_and_coverage_api(
     api_client: TestClient,
     api_session_factory: sessionmaker[Session],
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    from easy_a.refresh.targets import CourseTarget, CourseTargets
+
+    # config/course_targets.toml now holds the full ~1,402-course Tampa universe (Phase 06 /
+    # MVP1-P3). Isolate the coverage-endpoint assertions below from that cardinality by
+    # scoping the route's load_targets() to the original 5-course pilot set.
+    pilot_config = CourseTargets(
+        catalog_edition="2026-2027",
+        catalog_url_template=(
+            "https://cloud.usf.edu/academic-programs/details/prefix/{subject}/code/{number}"
+        ),
+        targets=(
+            CourseTarget(subject="MAC", number="1105"),
+            CourseTarget(subject="ENC", number="1101"),
+            CourseTarget(subject="AMH", number="2020"),
+            CourseTarget(subject="PSY", number="2012"),
+            CourseTarget(subject="BSC", number="1005"),
+        ),
+    )
+    monkeypatch.setattr(
+        "easy_a.api.routes.metadata.load_targets", lambda *args, **kwargs: pilot_config
+    )
     with api_session_factory() as session:
         _seed_search_data(session)
         session.commit()
