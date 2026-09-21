@@ -2,9 +2,9 @@
 gsd_state_version: "1.0"
 current_plan: 2
 status: ready
-stopped_at: "Completed 06-01-PLAN.md (all-Tampa ingestion tracer: CHM live-ingested, 0 quality errors)"
-last_updated: "2026-09-21T21:47:07.893Z"
-state_head: 01d7432e81018d3f2e8600e34f60e3b825c60c80
+stopped_at: Completed 06-02 Task 1 (orchestrator + tests + runbook); halted at Task 2 blocking-human checkpoint -- awaiting operator authorization for the live full-scale USF run
+last_updated: "2026-09-21T21:54:30.121Z"
+state_head: bc2b60456b3322f188dcab884ce92135fcd5c51b
 progress:
   total_phases: 10
   completed_phases: 5
@@ -127,12 +127,15 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Completed 06-01-PLAN.md (all-Tampa ingestion tracer: CHM live-ingested, 0 quality errors)
-**Resume file:** None
+**Stopped at:** Completed 06-02 Task 1 (orchestrator + tests + runbook); halted at Task 2 blocking-human checkpoint -- awaiting operator authorization for the live full-scale USF run
+**Resume file:** .planning/phases/06-mvp1-p3-all-tampa-section-ingestion-10-3-782/06-02-PLAN.md
 
-Last session: 2026-09-21T21:47:07.819Z
-The operator approved the complete record and exact raw-total matches. Next action: begin Phase 06
-all-Tampa ingestion planning/execution; do not push this Phase 05 completion commit unless asked.
+Last session: 2026-09-21T21:54:25.987Z
+06-02 Task 1 (resumable, paced orchestrator + unit test + runbook) is committed and verified. The
+plan is intentionally halted at Task 2 — a `gate="blocking-human"` checkpoint — before Task 3 (the
+~2,800-request live USF ingestion). Next action: the operator must review
+`docs/runbooks/all-tampa-ingestion.md` and confirm courses.csv freshness + pacing, then explicitly
+authorize the live run before any executor proceeds to Task 3.
 
 ## Performance Metrics
 
@@ -158,3 +161,4 @@ all-Tampa ingestion planning/execution; do not push this Phase 05 completion com
 - [Phase 05-02]: No observed real export contained a blank canonical count, so OQ-04 remains open and the fail-closed parser was left unchanged.
 - [Phase 6]: [Phase 06-01]: Reconciled config/course_targets.toml to the full ~1,402-entry generated list (locked decision 1); CHM ingested end-to-end (23 courses/295 sections) against hosted Supabase with 0 quality errors, proving the suffix guard, Tampa scope guard, and D-20 honest-coverage contract at scale.
 - [Phase 6]: [Phase 06-01]: Fixed src/easy_a/refresh/cleanup.py's _target_filter (OR-of-AND -> composite tuple_(...).in_(...)) after the full-scale config tripped SQLite's expression-tree depth limit in an existing test; coverage.py/targets.py/target_cli.py remained unmodified throughout.
+- [Phase 06]: [Phase 06-02]: Built scripts/refresh_all_tampa.py as a resumable, paced per-subject orchestrator that shells out to the unmodified refresh_course_coverage.py once per subject (own process/transaction each), records completed subjects to a progress file for resume, and continues past a failed subject rather than aborting; coverage.py/target_cli.py remain unmodified. Halted at the plan's blocking-human checkpoint before the ~2,800-request live USF run.
