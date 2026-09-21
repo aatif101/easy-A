@@ -243,7 +243,7 @@ rather than being marked complete.
 
 ---
 
-## MVP 1 — full Tampa coverage + historical grades + performance
+## MVP 1 — milestone overview
 
 **Goal**: all ~3,782 USF Tampa Spring 2027 (`202701`) sections ingested and **searchable against
 hosted Supabase**, each with **historical grade distributions imported** and **easiness computed
@@ -257,40 +257,116 @@ universe is ~1,402 courses / ~3,782 sections (see `.planning/STATE.md`).
 `effective_n` (D-06/D-07/D-20); API response contract identical; term/CRN/source dedup and never
 commit raw grade files (D-04/D-19); bounded USF requests (D-08/D-09).
 
-**Phases** (sequenced; P1 first, P2 parallel-but-depends-on-P1, P3 large & independent, P4 after P3):
-
-- **MVP1-P1 — Grade→course attribution fix (engineering crux).** `GradeDistribution.course_id` is
-  hard-coded `None` at ingest (`src/easy_a/grades/ingest.py:140`) and the parsed subject/number are
-  discarded, so imported *historical* grades never attach to *current-term* sections. Backfill
-  `course_id` from the parsed subject+number so a 202701 section's `course_id` matches the grade row
-  (`src/easy_a/analytics/queries.py:294-300`). Decide blank-cell suppression semantics
-  (`src/easy_a/grades/parser.py:250` turns blanks into `0`). Prove easiness-from-grades end-to-end
-  on a sample export (`effective_n > 0`).
-- **MVP1-P2 — Grade data sourcing (Codex-owned) + import to Supabase.** Codex sources USF InfoCenter
-  grade XLSX for Tampa courses and loads them into Supabase. **Depends on P1** — grades loaded before
-  the attribution fix will not count. Validate per-course analytics; honest `effective_n`; never
-  commit raw exports. Import tooling exists (`grades/cli.py`, `--grade-file`).
-- **MVP1-P3 — All-Tampa section ingestion (10 → ~3,782).** No "all Tampa" path exists — ingestion is
-  target-driven (`config/course_targets.toml` → `src/easy_a/refresh/coverage.py:74`). Catalog-ingest
-  all ~1,402 Tampa courses (course rows must pre-exist for `resolve_course_id`,
-  `src/easy_a/common/lookups.py:35`); add a subject-level Tampa ingest path (with the campus guard
-  that today lives in `coverage.py:141-155`) or a generated full target list; fix the exact-course
-  suffix guard (CHM 2045 vs 2045L, `coverage.py:185`; 33 base courses affected). Reconcile config
-  (5 courses) vs stored data (10).
-- **MVP1-P4 — Full-scale cache build + p95 < ~1.5s on Supabase (blocking; folds in Phase 3.5's
-  open goal).** Populate `section_rankings` for all ~3,782 sections (`src/easy_a/rankings/cache.py:73`
-  supports whole-term). Address cache build-time latency at scale, then `EXPLAIN ANALYZE` the serve
-  query and add index(es) on the `section_rankings` sort/filter columns until search p95 < ~1.5s on
-  Supabase. Fix the benchmark env-label bug (label/pooler from the resolved engine URL, not `--url`).
-- **MVP1-P5 — End-to-end MVP-1 verification.** All ~3,782 Tampa sections searchable; easiness
-  grade-derived wherever data exists; quality 0 errors; p95 < ~1.5s on Supabase; honest data
-  semantics; API contract + scoring model unchanged.
-
-**Requirements**: REQ-COVERAGE-03 (breadth), REQ-GRADES-01 (grades), REQ-PERF-01 (performance).
+MVP 1 is delivered as **Phases 4–8** below (sequenced: P4 first, P5 parallel-but-depends-on-P4,
+P6 large & independent, P7 after P6). Phase 9 (hosted beta) follows MVP 1.
 
 ---
 
-## Phase 4: Hosted Beta — Deployment, CI, Observability
+## Phase 4: MVP1-P1 — Grade→course attribution fix
+
+**Goal**: imported historical grade distributions attach to current-term sections so easiness is
+computed from real data (`effective_n > 0`), not the global fallback.
+
+**Depends on**: Phase 3.5 (delivered). This is the MVP-1 engineering crux — do it first.
+
+**Scope**
+1. `GradeDistribution.course_id` is hard-coded `None` at ingest (`src/easy_a/grades/ingest.py:140`)
+   and the parsed subject/number are discarded, so imported historical grades never attach to
+   current-term sections. Backfill `course_id` from the parsed subject+number so a 202701 section's
+   `course_id` matches the grade row (`src/easy_a/analytics/queries.py:294-300`).
+2. Decide blank-cell suppression semantics (`src/easy_a/grades/parser.py:250` turns blanks into `0`).
+3. Prove easiness-from-grades end-to-end on a sample export.
+
+**Success criteria**
+1. A section whose course has imported grade history reports `effective_n > 0` and a grade-derived
+   easiness score; sections without history stay an honest `effective_n = 0` fallback.
+2. Term/CRN/source dedup preserved; no raw export files committed; scoring model unchanged.
+
+**Requirements**: REQ-GRADES-01
+
+---
+
+## Phase 5: MVP1-P2 — Grade data sourcing + import to Supabase
+
+**Goal**: historical grade distributions for the ingested Tampa courses are present in Supabase.
+
+**Depends on**: Phase 4 (grades loaded before the attribution fix will not count).
+
+**Scope**
+1. Source USF InfoCenter grade-distribution XLSX for the Tampa courses (**Codex-owned** task).
+2. Load into Supabase via the existing import tooling (`grades/cli.py`, `--grade-file`).
+3. Validate per-course analytics against the source aggregate; record courses still lacking data
+   as lacking it, never quietly omitted.
+
+**Success criteria**
+1. Imported courses report real observed outcomes with non-zero effective N, validated per course.
+2. Honest `effective_n`; no fabricated data; **no raw export files committed**.
+
+**Requirements**: REQ-GRADES-01
+
+---
+
+## Phase 6: MVP1-P3 — All-Tampa section ingestion (10 → ~3,782)
+
+**Goal**: all ~3,782 USF Tampa Spring 2027 sections are ingested and searchable.
+
+**Depends on**: independent of Phases 4/5; large lift.
+
+**Scope**
+1. No "all Tampa" path exists — ingestion is target-driven (`config/course_targets.toml` →
+   `src/easy_a/refresh/coverage.py:74`). Catalog-ingest all ~1,402 Tampa courses (course rows must
+   pre-exist for `resolve_course_id`, `src/easy_a/common/lookups.py:35`).
+2. Add a subject-level Tampa ingest path (with the campus guard that today lives only in
+   `coverage.py:141-155`) or a generated full target list.
+3. Fix the exact-course suffix guard (CHM 2045 vs 2045L, `coverage.py:185`; 33 base courses
+   affected) without weakening it. Reconcile config (5 courses) vs stored data (10).
+
+**Success criteria**
+1. Full Tampa Spring 2027 set ingested; stored/API/coverage counts agree; 0 non-Tampa rows.
+2. Suffix-variant courses ingest correctly; quality 0 errors.
+
+**Requirements**: REQ-COVERAGE-03
+
+---
+
+## Phase 7: MVP1-P4 — Full-scale cache build + search performance (p95 < ~1.5s)
+
+**Goal**: rankings search p95 < ~1.5s against Supabase at full ~3,782-section scale. Folds in
+Phase 3.5's open performance goal.
+
+**Depends on**: Phase 6 (need full scale to measure and tune).
+
+**Scope**
+1. Populate `section_rankings` for all ~3,782 sections (`src/easy_a/rankings/cache.py:73` supports
+   whole-term); address cache build-time latency at scale.
+2. `EXPLAIN ANALYZE` the serve query; add index(es) on the `section_rankings` sort/filter columns;
+   re-measure until p95 < ~1.5s on Supabase. No scoring or API-contract change.
+3. Fix the benchmark env-label bug (label/pooler from the resolved engine URL, not only `--url`).
+
+**Success criteria**
+1. Measured search p95 < ~1.5s on Supabase at full scale, with dataset size + environment stated.
+2. Cached rankings byte-for-byte identical to on-demand results (parity test still passes).
+
+**Requirements**: REQ-PERF-01
+
+---
+
+## Phase 8: MVP1-P5 — End-to-end MVP-1 verification
+
+**Goal**: MVP 1 is demonstrably met end to end.
+
+**Depends on**: Phases 4–7.
+
+**Success criteria**
+1. All ~3,782 Tampa sections searchable; easiness grade-derived wherever data exists.
+2. Quality 0 errors; p95 < ~1.5s on Supabase; honest data semantics; API contract + scoring
+   model unchanged.
+
+**Requirements**: REQ-COVERAGE-03, REQ-GRADES-01, REQ-PERF-01
+
+---
+
+## Phase 9: Hosted Beta — Deployment, CI, Observability
 
 **Goal**: The corrected application runs as a hosted beta with enough automation and measurement
 to keep it running.
@@ -365,9 +441,14 @@ rewrite is planned or approved.
 | Phase | Status | Progress |
 |-------|--------|----------|
 | Sprint 5 / Phase 1 / Phase 2 | ✓ Complete & merged | 100% |
-| 3.5 — Ranking search performance | ◐ Delivered; perf goal folded into MVP1-P4 | — |
-| MVP 1 — coverage + grades + performance | ◆ Active milestone | 0% |
-| 4 — Hosted beta | ○ After MVP 1 | 0% |
+| 3 — Historical grades | ↳ Folded into MVP 1 (Phases 4–5) | — |
+| 3.5 — Ranking search performance | ◐ Delivered; perf goal folded into Phase 7 | — |
+| 4 — MVP1-P1 grade→course attribution | ◆ Next | 0% |
+| 5 — MVP1-P2 grade sourcing + import | ○ MVP 1 | 0% |
+| 6 — MVP1-P3 all-Tampa ingestion | ○ MVP 1 | 0% |
+| 7 — MVP1-P4 full-scale perf (p95 < 1.5s) | ○ MVP 1 | 0% |
+| 8 — MVP1-P5 MVP-1 verification | ○ MVP 1 | 0% |
+| 9 — Hosted beta | ○ After MVP 1 | 0% |
 
 ---
 
@@ -382,10 +463,10 @@ rewrite is planned or approved.
 | REQ-TEST-01 | Sprint 5 | ◐ Partial — PostgreSQL integration exists, skips without config |
 | REQ-COVERAGE-02 | 1 | ✓ Complete — search performance carved out to REQ-PERF-01 |
 | REQ-DATA-02 | 2 | ✓ Complete (PR #18 merged) |
-| REQ-COVERAGE-03 | MVP 1 | ○ All-Tampa ingestion (MVP1-P3) |
-| REQ-GRADES-01 | MVP 1 | ○ Grades + attribution fix (MVP1-P1/P2) |
-| REQ-PERF-01 | MVP 1 | ◐ SQL rewrite delivered; p95 < 1.5s at full scale remains (MVP1-P4) |
-| REQ-OPS-01 | 4 | ○ After MVP 1 |
+| REQ-COVERAGE-03 | 6 | ○ All-Tampa ingestion (MVP1-P3) |
+| REQ-GRADES-01 | 4–5 | ○ Attribution fix (P4) + grade sourcing/import (P5) |
+| REQ-PERF-01 | 7 | ◐ SQL rewrite delivered; p95 < 1.5s at full scale remains (MVP1-P4) |
+| REQ-OPS-01 | 9 | ○ After MVP 1 |
 
 Backlog requirements (`REQ-ALERT-*`, `REQ-RMP-01`) are deliberately unmapped — they belong to
 candidate later phases.
