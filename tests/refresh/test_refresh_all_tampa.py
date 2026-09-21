@@ -64,26 +64,26 @@ def test_run_subject_shells_out_to_refresh_course_coverage_with_correct_flags(
 ) -> None:
     targets_path = tmp_path / "targets.toml"
     targets_path.write_text("placeholder", encoding="utf-8")
-    captured: dict[str, object] = {}
+    captured_cmd: list[str] = []
+    captured_check: list[bool] = []
 
     class _FakeCompletedProcess:
         returncode = 0
 
     def fake_run(cmd: list[str], *, check: bool) -> _FakeCompletedProcess:
-        captured["cmd"] = cmd
-        captured["check"] = check
+        captured_cmd.extend(cmd)
+        captured_check.append(check)
         return _FakeCompletedProcess()
 
-    monkeypatch.setattr(refresh_all_tampa.subprocess, "run", fake_run)
+    monkeypatch.setattr("scripts.refresh_all_tampa.subprocess.run", fake_run)
     returncode = refresh_all_tampa._run_subject("202701", targets_path, "MAC")
 
     assert returncode == 0
-    assert captured["check"] is False
-    cmd = captured["cmd"]
-    assert "scripts/refresh_course_coverage.py" in cmd
-    assert cmd[cmd.index("--term") + 1] == "202701"
-    assert cmd[cmd.index("--targets") + 1] == str(targets_path)
-    assert cmd[cmd.index("--subject") + 1] == "MAC"
+    assert captured_check == [False]
+    assert "scripts/refresh_course_coverage.py" in captured_cmd
+    assert captured_cmd[captured_cmd.index("--term") + 1] == "202701"
+    assert captured_cmd[captured_cmd.index("--targets") + 1] == str(targets_path)
+    assert captured_cmd[captured_cmd.index("--subject") + 1] == "MAC"
 
 
 def test_paces_between_subjects_not_before_the_first(
