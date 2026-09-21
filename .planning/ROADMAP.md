@@ -319,6 +319,17 @@ Plans:
 
 **Requirements**: REQ-GRADES-01
 
+**Plans:** 2 plans (tracer-first; Wave 1 → Wave 2)
+
+Plans:
+**Wave 1**
+
+- [ ] 05-01-PLAN.md — Tracer: source + scope + import ONE course, rebuild the 202701 cache, validate raw-count vs source against hosted Supabase; author `docs/runbooks/grade-import.md` + `05-IMPORT-RECORD.md`
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 05-02-PLAN.md — Import the remaining covered courses; complete the honest all-10-course coverage record (still-lacking courses never omitted); conditional OQ-04 blank-cell regression fixture; phase data gate
+
 ---
 
 ## Phase 6: MVP1-P3 — All-Tampa section ingestion (10 → ~3,782)
