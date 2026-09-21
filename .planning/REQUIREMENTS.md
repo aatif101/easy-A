@@ -166,7 +166,7 @@ Kept for traceability. Verified present in code at `62fb2f1`.
   CHM 2045/2045L suffix-course guard is resolved without weakening it; config and stored data are
   reconciled. (MVP1-P3.)
 
-- [ ] **REQ-GRADES-01**: Ingested Tampa courses have real historical grade data, and easiness is
+- [◐] **REQ-GRADES-01**: Ingested Tampa courses have real historical grade data, and easiness is
   computed from it. *Context*: the current hosted DB has **0 grade rows** — every easiness is an
   `effective_n = 0` global fallback. Grade→course attribution is currently broken
   (`GradeDistribution.course_id` is set to `None` at ingest, `src/easy_a/grades/ingest.py:140`), so
@@ -176,6 +176,13 @@ Kept for traceability. Verified present in code at `62fb2f1`.
   attribution fixed so current-term sections resolve their course history, per-course analytics
   validated against the source aggregate, and courses still lacking data recorded as lacking it —
   never quietly omitted. **Never commit raw export files.**
+  **MVP1-P1 done (2026-09-21, `04-01-SUMMARY.md`):** `GradeDistribution.course_id` is now resolved
+  via `resolve_course_id()` on insert and update, with an atomic all-keys preflight and same-key
+  null-row repair; proved end-to-end on a generated workbook through a rebuilt 202701 cache to
+  `GET /api/v1/rankings/search` (effective_n > 0 / score_source=course vs. an honest
+  effective_n = 0 / score_source=global control). **Still open:** no real historical grade data is
+  imported into the hosted DB yet — that is MVP1-P2 (Codex-owned data sourcing), required before
+  this requirement can be marked fully complete.
 
 ---
 
@@ -269,5 +276,7 @@ Not committed. Not required for the hosted beta.
 - Committing raw grade export files
 
 ---
-*Last updated: 2026-09-20 — reclassified REQ-GRADES-01/REQ-PERF-01 and added REQ-COVERAGE-03 under
-the MVP-1 milestone; dated beta-DB figures moved to `.planning/ARCHIVE.md`.*
+*Last updated: 2026-09-21 — REQ-GRADES-01 marked partial (◐): MVP1-P1 (grade→course attribution
+fix) delivered per `04-01-SUMMARY.md`; MVP1-P2 (grade data sourcing) still required before full
+completion. Previously updated 2026-09-20 — reclassified REQ-GRADES-01/REQ-PERF-01 and added
+REQ-COVERAGE-03 under the MVP-1 milestone; dated beta-DB figures moved to `.planning/ARCHIVE.md`.*

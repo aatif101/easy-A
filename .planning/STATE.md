@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-status: planning
-last_updated: "2026-09-21T03:36:01.056Z"
-state_head: abb8f5d5db9e8a9043ddab59687c19f5f0055c93
+status: executing
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-09-21T07:20:45.618Z"
+state_head: 24999f8970e2dd7afaa3cdf5aac073d8cbbeda4d
 progress:
   total_phases: 10
   completed_phases: 3
   total_plans: 7
-  completed_plans: 0
-  percent: 0
-last_activity: 2026-09-20
-current_phase_name: MVP1-P1 — Grade→course attribution fix
+  completed_plans: 6
+  percent: 30
+last_activity: 2026-09-21
 current_phase: 04
-stopped_at: MVP 1 milestone set up; Phase 4 ready to plan
-last_activity_desc: MVP 1 milestone set up; Phase 4 (grade attribution) ready to plan
+current_phase_name: MVP1-P1 — Grade→course attribution fix
+last_activity_desc: Phase 04 plan 04-01 (grade→course attribution fix) executed and summarized; 04-02 (blank grade-cell policy + quality guard) remains
 ---
 
 # Project State
@@ -63,12 +63,25 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Next action
 
-Docs declutter is done (this update). Next build steps, in order (see ROADMAP MVP1-P1..P5):
+**Phase 04 plan `04-01` (grade→course attribution fix) is complete** — see
+`04-01-SUMMARY.md`. `GradeDistribution.course_id` is no longer hard-coded `None` at ingest
+(`src/easy_a/grades/ingest.py`): the shared `resolve_course_id()` lookup now resolves it on
+insert and update, with an atomic all-keys preflight and same-key null-row repair. Proved
+end-to-end on a generated historical XLSX through a rebuilt 202701 cache to
+`GET /api/v1/rankings/search` (with-history section: `effective_n > 0` / `score_source=course`;
+no-history control: `effective_n = 0` / `score_source=global`). Full pytest suite green (257
+passed / 3 skipped), ruff and strict mypy clean on all changed files.
 
-1. **MVP1-P1** — fix grade→course attribution (`GradeDistribution.course_id` is hard-coded `None`
-   at `src/easy_a/grades/ingest.py:140`); prove easiness-from-grades end-to-end on a sample export.
+Plan `04-02` (blank grade-cell fail-closed policy + `unattributed_grade_row` quality guard) is
+still planned but not executed. **1/7 plans complete** in the current milestone plan set.
+
+**Do next: continue MVP1-P1 — `/gsd-execute-phase 04`** to run `04-02-PLAN.md`.
+
+Remaining build steps after P1 finishes, in order (see ROADMAP MVP1-P2..P5):
+
 2. **MVP1-P2** — grade data sourcing (Codex-owned): source USF InfoCenter grade XLSX for Tampa
-   courses and load into Supabase. Depends on P1, or the loaded grades will not attribute.
+   courses and load into Supabase. The attribution fix (P1) means these imports will now attach
+   to current-term sections; the hosted DB still has **0 `GradeDistribution` rows**.
 3. **MVP1-P3** — all-Tampa section ingestion (10 → ~3,782); resolve the CHM 2045/2045L suffix-guard
    blocker (33 base courses have suffix variants); reconcile config vs stored data.
 4. **MVP1-P4** — full-scale cache build + tune search to p95 < ~1.5s on Supabase.
@@ -94,9 +107,10 @@ are in `.planning/ARCHIVE.md`. They describe the earlier local beta DB and are n
 
 ## Still open
 
-- **Grade→course attribution broken for MVP** — `course_id` set to `None` at ingest
-  (`src/easy_a/grades/ingest.py:140`); imported historical grades won't attach to current-term
-  sections until fixed (MVP1-P1).
+- **No real historical grade data imported yet** — hosted DB still has 0 `GradeDistribution` rows
+  (MVP1-P2, Codex-owned data sourcing). Grade→course attribution itself was fixed in MVP1-P1
+  (04-01, 2026-09-21): imports now resolve `course_id` via `resolve_course_id()` and re-imports
+  repair null attribution in place.
 - **Blank grade-cell / suppression semantics** — `src/easy_a/grades/parser.py` converts every blank
   cell to `0` with no suppression path. Needs a real/sample InfoCenter export.
 - **Suffix-course query guard** — USF's CHM 2045 query also returns CHM 2045L; the exact-course
@@ -111,10 +125,14 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-Last session: 2026-09-20. Stopped at: Phase 03.5 delivered (perf goal deferred); docs decluttered;
-MVP 1 scoped and its roadmap encoded.
-Resume file: `.claude/plans/typed-gliding-cocke.md` (docs declutter + MVP-1 roadmap plan).
-Next action: begin MVP1-P1 — fix grade→course attribution.
+**Stopped at:** Completed 04-01-PLAN.md
+**Resume file:** None
+
+Last session: 2026-09-21. Plan `04-01` (grade→course attribution fix) executed and summarized;
+`04-02` (blank grade-cell fail-closed policy + quality guard) remains planned but not executed.
+Resume files: `.planning/phases/04-mvp1-p1-grade-course-attribution-fix/` (`04-02-PLAN.md`,
+`04-VALIDATION.md`, `04-01-SUMMARY.md`).
+Next action: continue MVP1-P1 — `/gsd-execute-phase 04` to run `04-02-PLAN.md`.
 
 ## Performance Metrics
 
@@ -124,3 +142,8 @@ Next action: begin MVP1-P1 — fix grade→course attribution.
 | Phase 03.5 P02 | 7min | 2 tasks | 5 files |
 | Phase 03.5 P03 | 8min | 3 tasks | 8 files |
 | Phase 03.5 P04 | 20min | 2 tasks | 2 files |
+| Phase 04 P01 | 25min | 2 tasks | 3 files |
+
+## Decisions
+
+- [Phase 04]: Reused resolve_course_id() for grade attribution instead of a grade-specific matcher, and treated course_id as a mutable attributed property (never part of the term/CRN/source identity) so a same-key re-import can backfill it (D-04).
