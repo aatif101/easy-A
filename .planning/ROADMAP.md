@@ -286,7 +286,7 @@ computed from real data (`effective_n > 0`), not the global fallback.
 
 **Requirements**: REQ-GRADES-01
 
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans executed
 
 Plans:
 **Wave 1**
@@ -295,7 +295,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 04-02-PLAN.md — Fail-closed blank-count semantics and explicit null-attribution quality findings
+- [x] 04-02-PLAN.md — Fail-closed blank-count semantics and explicit null-attribution quality findings
 
 ---
 
@@ -463,7 +463,7 @@ rewrite is planned or approved.
 | Sprint 5 / Phase 1 / Phase 2 | ✓ Complete & merged | 100% |
 | 3 — Historical grades | ↳ Folded into MVP 1 (Phases 4–5) | — |
 | 3.5 — Ranking search performance | ◐ Delivered; perf goal folded into Phase 7 | — |
-| 4 — MVP1-P1 grade→course attribution | In Progress| 0% |
+| 4 — MVP1-P1 grade→course attribution | ✓ Complete | 100% |
 | 5 — MVP1-P2 grade sourcing + import | ○ MVP 1 | 0% |
 | 6 — MVP1-P3 all-Tampa ingestion | ○ MVP 1 | 0% |
 | 7 — MVP1-P4 full-scale perf (p95 < 1.5s) | ○ MVP 1 | 0% |

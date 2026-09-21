@@ -19,3 +19,19 @@ tests/test_database_config.py:56: error: Unused "type: ignore" comment  [unused-
 
 Not in `04-01-PLAN.md` `files_modified`. Ruff and the full pytest suite (`uv run pytest -q`,
 257 passed / 3 skipped) are unaffected — this is a strict-mypy-only finding in an unrelated file.
+
+## Pre-existing ruff E501 in `src/easy_a/refresh/cleanup.py`
+
+Discovered during `04-02-PLAN.md` execution running `uv run ruff check .` (full-repo gate). Confirmed
+via `git log -1 -- src/easy_a/refresh/cleanup.py` (last touched at commit `0c0f0c9`, 2026-09-20,
+predating this plan's commits `d45fda9`/`1dac70d`) that this file is untouched by 04-02.
+
+```
+E501 Line too long (101 > 100)
+   --> src/easy_a/refresh/cleanup.py:494:101
+```
+
+Not in `04-02-PLAN.md` `files_modified` (`src/easy_a/grades/parser.py`, `tests/grades/test_parser.py`,
+`src/easy_a/quality/checks.py`, `tests/quality/test_checks.py`). `uv run ruff check` on this plan's
+changed files passes clean; the full pytest suite (`uv run pytest -q`, 261 passed / 3 skipped) is
+unaffected.
