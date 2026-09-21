@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: "03.5"
-current_phase_name: Ranking Search Performance at Full Coverage
-status: verifying
-stopped_at: Completed 03.5-05-PLAN.md
-last_updated: "2026-09-20T23:00:09.830Z"
+current_phase: "04"
+current_phase_name: MVP1-P1 — Grade→course attribution fix
+status: planning
+stopped_at: MVP 1 milestone set up; Phase 4 ready to plan
+last_updated: "2026-09-20T23:30:00.000Z"
 last_activity: 2026-09-20
-last_activity_desc: Phase 03.5 delivered (perf goal deferred); docs decluttered; MVP 1 defined
-state_head: 2bb984a6019127ebe67735223f63ce5615231615
+last_activity_desc: MVP 1 milestone set up; Phase 4 (grade attribution) ready to plan
+state_head: a90de4f60b319f9c389516356e272fff5cbf49de
 progress:
-  total_phases: 5
-  completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
-  percent: 40
+  total_phases: 9
+  completed_phases: 3
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
