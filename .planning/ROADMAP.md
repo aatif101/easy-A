@@ -374,12 +374,12 @@ Plans:
 
 **Requirements**: REQ-COVERAGE-03
 
-**Plans:** 3 plans (tracer-first; Wave 1 → Wave 2 → Wave 3)
+**Plans:** 1/3 plans executed (tracer-first; Wave 1 → Wave 2 → Wave 3)
 
 Plans:
 **Wave 1**
 
-- [ ] 06-01-PLAN.md — Tracer: target-list generator + committed full ~1,402-entry `config/course_targets.toml`, one-subject (CHM) end-to-end ingest with campus + suffix guards, quality 0 errors, honest coverage; generalized suffix-guard regression test
+- [x] 06-01-PLAN.md — Tracer: target-list generator + committed full ~1,402-entry `config/course_targets.toml`, one-subject (CHM) end-to-end ingest with campus + suffix guards, quality 0 errors, honest coverage; generalized suffix-guard regression test
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -512,7 +512,7 @@ rewrite is planned or approved.
 | 3.5 — Ranking search performance | ◐ Delivered; perf goal folded into Phase 7 | — |
 | 4 — MVP1-P1 grade→course attribution | Complete    | 100% |
 | 5 — MVP1-P2 grade sourcing + import | Complete | 100% |
-| 6 — MVP1-P3 all-Tampa ingestion | ○ MVP 1 | 0% |
+| 6 — MVP1-P3 all-Tampa ingestion | In Progress| 0% |
 | 7 — MVP1-P4 full-scale perf (p95 < 1.5s) | ○ MVP 1 | 0% |
 | 8 — MVP1-P5 MVP-1 verification | ○ MVP 1 | 0% |
 | 9 — Hosted beta | ○ After MVP 1 | 0% |

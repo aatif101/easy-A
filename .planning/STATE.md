@@ -1,18 +1,19 @@
 ---
 gsd_state_version: "1.0"
+current_plan: 2
 status: ready
-stopped_at: Phase 05 complete and verified; ready for Phase 06 planning/execution
-last_updated: "2026-09-21T19:40:00.000Z"
-state_head: d8e6ba61fc4778615f0568d83434ed44e18da2a4
+stopped_at: "Completed 06-01-PLAN.md (all-Tampa ingestion tracer: CHM live-ingested, 0 quality errors)"
+last_updated: "2026-09-21T21:47:07.893Z"
+state_head: 01d7432e81018d3f2e8600e34f60e3b825c60c80
 progress:
   total_phases: 10
   completed_phases: 5
-  total_plans: 11
-  completed_plans: 9
-  percent: 82
+  total_plans: 12
+  completed_plans: 10
+  percent: 50
 last_activity: 2026-09-21
-current_phase_name: MVP1-P3 — All-Tampa section ingestion
 current_phase: 6
+current_phase_name: MVP1-P3 — All-Tampa section ingestion
 last_activity_desc: Phase 05 complete and operator-approved; all 10 pilot courses now have reconciled Fall 2024 history and course-backed live rankings
 ---
 
@@ -62,6 +63,11 @@ lives in `ARCHIVE.md`.
 All ~3,782 USF Tampa Spring 2027 sections ingested + searchable against hosted Supabase, each with
 historical grade distributions imported and easiness computed from that real data, search
 p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`. RMP links = MVP 2.
+
+## Current Position
+
+Current Plan: 2
+Total Plans in Phase: 3
 
 ## Next action
 
@@ -121,10 +127,10 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Phase 05 complete and verified; ready for Phase 06
+**Stopped at:** Completed 06-01-PLAN.md (all-Tampa ingestion tracer: CHM live-ingested, 0 quality errors)
 **Resume file:** None
 
-Last session: 2026-09-21. Plan `05-02` scaled the tracer workflow across all 10 pilot courses.
+Last session: 2026-09-21T21:47:07.819Z
 The operator approved the complete record and exact raw-total matches. Next action: begin Phase 06
 all-Tampa ingestion planning/execution; do not push this Phase 05 completion commit unless asked.
 
@@ -140,6 +146,7 @@ all-Tampa ingestion planning/execution; do not push this Phase 05 completion com
 | Phase 04 P02 | 15min | 2 tasks | 4 files |
 | Phase 05 P01 | 54min | 3 tasks | 3 files |
 | Phase 05 P02 | 55min | 3 tasks | 2 files |
+| Phase 06 P01 | 30min | 2 tasks | 8 files |
 
 ## Decisions
 
@@ -149,3 +156,5 @@ all-Tampa ingestion planning/execution; do not push this Phase 05 completion com
 - [Phase 05-01]: Advanced hosted Supabase from migration 0002 to checked-in migration 0003 after the tracer exposed the missing section_rankings table.
 - [Phase 05-02]: Used one exact-course Fall 2024 Tampa report per course, imported each historically, then rebuilt the 202701 cache once after all imports.
 - [Phase 05-02]: No observed real export contained a blank canonical count, so OQ-04 remains open and the fail-closed parser was left unchanged.
+- [Phase 6]: [Phase 06-01]: Reconciled config/course_targets.toml to the full ~1,402-entry generated list (locked decision 1); CHM ingested end-to-end (23 courses/295 sections) against hosted Supabase with 0 quality errors, proving the suffix guard, Tampa scope guard, and D-20 honest-coverage contract at scale.
+- [Phase 6]: [Phase 06-01]: Fixed src/easy_a/refresh/cleanup.py's _target_filter (OR-of-AND -> composite tuple_(...).in_(...)) after the full-scale config tripped SQLite's expression-tree depth limit in an existing test; coverage.py/targets.py/target_cli.py remained unmodified throughout.
