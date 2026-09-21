@@ -38,9 +38,11 @@ Merged via PR #14, PR #15 and PR #16. Verified present in code at `62fb2f1`.
   seat-only refresh (`scripts/refresh_seats.py`), seat freshness classification
   (`src/easy_a/schedule/freshness.py`), freshness API fields, coverage metadata endpoint
   (`GET /api/v1/metadata/coverage`), PostgreSQL integration coverage
+
 - **PR #15** — explicit mock opt-in via `VITE_USE_MOCK_DATA` with no silent production fixture
   fallback, scalable broader-course UX, server-backed pagination hardening, seat freshness UI,
   coverage UX, relative seat observation timestamps
+
 - **PR #16** — coverage refresh pins `campus="T"` and rejects non-Tampa rows before ingestion
 
 **Requirements delivered:** REQ-COVERAGE-01, REQ-SEAT-01, REQ-SEAT-02, REQ-CONFIG-01.
@@ -116,6 +118,7 @@ reviewed cleanup."
 
 1. ✓ Exact cleanup result: 47 sections selected from term `202701`, configured targets only,
    nonblank campus other than Tampa after stripping and case-folding
+
 2. ✓ Removed 47 linked seat snapshots, 47 instructor observations, 0 syllabi and 0 grade rows
 3. ✓ Clean refresh: MAC 5, ENC 41, AMH 19, PSY 10, BSC 2 = **77 Tampa / 0 other-campus**
 4. ✓ Rankings API and coverage endpoint reported the same per-course counts and total of 77
@@ -155,6 +158,7 @@ course history and must not be described as such anywhere in the product or the 
 
 1. Each imported course reports real observed outcomes with a non-zero effective N, or is
    explicitly recorded as still lacking data
+
 2. Analytics for each imported course are validated against the source aggregate
 3. No course presents a global fallback as if it were course history
 
@@ -189,11 +193,14 @@ Postgres and explodes over remote Supabase (a network round-trip per query).
 1. Precompute rankings into a derived/cached table (e.g. `section_rankings`), refreshed as part of
    / right after the refresh pipeline. Alembic migration chained after
    `0002_create_section_syllabus_tables`.
+
 2. Rewrite the search path to read from that table with sort, filter (subject/course/gened/
    delivery/open-seats/min-easiness/confidence) and pagination done in SQL — O(one page), not
    O(whole term). Eliminate the per-section N+1.
+
 3. Keep seat freshness / "latest observed seats" semantics correct: cached ranking vs. live seat
    snapshot relationship decided and documented; stale seats must not corrupt scores.
+
 4. Fix the CHM 2045 vs CHM 2045L (course-number suffix / lab-section) matching in ingest and the
    campus/target guard so full-scale runs stay clean.
 
@@ -201,10 +208,13 @@ Postgres and explodes over remote Supabase (a network round-trip per query).
 
 - **D-02**: easiness scoring model UNCHANGED. Cached values must be byte-for-byte identical to what
   the current on-demand `rank_section()` produces. No scoring rewrite.
+
 - API response contract identical: `items`/`total`/`limit`/`offset`, and existing sort values
   (`easiness_desc`, `easiness_asc`, `withdrawal_asc`, `seats_desc`, `course`).
+
 - Honest-data semantics preserved: unavailable stays unavailable; provenance / confidence /
   `effective_n` intact; no fabricated values.
+
 - Do not touch grades or syllabi ingestion. No secrets in git.
 
 **Success criteria**
@@ -212,11 +222,14 @@ Postgres and explodes over remote Supabase (a network round-trip per query).
 1. Correctness parity: cached-table results match current on-demand rankings exactly (same order,
    scores, fields) for sampled sections and full-course searches — enforced by an automated parity
    test.
+
 2. Performance: rankings search measured against Supabase before/after, at pilot size and against a
    larger seeded set; after ≈ search page < ~1.5s p95, with real numbers, dataset size, environment.
+
 3. Quality unchanged: `check_data_quality.py` still 0 errors; Tampa-only guard clean.
 4. Cache freshness: how/when `section_rankings` is refreshed is documented and tested so it cannot
    silently go stale after an ingestion.
+
 5. Full test suite green, including the PostgreSQL integration path.
 
 **Requirements**: REQ-PERF-01
@@ -275,6 +288,7 @@ computed from real data (`effective_n > 0`), not the global fallback.
    and the parsed subject/number are discarded, so imported historical grades never attach to
    current-term sections. Backfill `course_id` from the parsed subject+number so a 202701 section's
    `course_id` matches the grade row (`src/easy_a/analytics/queries.py:294-300`).
+
 2. Decide blank-cell suppression semantics (`src/easy_a/grades/parser.py:250` turns blanks into `0`).
 3. Prove easiness-from-grades end-to-end on a sample export.
 
@@ -282,6 +296,7 @@ computed from real data (`effective_n > 0`), not the global fallback.
 
 1. A section whose course has imported grade history reports `effective_n > 0` and a grade-derived
    easiness score; sections without history stay an honest `effective_n = 0` fallback.
+
 2. Term/CRN/source dedup preserved; no raw export files committed; scoring model unchanged.
 
 **Requirements**: REQ-GRADES-01
@@ -319,12 +334,12 @@ Plans:
 
 **Requirements**: REQ-GRADES-01
 
-**Plans:** 2 plans (tracer-first; Wave 1 → Wave 2)
+**Plans:** 1/2 plans executed (tracer-first; Wave 1 → Wave 2)
 
 Plans:
 **Wave 1**
 
-- [ ] 05-01-PLAN.md — Tracer: source + scope + import ONE course, rebuild the 202701 cache, validate raw-count vs source against hosted Supabase; author `docs/runbooks/grade-import.md` + `05-IMPORT-RECORD.md`
+- [x] 05-01-PLAN.md — Tracer: source + scope + import ONE course, rebuild the 202701 cache, validate raw-count vs source against hosted Supabase; author `docs/runbooks/grade-import.md` + `05-IMPORT-RECORD.md`
 
 **Wave 2** *(blocked on Wave 1)*
 
@@ -343,8 +358,10 @@ Plans:
 1. No "all Tampa" path exists — ingestion is target-driven (`config/course_targets.toml` →
    `src/easy_a/refresh/coverage.py:74`). Catalog-ingest all ~1,402 Tampa courses (course rows must
    pre-exist for `resolve_course_id`, `src/easy_a/common/lookups.py:35`).
+
 2. Add a subject-level Tampa ingest path (with the campus guard that today lives only in
    `coverage.py:141-155`) or a generated full target list.
+
 3. Fix the exact-course suffix guard (CHM 2045 vs 2045L, `coverage.py:185`; 33 base courses
    affected) without weakening it. Reconcile config (5 courses) vs stored data (10).
 
@@ -368,8 +385,10 @@ Phase 3.5's open performance goal.
 
 1. Populate `section_rankings` for all ~3,782 sections (`src/easy_a/rankings/cache.py:73` supports
    whole-term); address cache build-time latency at scale.
+
 2. `EXPLAIN ANALYZE` the serve query; add index(es) on the `section_rankings` sort/filter columns;
    re-measure until p95 < ~1.5s on Supabase. No scoring or API-contract change.
+
 3. Fix the benchmark env-label bug (label/pooler from the resolved engine URL, not only `--url`).
 
 **Success criteria**
@@ -475,7 +494,7 @@ rewrite is planned or approved.
 | 3 — Historical grades | ↳ Folded into MVP 1 (Phases 4–5) | — |
 | 3.5 — Ranking search performance | ◐ Delivered; perf goal folded into Phase 7 | — |
 | 4 — MVP1-P1 grade→course attribution | Complete    | 100% |
-| 5 — MVP1-P2 grade sourcing + import | ○ MVP 1 | 0% |
+| 5 — MVP1-P2 grade sourcing + import | In Progress| 0% |
 | 6 — MVP1-P3 all-Tampa ingestion | ○ MVP 1 | 0% |
 | 7 — MVP1-P4 full-scale perf (p95 < 1.5s) | ○ MVP 1 | 0% |
 | 8 — MVP1-P5 MVP-1 verification | ○ MVP 1 | 0% |
