@@ -1,123 +1,74 @@
 # Agent Instructions — Easy-A
 
-Entry point for any AI coding agent working in this repository. Everything needed for ordinary
-continuation is in the repo — you should not need prior conversation context.
+Canonical entry point for any AI coding agent working in this repository. Everything needed for
+ordinary continuation is in the repo — you should not need prior conversation context.
 
 ## Read first, in this order
 
-1. **`AGENTS.md`** (this file) — constraints and orientation
-2. **`.planning/STATE.md`** — current position and the next action
-3. **`.planning/PROJECT.md`** — scope, decisions, open questions
+1. **`AGENTS.md`** (this file) — durable constraints and orientation
+2. **`.planning/STATE.md`** — **current position, live facts, and the next action** (single source of volatile truth)
+3. **`.planning/PROJECT.md`** — scope, the active milestone (MVP 1), decisions, open questions
 4. **`.planning/ROADMAP.md`** — phase sequence and backlog
 5. **`README.md`** — as needed, for commands and local setup
 
-## Current state
+## What this is
 
-Easy-A is a **working application**, not a prototype and not a greenfield build. FastAPI backend,
-React/TypeScript frontend, PostgreSQL, real Spring 2027 schedule ingestion, real historical grade
-imports, configurable course coverage, and seat freshness classification.
+Easy-A is a **working application**, not a prototype or a greenfield build: Python 3.12 / FastAPI /
+SQLAlchemy / Alembic / PostgreSQL (hosted on Supabase) on the backend, React / TypeScript / Vite /
+Tailwind on the frontend. It has real USF Spring 2027 schedule ingestion, an XLSX grade-import
+pipeline, a historical easiness score with Bayesian shrinkage and confidence labels, configurable
+course coverage, seat-freshness classification, GenEd metadata, and a data-quality pipeline.
 
-| | |
-|---|---|
-| Baseline | `origin/main` = `d72f8f3d77a11f301f2b74f56088a217226feefa` (verified 2026-09-14) |
-| Sprint 5 | ✓ **Complete** — merged via PR #14 and PR #15. Do not re-plan or re-implement it. |
-| PR #16 | ✓ **Merged** — pins `campus="T"` and rejects non-Tampa rows before ingestion |
-| Real-data validation | ✓ **Complete** (2026-09-09) — five targets verified, **75 Tampa sections** |
-| Tampa-only correction | ✓ **Verified 2026-09-14** — 47 non-Tampa rows removed; PR #18 awaits merge |
-| **Now** | Review and merge PR #18, then historical grade imports for AMH 2020 → PSY 2012 → BSC 1005 |
-| Then | Hosted beta — deployment, CI, performance measurement, observability, runbook |
+**Core value:** every number a student sees is a real observed outcome with a visible denominator,
+a named source and a timestamp — and when the evidence does not exist, the product says so instead
+of producing a plausible-looking result.
 
-Fetch and verify current `origin/main` before planning rather than trusting the SHA above.
+## Where the project stands right now
 
-### Tampa-only correction — completed and verified on PR #18
+**Do not hard-code current facts in this file — they drift.** `.planning/STATE.md` is the single
+source for the live `origin/main` SHA, the working branch, section/course/grade counts, the test
+baseline, and the next action. Read it. Anything in an older doc that states a count, SHA, or
+"current gate" as *present-tense fact* is history unless STATE.md repeats it.
 
-The first expansion pass inserted **47 non-Tampa Spring 2027 sections** before PR #16 fixed the
-cause. On 2026-09-14 the Phase 2 cleanup removed exactly those 47 sections: current term,
-configured target course, nonblank stored campus other than Tampa after trimming and
-case-folding. It also removed 47 linked seat snapshots and 47 instructor observations, with zero
-syllabi and zero grade rows removed. Blank/null campus rows were excluded from deletion.
+## Current milestone — MVP 1
 
-The required clean refresh then produced **77 current Tampa sections and zero other-campus
-sections**: MAC 1105 = 5, ENC 1101 = 41, AMH 2020 = 19, PSY 2012 = 10, BSC 1005 = 2. Stored,
-rankings API and `GET /api/v1/metadata/coverage` counts agreed. The two-section increase from the
-75 observed on 2026-09-09 is real source drift in AMH 2020, not contamination. All 237 grade rows,
-all 263 historical sections and every pre-cleanup Tampa section remained intact. The current
-remaining action is to review and merge PR #18; do not rerun the destructive cleanup expecting 47.
-
-### Test baseline
-
-Measured 2026-09-09 at `62fb2f1`:
-
-| Condition | Result |
-|-----------|--------|
-| `uv run pytest -q`, no `EASY_A_TEST_POSTGRES_URL` | **192 passed, 1 skipped** (193 collected) |
-| Backend with PostgreSQL configured | **193 passed** |
-| Frontend `npm test` in `web/` | **78 passed** |
-
-Both facts are true: a **default run does not use PostgreSQL** — most of the suite runs on SQLite
-and the integration test skips unless `EASY_A_TEST_POSTGRES_URL` is set; with it set, all 193
-pass. Do not state only one.
-
-Phase 2 branch verification on 2026-09-14: **216 passed, 2 skipped** without PostgreSQL;
-**218 passed** with PostgreSQL configured; ruff and strict mypy passed. The frontend baseline was
-not re-measured during this backend/data-correction phase.
-
-### Configured course targets
-
-`config/course_targets.toml`, catalog edition 2026-2027:
-
-Validated against real Spring 2027 data on 2026-09-09:
-
-| Course | Catalog | Verified Tampa sections | Historical grade data |
-|--------|---------|-------------------------|-----------------------|
-| MAC 1105 | present | 5 | Real data; high-confidence course analytics |
-| ENC 1101 | present | 41 | Real data; high-confidence course analytics |
-| AMH 2020 | present | 17 | **None** — global fallback, `effective_n = 0` |
-| PSY 2012 | present | 10 | **None** — global fallback, `effective_n = 0` |
-| BSC 1005 | present | 2 | **None** — global fallback, `effective_n = 0` |
-| **Verified Tampa total** | | **75** | |
-
-**Section coverage and grade coverage are different things.** All five have verified sections;
-only two have historical grade data. **The AMH / PSY / BSC fallback scores are not evidence-backed
-course history** — they are global priors with zero observed outcomes. Never present them as
-course history. Import priority: AMH 2020 → PSY 2012 → BSC 1005.
-
-The 75 total above is the dated 2026-09-09 validation result. The clean 2026-09-14 refresh found
-77 Tampa sections because AMH 2020 increased from 17 to 19.
+The active goal is **MVP 1**: all ~3,782 USF Tampa Spring 2027 sections ingested and searchable
+against hosted Supabase, each with historical grade distributions imported and easiness computed
+from that real data (not the `effective_n=0` global fallback), with search p95 < ~1.5s. Verified
+RMP instructor links/ratings are **MVP 2**. The definition lives in `.planning/PROJECT.md`; the
+phase sequence to get there lives in `.planning/ROADMAP.md`.
 
 ## Hard constraints
 
+These are durable and govern all work. The authoritative set is `D-01`..`D-20` in the
+`.planning/PROJECT.md` `<decisions>` block; the load-bearing ones:
+
 - **No scoring rewrite without explicit approval.** The historical easiness score — its
   grade/withdrawal composition, Bayesian shrinkage, confidence labels, and course /
-  instructor-course fallback — is the baseline.
-- **No email alerts yet.** Candidate later phase. Do not add subscriber, watch, outbox or
-  email-provider work.
-- **No RMP yet.** Candidate later phase. And whenever it is picked up: no scraping, no bulk
-  crawler, no imported ratings or review content.
-- **No LLM or AI features.**
-- **No fabricated data or coverage.** Every figure carries a real source and a date. Report what
-  failed rather than omitting it.
+  instructor-course fallback — is the frozen baseline (D-02).
 - **A global-prior fallback is not course history.** Never present a course with `effective_n = 0`
-  as having evidence-backed historical analytics.
-- **Never commit raw grade export files.** The repo stores derived aggregates and provenance.
-- **Narrow, bounded requests to USF public sources.** No broad crawling.
-- **Preserve term + CRN identity**, source provenance and deduplication. Grade rows are unique by
-  term/CRN/**source**; duplicate exports must not double-count.
-- **Seats, GenEd, modality and syllabus signals must not affect scoring.**
-- **Verify `origin/main` by fetch**; work from a branch or worktree descended from it. Do not
-  check out, merge or fast-forward a local `main` you have not verified.
-
-Full set: `D-01`..`D-19` in the `.planning/PROJECT.md` `<decisions>` block.
+  as having evidence-backed historical analytics (D-20).
+- **No fabricated data or coverage.** Every figure carries a real source and a date; report what
+  failed rather than omitting it (D-06). Explicit unavailable/insufficient/suppressed states (D-07).
+- **Seats, GenEd, modality and syllabus signals must not affect scoring** (D-03).
+- **Preserve term + CRN identity, provenance and deduplication.** Grade rows are unique by
+  term/CRN/**source**; duplicate exports must not double-count (D-04).
+- **Never commit raw grade export files.** The repo stores derived aggregates and provenance (D-19).
+- **Narrow, bounded requests to USF public sources.** No scraping, no broad crawling (D-08, D-09).
+- **No LLM/AI features; no auth/accounts; no auto-registration** (D-06, out-of-scope in PROJECT.md).
+- **Verify `origin/main` by fetch** and work from a branch/worktree descended from it; do not check
+  out, merge or fast-forward a local `main` you have not verified (D-10).
 
 ## Repository layout for context
 
 | Path | What it answers |
 |---|---|
-| `.planning/STATE.md` | Where the project is; what to do next |
-| `.planning/PROJECT.md` | Scope, constraints, decisions, open questions |
-| `.planning/REQUIREMENTS.md` | Complete / current / next / deferred requirements with evidence |
-| `.planning/ROADMAP.md` | Sprint 5 (complete) → validation → hosted beta, plus backlog |
-| `.planning/codebase/` | Codebase maps — **dated 2026-09-05 at `06634490`, pre-Sprint-5**; useful for structure, stale on specifics |
+| `.planning/STATE.md` | Where the project is now; live facts; what to do next |
+| `.planning/PROJECT.md` | Scope, the MVP-1 milestone, constraints, decisions, open questions |
+| `.planning/REQUIREMENTS.md` | Requirement ledger with evidence |
+| `.planning/ROADMAP.md` | Phase sequence and backlog |
+| `.planning/ARCHIVE.md` | Superseded dated history (Sprint 5 / Phase 1 / Phase 2 results) |
+| `.planning/codebase/` | Codebase maps — **dated, pre-Sprint-5**; useful for structure, stale on specifics |
 | `.planning/phases/_superseded/` | Planning from a roadmap that no longer applies. Do not execute. |
 | `docs/*.md` | **Archival proposals.** Not approved scope — see below. |
 
@@ -125,44 +76,17 @@ Full set: `D-01`..`D-19` in the `.planning/PROJECT.md` `<decisions>` block.
 
 `docs/final-mvp-plan.md`, `docs/final-mvp-ui-spec.md` and `docs/gsd-core-mvp-prompt.md` are
 proposals from an earlier planning conversation. Despite the "LOCKED RULES" heading in the third,
-four of their claims are **not adopted**: email alerts as required scope, verified RMP links as
-required scope, a grade-only scoring rewrite, and all offered USF Tampa sections as launch scope.
-
-They are typed `DOC` at low precedence in `docs/gsd-mvp-manifest.yaml` and carry `type: doc`
-frontmatter so a future `/gsd-ingest-docs` run cannot promote them over current planning. Do not
-restore them to ADR/PRD/SPEC.
-
-## Still-open issues
-
-Real and unresolved. Do not paper over them, and do not treat them as licence to redesign:
-
-- **PR #18 not yet merged** — the Tampa-only correction is verified on its branch, but `main`
-  does not yet contain the cleanup tooling and campus quality guard
-- **No historical grades for AMH 2020, PSY 2012, BSC 1005** — global fallback, `effective_n = 0`
-  (REQ-GRADES-01)
-- **Search performance needs work at widened coverage** — an initial local measurement on the
-  corrected 77-section dataset took about 10.1 seconds; hosted measurement remains REQ-PERF-01
-- **Blank grade-cell / suppression semantics** — `src/easy_a/grades/parser.py` converts every
-  blank cell to `0` with no suppression path. Needs a real or sample InfoCenter export nobody
-  currently has.
-- **Deployment host and domain** not yet supplied.
-
-Fixed, do **not** re-plan: silent frontend fixture fallback, missing seat freshness contract,
-absent PostgreSQL integration coverage, hard-coded Spring 2027 term preference (all Sprint 5);
-configured refresh querying all campuses (PR #16); stored cross-campus contamination (Phase 2).
-
-Confirmed healthy by the validation run: zero data-quality errors across 202408 / 202501 / 202508
-/ 202701; seat refresh preserved previous snapshots, section identity and all 237 grade rows;
-frontend and API verification passed with no console errors.
+their claims are **not adopted as-is**: email alerts as required scope, verified RMP links as
+required scope, and a grade-only scoring rewrite are all rejected/deferred. They are typed `DOC` at
+low precedence in `docs/gsd-mvp-manifest.yaml` so a future `/gsd-ingest-docs` run cannot promote
+them over current planning. Do not restore them to ADR/PRD/SPEC.
 
 ## Workflow
 
 This repo uses GSD. Planning artifacts live in `.planning/`, not `.gsd/`.
 
 - `/gsd-progress` — check state and get the next action
-- Review and merge PR #18 to land Phase 2; do not re-plan or rerun its 47-row cleanup.
-- `/gsd-plan-phase 3` — plan historical grade coverage after approved exports are available.
-- `/gsd-execute-phase N` — execute a planned phase
+- `/gsd-plan-phase <N>` — plan a phase; `/gsd-execute-phase <N>` — execute a planned phase
 
 If you are not running GSD, read `.planning/STATE.md` and `.planning/ROADMAP.md` before changing
 code, and keep `STATE.md` accurate when you finish.

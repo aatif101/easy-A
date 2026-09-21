@@ -9,21 +9,22 @@ imports, configurable course coverage, and seat freshness classification.
 This roadmap describes the sequence forward from that baseline. It is **not** a greenfield MVP
 plan, and it does not restart the project.
 
-**Current baseline: `origin/main` = `d72f8f3d77a11f301f2b74f56088a217226feefa`**
-(verified by fetch on 2026-09-14).
+**Live facts (baseline SHA, section/grade counts, next action) live in `.planning/STATE.md`.**
 
-**Current position: Phase 2 — Tampa-only data correction — is complete and verified on PR #18.
-Review/merge is the current gate; Phase 3 historical grade coverage follows.**
+**Current milestone: MVP 1** — all ~3,782 USF Tampa Spring 2027 sections searchable on hosted
+Supabase, with historical grade distributions imported and easiness computed from them, at search
+p95 < ~1.5s. Sprint 5, real-data validation and the Tampa-only correction (PR #18) are merged;
+Phase 3.5 is delivered. See **MVP 1** below.
 
 ### How to read this roadmap
 
 | Section | Meaning |
 |---------|---------|
-| Sprint 5 | **Complete.** Merged. Not scope. |
-| Phase 1 — Real-data expansion validation | **Complete.** Executed; results recorded below. |
-| Phase 2 — Tampa-only data correction | **Complete on PR #18.** Live data verified; merge pending. |
-| Phase 3 — Historical grade coverage | Next after PR #18 and approved exports. |
-| Phase 4 — Hosted beta | After that. |
+| Sprint 5 / Phase 1 / Phase 2 | **Complete & merged.** Dated results in `.planning/ARCHIVE.md`. |
+| Phase 3 — Historical grade coverage | Folded into **MVP 1** (generalized beyond AMH/PSY/BSC). |
+| Phase 3.5 — Ranking search performance | **Delivered, not closed** — perf goal folded into MVP1-P4. |
+| **MVP 1 (MVP1-P1..P5)** | **Active milestone.** Full Tampa coverage + grades + performance. |
+| Phase 4 — Hosted beta | After MVP 1. |
 | Backlog | Candidate later phases. Not scheduled, not committed. |
 
 ---
@@ -97,7 +98,7 @@ contaminated rows removed and nothing legitimate lost.
 
 **Depends on**: PR #16 (merged)
 
-**Status**: Executed and verified 2026-09-14. PR #18 awaits review and merge.
+**Status**: Complete — executed and verified 2026-09-14, merged via PR #18.
 
 **Why it exists**: the first expansion pass inserted 47 non-Tampa Spring 2027 sections. PR #16's
 merged description is explicit that it "does not delete the 47 other-campus sections inserted by
@@ -135,7 +136,8 @@ fallback.
 
 **Depends on**: Phase 2
 
-**Status**: Next after PR #18 merges and approved exports are supplied
+**Status**: Folded into **MVP 1** (generalized beyond AMH/PSY/BSC to all ingested Tampa courses).
+Needs the grade→course attribution fix (MVP1-P1) and approved grade exports (MVP1-P2, Codex-owned).
 
 Currently `AMH 2020`, `PSY 2012` and `BSC 1005` have **no imported historical grade data**. They
 fall back to a global prior with `effective_n = 0`. Those fallback scores are not evidence-backed
@@ -233,11 +235,58 @@ Plans:
 committed; the circular-import regression they surfaced is fixed. Success criteria 3 (quality 0
 errors) and 5 (full Postgres-path suite green, 256 passed) are met, and the scoring model + API
 contract are unchanged. **Success criterion 2 (p95 < ~1.5s at full ~3,782-section scale) is NOT
-met — measured ~2.40s — and is deliberately deferred to [Phase 999.6](#phase-9996-full-scale-ranking-search-tuning-deferred)
-as an accepted deviation** (recorded in `.planning/WINDOWS.md`, detail in `03.5-PERF-REPORT.md`).
-The miss is at a synthetic projected scale, not the current pilot; the residual work is additive
-index/query tuning, not a rewrite. Phase 3.5 therefore stays open (goal partially met) rather than
-being marked complete.
+met — measured ~2.40s** (recorded in `.planning/WINDOWS.md`, detail in `03.5-PERF-REPORT.md`).
+Because MVP 1 targets hosted Supabase at full ~3,782-section scale, this goal is **folded into
+MVP 1 as blocking phase MVP1-P4** (see below) — not a deferred backlog item. The residual work is
+additive index/query tuning, not a rewrite. Phase 3.5 therefore stays open (goal partially met)
+rather than being marked complete.
+
+---
+
+## MVP 1 — full Tampa coverage + historical grades + performance
+
+**Goal**: all ~3,782 USF Tampa Spring 2027 (`202701`) sections ingested and **searchable against
+hosted Supabase**, each with **historical grade distributions imported** and **easiness computed
+from that real data** (not the `effective_n = 0` fallback), with search **p95 < ~1.5s**. RMP
+instructor links = MVP 2.
+
+**Where we start**: 132 sections / 10 courses / **0 grade rows** on Supabase; the full Tampa
+universe is ~1,402 courses / ~3,782 sections (see `.planning/STATE.md`).
+
+**Hard constraints** (unchanged): scoring model frozen (D-02); no fabricated data / honest
+`effective_n` (D-06/D-07/D-20); API response contract identical; term/CRN/source dedup and never
+commit raw grade files (D-04/D-19); bounded USF requests (D-08/D-09).
+
+**Phases** (sequenced; P1 first, P2 parallel-but-depends-on-P1, P3 large & independent, P4 after P3):
+
+- **MVP1-P1 — Grade→course attribution fix (engineering crux).** `GradeDistribution.course_id` is
+  hard-coded `None` at ingest (`src/easy_a/grades/ingest.py:140`) and the parsed subject/number are
+  discarded, so imported *historical* grades never attach to *current-term* sections. Backfill
+  `course_id` from the parsed subject+number so a 202701 section's `course_id` matches the grade row
+  (`src/easy_a/analytics/queries.py:294-300`). Decide blank-cell suppression semantics
+  (`src/easy_a/grades/parser.py:250` turns blanks into `0`). Prove easiness-from-grades end-to-end
+  on a sample export (`effective_n > 0`).
+- **MVP1-P2 — Grade data sourcing (Codex-owned) + import to Supabase.** Codex sources USF InfoCenter
+  grade XLSX for Tampa courses and loads them into Supabase. **Depends on P1** — grades loaded before
+  the attribution fix will not count. Validate per-course analytics; honest `effective_n`; never
+  commit raw exports. Import tooling exists (`grades/cli.py`, `--grade-file`).
+- **MVP1-P3 — All-Tampa section ingestion (10 → ~3,782).** No "all Tampa" path exists — ingestion is
+  target-driven (`config/course_targets.toml` → `src/easy_a/refresh/coverage.py:74`). Catalog-ingest
+  all ~1,402 Tampa courses (course rows must pre-exist for `resolve_course_id`,
+  `src/easy_a/common/lookups.py:35`); add a subject-level Tampa ingest path (with the campus guard
+  that today lives in `coverage.py:141-155`) or a generated full target list; fix the exact-course
+  suffix guard (CHM 2045 vs 2045L, `coverage.py:185`; 33 base courses affected). Reconcile config
+  (5 courses) vs stored data (10).
+- **MVP1-P4 — Full-scale cache build + p95 < ~1.5s on Supabase (blocking; folds in Phase 3.5's
+  open goal).** Populate `section_rankings` for all ~3,782 sections (`src/easy_a/rankings/cache.py:73`
+  supports whole-term). Address cache build-time latency at scale, then `EXPLAIN ANALYZE` the serve
+  query and add index(es) on the `section_rankings` sort/filter columns until search p95 < ~1.5s on
+  Supabase. Fix the benchmark env-label bug (label/pooler from the resolved engine URL, not `--url`).
+- **MVP1-P5 — End-to-end MVP-1 verification.** All ~3,782 Tampa sections searchable; easiness
+  grade-derived wherever data exists; quality 0 errors; p95 < ~1.5s on Supabase; honest data
+  semantics; API contract + scoring model unchanged.
+
+**Requirements**: REQ-COVERAGE-03 (breadth), REQ-GRADES-01 (grades), REQ-PERF-01 (performance).
 
 ---
 
@@ -246,9 +295,9 @@ being marked complete.
 **Goal**: The corrected application runs as a hosted beta with enough automation and measurement
 to keep it running.
 
-**Depends on**: Phase 2, Phase 3.5 (and Phase 3 for meaningful coverage)
+**Depends on**: MVP 1
 
-**Status**: Later
+**Status**: After MVP 1
 
 **Scope**
 
@@ -296,20 +345,11 @@ Depends on named-instructor coverage in the source data.
 
 Deep links, a methodology page, and expanded accessibility work.
 
-### Phase 999.6: Full-scale ranking search tuning (deferred)
+### Phase 999.6 — promoted to MVP1-P4 (no longer backlog)
 
-**Deferred future addition** (moved out of Phase 3.5's blocking goal by explicit decision,
-2026-09-20). Phase 3.5 delivered the SQL rewrite that removed the N+1; what remains is closing the
-performance goal at full projected coverage:
-
-- Rankings-search p95 measured ~2.40s at a 3,782-section synthetic fixture — above the ~1.5s target.
-- Work is additive: `EXPLAIN ANALYZE` at scale, add/adjust index(es) on `section_rankings`
-  sort/filter columns, re-measure. No scoring or contract change.
-- Also fix `scripts/benchmark_rankings_search.py` to label the environment/pooler from the resolved
-  engine URL (not only `--url`), so a `DATABASE_URL`-driven run reports its real target.
-
-**Not blocking the pilot:** at the current ~132-section scale the rewritten path replaces the ~600s
-N+1 and is expected to be well under target. Recommended before broad (non-pilot) coverage ships.
+Full-scale ranking search tuning (p95 < ~1.5s on Supabase, plus the benchmark env-label fix) was
+briefly a deferred backlog item. Because MVP 1 targets hosted Supabase at full ~3,782-section
+scale, it is now **blocking phase MVP1-P4** in the MVP 1 milestone above.
 
 ### Phase 999.5: Methodology review (optional research item)
 
@@ -324,11 +364,10 @@ rewrite is planned or approved.
 
 | Phase | Status | Progress |
 |-------|--------|----------|
-| Sprint 5 | ✓ Complete (PR #14, #15, #16) | 100% |
-| 1 — Real-data expansion validation | ✓ Complete | 100% |
-| 2 — Tampa-only data correction | ✓ Complete on PR #18; merge pending | 100% |
-| 3 — Historical grade coverage | ◆ Next after merge/exports | 0% |
-| 4 — Hosted beta | ○ Later | 0% |
+| Sprint 5 / Phase 1 / Phase 2 | ✓ Complete & merged | 100% |
+| 3.5 — Ranking search performance | ◐ Delivered; perf goal folded into MVP1-P4 | — |
+| MVP 1 — coverage + grades + performance | ◆ Active milestone | 0% |
+| 4 — Hosted beta | ○ After MVP 1 | 0% |
 
 ---
 
@@ -342,14 +381,16 @@ rewrite is planned or approved.
 | REQ-CONFIG-01 | Sprint 5 | ✓ Complete |
 | REQ-TEST-01 | Sprint 5 | ◐ Partial — PostgreSQL integration exists, skips without config |
 | REQ-COVERAGE-02 | 1 | ✓ Complete — search performance carved out to REQ-PERF-01 |
-| REQ-DATA-02 | 2 | ✓ Complete on PR #18; merge pending |
-| REQ-GRADES-01 | 3 | ○ Next |
-| REQ-PERF-01 | 4 | ◐ Initial local measurement recorded; hosted work remains |
-| REQ-OPS-01 | 4 | ○ Later |
+| REQ-DATA-02 | 2 | ✓ Complete (PR #18 merged) |
+| REQ-COVERAGE-03 | MVP 1 | ○ All-Tampa ingestion (MVP1-P3) |
+| REQ-GRADES-01 | MVP 1 | ○ Grades + attribution fix (MVP1-P1/P2) |
+| REQ-PERF-01 | MVP 1 | ◐ SQL rewrite delivered; p95 < 1.5s at full scale remains (MVP1-P4) |
+| REQ-OPS-01 | 4 | ○ After MVP 1 |
 
 Backlog requirements (`REQ-ALERT-*`, `REQ-RMP-01`) are deliberately unmapped — they belong to
 candidate later phases.
 
 ---
-*Last updated: 2026-09-14 — Phase 2 removed 47 contaminated sections and verified 77 current
-Tampa sections across storage and APIs; PR #18 awaits merge.*
+*Last updated: 2026-09-20 — added the MVP-1 milestone (full Tampa coverage + grades + performance)
+with phases MVP1-P1..P5; Phase 3.5's perf goal folded into MVP1-P4; dated history moved to
+`.planning/ARCHIVE.md`.*
