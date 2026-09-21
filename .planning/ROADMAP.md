@@ -270,6 +270,7 @@ computed from real data (`effective_n > 0`), not the global fallback.
 **Depends on**: Phase 3.5 (delivered). This is the MVP-1 engineering crux — do it first.
 
 **Scope**
+
 1. `GradeDistribution.course_id` is hard-coded `None` at ingest (`src/easy_a/grades/ingest.py:140`)
    and the parsed subject/number are discarded, so imported historical grades never attach to
    current-term sections. Backfill `course_id` from the parsed subject+number so a 202701 section's
@@ -278,11 +279,23 @@ computed from real data (`effective_n > 0`), not the global fallback.
 3. Prove easiness-from-grades end-to-end on a sample export.
 
 **Success criteria**
+
 1. A section whose course has imported grade history reports `effective_n > 0` and a grade-derived
    easiness score; sections without history stay an honest `effective_n = 0` fallback.
 2. Term/CRN/source dedup preserved; no raw export files committed; scoring model unchanged.
 
 **Requirements**: REQ-GRADES-01
+
+**Plans:** 2/2 plans complete
+
+Plans:
+**Wave 1**
+
+- [x] 04-01-PLAN.md — Tracer: canonical course attribution from generated historical XLSX through 202701 cache-backed search, plus atomic backfill/dedup coverage
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 04-02-PLAN.md — Fail-closed blank-count semantics and explicit null-attribution quality findings
 
 ---
 
@@ -293,12 +306,14 @@ computed from real data (`effective_n > 0`), not the global fallback.
 **Depends on**: Phase 4 (grades loaded before the attribution fix will not count).
 
 **Scope**
+
 1. Source USF InfoCenter grade-distribution XLSX for the Tampa courses (**Codex-owned** task).
 2. Load into Supabase via the existing import tooling (`grades/cli.py`, `--grade-file`).
 3. Validate per-course analytics against the source aggregate; record courses still lacking data
    as lacking it, never quietly omitted.
 
 **Success criteria**
+
 1. Imported courses report real observed outcomes with non-zero effective N, validated per course.
 2. Honest `effective_n`; no fabricated data; **no raw export files committed**.
 
@@ -313,6 +328,7 @@ computed from real data (`effective_n > 0`), not the global fallback.
 **Depends on**: independent of Phases 4/5; large lift.
 
 **Scope**
+
 1. No "all Tampa" path exists — ingestion is target-driven (`config/course_targets.toml` →
    `src/easy_a/refresh/coverage.py:74`). Catalog-ingest all ~1,402 Tampa courses (course rows must
    pre-exist for `resolve_course_id`, `src/easy_a/common/lookups.py:35`).
@@ -322,6 +338,7 @@ computed from real data (`effective_n > 0`), not the global fallback.
    affected) without weakening it. Reconcile config (5 courses) vs stored data (10).
 
 **Success criteria**
+
 1. Full Tampa Spring 2027 set ingested; stored/API/coverage counts agree; 0 non-Tampa rows.
 2. Suffix-variant courses ingest correctly; quality 0 errors.
 
@@ -337,6 +354,7 @@ Phase 3.5's open performance goal.
 **Depends on**: Phase 6 (need full scale to measure and tune).
 
 **Scope**
+
 1. Populate `section_rankings` for all ~3,782 sections (`src/easy_a/rankings/cache.py:73` supports
    whole-term); address cache build-time latency at scale.
 2. `EXPLAIN ANALYZE` the serve query; add index(es) on the `section_rankings` sort/filter columns;
@@ -344,6 +362,7 @@ Phase 3.5's open performance goal.
 3. Fix the benchmark env-label bug (label/pooler from the resolved engine URL, not only `--url`).
 
 **Success criteria**
+
 1. Measured search p95 < ~1.5s on Supabase at full scale, with dataset size + environment stated.
 2. Cached rankings byte-for-byte identical to on-demand results (parity test still passes).
 
@@ -358,6 +377,7 @@ Phase 3.5's open performance goal.
 **Depends on**: Phases 4–7.
 
 **Success criteria**
+
 1. All ~3,782 Tampa sections searchable; easiness grade-derived wherever data exists.
 2. Quality 0 errors; p95 < ~1.5s on Supabase; honest data semantics; API contract + scoring
    model unchanged.
@@ -443,7 +463,7 @@ rewrite is planned or approved.
 | Sprint 5 / Phase 1 / Phase 2 | ✓ Complete & merged | 100% |
 | 3 — Historical grades | ↳ Folded into MVP 1 (Phases 4–5) | — |
 | 3.5 — Ranking search performance | ◐ Delivered; perf goal folded into Phase 7 | — |
-| 4 — MVP1-P1 grade→course attribution | ◆ Next | 0% |
+| 4 — MVP1-P1 grade→course attribution | Complete    | 100% |
 | 5 — MVP1-P2 grade sourcing + import | ○ MVP 1 | 0% |
 | 6 — MVP1-P3 all-Tampa ingestion | ○ MVP 1 | 0% |
 | 7 — MVP1-P4 full-scale perf (p95 < 1.5s) | ○ MVP 1 | 0% |

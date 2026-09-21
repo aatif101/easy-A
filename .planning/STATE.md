@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: "04"
-current_phase_name: MVP1-P1 — Grade→course attribution fix
-status: planning
-stopped_at: MVP 1 milestone set up; Phase 4 ready to plan
-last_updated: "2026-09-20T23:30:00.000Z"
-last_activity: 2026-09-20
-last_activity_desc: MVP 1 milestone set up; Phase 4 (grade attribution) ready to plan
-state_head: a90de4f60b319f9c389516356e272fff5cbf49de
+status: executing
+stopped_at: Phase 04 complete, ready to plan Phase 5
+last_updated: "2026-09-21T07:41:24.225Z"
+state_head: 871bdb3de1568f9da352c896c36511ff34df241e
 progress:
-  total_phases: 9
-  completed_phases: 3
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_phases: 10
+  completed_phases: 4
+  total_plans: 7
+  completed_plans: 7
+  percent: 40
+last_activity: 2026-09-21
+current_phase: 5
+current_phase_name: MVP1-P2 — Grade data sourcing + import to Supabase
+last_activity_desc: Phase 04 (MVP1-P1, both plans 04-01 and 04-02) executed and summarized; MVP1-P1 is complete — next is MVP1-P2 (grade data sourcing)
 ---
 
 # Project State
@@ -25,11 +25,13 @@ lives in `ARCHIVE.md`.
 ## Current state — as of 2026-09-20
 
 **Repo / git**
+
 - `origin/main` = `a70a85346796d886f5f04741b5fd2330b660e2cc` (verify by fetch before planning).
   PR #18 (Tampa guard) and PR #19 (Supabase wiring) are **merged**. Working branch:
   `dev1/tampa-coverage-pilot` (ahead of `origin/main`, unmerged).
 
 **Database (hosted Supabase — the only live DB now; the old local beta DB is history in `ARCHIVE.md`)**
+
 - Term 202701: **132 sections, all campus=Tampa, across 10 courses** — ACG 2021 (17), ACG 2071
   (15), AMH 2020 (19), ANT 2000 (5), BSC 1005 (2), ECO 2013 (3), ENC 1101 (41), MAC 1105 (5),
   MAC 2311 (15), PSY 2012 (10). 132 seat snapshots. **0 non-Tampa rows.**
@@ -40,10 +42,12 @@ lives in `ARCHIVE.md`.
   are out of sync (reconcile during MVP1-P3).
 
 **Full Tampa universe (for MVP-1 sizing)**
+
 - Enumerated 2026-09-20 across 265 public undergraduate catalog prefixes: **1,402 courses /
   3,782 Tampa sections** across 212 subjects. `courses.csv` is Git-ignored.
 
 **Phase 3.5 (ranking search performance) — delivered, NOT closed**
+
 - SQL search rewrite, `section_rankings` cache, cleanup cascade, and benchmark all shipped (5/5).
   Circular import that blocked `check_data_quality.py` fixed (`2bb984a`). Postgres suite 256
   passed; quality 0 errors.
@@ -59,15 +63,32 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Next action
 
-Docs declutter is done (this update). Next build steps, in order (see ROADMAP MVP1-P1..P5):
-1. **MVP1-P1** — fix grade→course attribution (`GradeDistribution.course_id` is hard-coded `None`
-   at `src/easy_a/grades/ingest.py:140`); prove easiness-from-grades end-to-end on a sample export.
-2. **MVP1-P2** — grade data sourcing (Codex-owned): source USF InfoCenter grade XLSX for Tampa
-   courses and load into Supabase. Depends on P1, or the loaded grades will not attribute.
-3. **MVP1-P3** — all-Tampa section ingestion (10 → ~3,782); resolve the CHM 2045/2045L suffix-guard
+**Phase 04 (MVP1-P1, grade→course attribution fix) is complete — both plans executed.** See
+`04-01-SUMMARY.md` and `04-02-SUMMARY.md`. `GradeDistribution.course_id` is no longer hard-coded
+`None` at ingest (`src/easy_a/grades/ingest.py`): the shared `resolve_course_id()` lookup now
+resolves it on insert and update, with an atomic all-keys preflight and same-key null-row repair.
+Proved end-to-end on a generated historical XLSX through a rebuilt 202701 cache to
+`GET /api/v1/rankings/search` (with-history section: `effective_n > 0` / `score_source=course`;
+no-history control: `effective_n = 0` / `score_source=global`). Blank canonical grade-count and
+Total Grades cells now fail closed with row/column/unverified-semantics context instead of being
+silently coerced to zero (explicit numeric zero stays valid), and every stored `GradeDistribution`
+with a null `course_id` now surfaces as a deterministic `unattributed_grade_row` data-quality
+error. Full pytest suite green (261 passed / 3 skipped), ruff and strict mypy clean on all changed
+files; no `.xlsx`/`.xls` tracked in Git.
+
+**2/2 plans complete** in Phase 04. **Do next: begin MVP1-P2 — `/gsd-plan-phase 05`** (grade data
+sourcing, Codex-owned).
+
+Remaining build steps, in order (see ROADMAP MVP1-P2..P5):
+
+1. **MVP1-P2** — grade data sourcing (Codex-owned): source USF InfoCenter grade XLSX for Tampa
+   courses and load into Supabase. The attribution fix (P1) means these imports will now attach
+   to current-term sections and blank canonical counts will be rejected rather than silently
+   zeroed; the hosted DB still has **0 `GradeDistribution` rows**.
+2. **MVP1-P3** — all-Tampa section ingestion (10 → ~3,782); resolve the CHM 2045/2045L suffix-guard
    blocker (33 base courses have suffix variants); reconcile config vs stored data.
-4. **MVP1-P4** — full-scale cache build + tune search to p95 < ~1.5s on Supabase.
-5. **MVP1-P5** — end-to-end MVP-1 verification.
+3. **MVP1-P4** — full-scale cache build + tune search to p95 < ~1.5s on Supabase.
+4. **MVP1-P5** — end-to-end MVP-1 verification.
 
 ## History
 
@@ -89,11 +110,14 @@ are in `.planning/ARCHIVE.md`. They describe the earlier local beta DB and are n
 
 ## Still open
 
-- **Grade→course attribution broken for MVP** — `course_id` set to `None` at ingest
-  (`src/easy_a/grades/ingest.py:140`); imported historical grades won't attach to current-term
-  sections until fixed (MVP1-P1).
-- **Blank grade-cell / suppression semantics** — `src/easy_a/grades/parser.py` converts every blank
-  cell to `0` with no suppression path. Needs a real/sample InfoCenter export.
+- **No real historical grade data imported yet** — hosted DB still has 0 `GradeDistribution` rows
+  (MVP1-P2, Codex-owned data sourcing). Grade→course attribution itself was fixed in MVP1-P1
+  (04-01, 2026-09-21): imports now resolve `course_id` via `resolve_course_id()` and re-imports
+  repair null attribution in place.
+- **Blank grade-cell / suppression semantics (OQ-04)** — the upstream meaning of a blank InfoCenter
+  cell is still genuinely unknown. MVP1-P1 (04-02, 2026-09-21) made the parser fail closed on any
+  blank canonical count instead of silently coercing to `0`; that is a safety policy, not a
+  resolution of OQ-04. Needs a real/sample InfoCenter export.
 - **Suffix-course query guard** — USF's CHM 2045 query also returns CHM 2045L; the exact-course
   guard rejects it. 33 base courses have suffix variants; resolve before scaling (do not weaken it).
 - **Search p95 at full scale** — ~2.40s on Supabase at 3,782 sections; must reach < ~1.5s for MVP 1.
@@ -106,10 +130,14 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-Last session: 2026-09-20. Stopped at: Phase 03.5 delivered (perf goal deferred); docs decluttered;
-MVP 1 scoped and its roadmap encoded.
-Resume file: `.claude/plans/typed-gliding-cocke.md` (docs declutter + MVP-1 roadmap plan).
-Next action: begin MVP1-P1 — fix grade→course attribution.
+**Stopped at:** Phase 04 complete, ready to plan Phase 5
+**Resume file:** None
+
+Last session: 2026-09-21. Plan `04-02` (blank grade-cell fail-closed policy + quality guard)
+executed and summarized. Phase 04 / MVP1-P1 is now complete (both `04-01` and `04-02`).
+Resume files: `.planning/phases/04-mvp1-p1-grade-course-attribution-fix/` (`04-01-SUMMARY.md`,
+`04-02-SUMMARY.md`).
+Next action: begin MVP1-P2 (grade data sourcing, Codex-owned) — `/gsd-plan-phase 05`.
 
 ## Performance Metrics
 
@@ -119,3 +147,10 @@ Next action: begin MVP1-P1 — fix grade→course attribution.
 | Phase 03.5 P02 | 7min | 2 tasks | 5 files |
 | Phase 03.5 P03 | 8min | 3 tasks | 8 files |
 | Phase 03.5 P04 | 20min | 2 tasks | 2 files |
+| Phase 04 P01 | 25min | 2 tasks | 3 files |
+| Phase 04 P02 | 15min | 2 tasks | 4 files |
+
+## Decisions
+
+- [Phase 04]: Reused resolve_course_id() for grade attribution instead of a grade-specific matcher, and treated course_id as a mutable attributed property (never part of the term/CRN/source identity) so a same-key re-import can backfill it (D-04).
+- [Phase 04-02]: Wrote the blank-cell rejection reason as a stated two-sided ambiguity (cannot distinguish zero from unavailable or suppressed) rather than asserting suppression, and kept unattributed_grade_row additive alongside grade_total_mismatch/orphan_grade_row rather than merging them (D-06, D-07).

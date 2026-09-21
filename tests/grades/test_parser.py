@@ -96,18 +96,68 @@ def test_invalid_total_fails(tmp_path: Path) -> None:
     assert "count sum 5 does not equal Total Grades 99" in str(exc_info.value)
 
 
-def test_empty_count_cells_are_zero(tmp_path: Path) -> None:
-    workbook_path = tmp_path / "empty_cells.xlsx"
+def test_blank_bucket_count_fails_closed(tmp_path: Path) -> None:
+    workbook_path = tmp_path / "blank_bucket.xlsx"
     _write_workbook(
         workbook_path,
-        [_grade_row("MAC-1105 -001-C (89033)", a=2, b=None, c="", w=1, total=3)],
+        [_grade_row("MAC-1105 -001-C (89033)", a=2, b=None, w=1, total=3)],
+    )
+
+    with pytest.raises(GradeWorkbookValidationError) as exc_info:
+        parse_grade_workbook(workbook_path)
+
+    message = str(exc_info.value)
+    assert "row 2" in message
+    assert "B" in message
+    assert "unverified" in message.lower()
+    assert "suppressed the value" not in message.lower()
+
+
+def test_blank_total_fails_closed(tmp_path: Path) -> None:
+    workbook_path = tmp_path / "blank_total.xlsx"
+    _write_workbook(
+        workbook_path,
+        [_grade_row("MAC-1105 -001-C (89033)", a=2, b=1, total=None)],
+    )
+
+    with pytest.raises(GradeWorkbookValidationError) as exc_info:
+        parse_grade_workbook(workbook_path)
+
+    message = str(exc_info.value)
+    assert "row 2" in message
+    assert "Total Grades" in message
+    assert "unverified" in message.lower()
+    assert "suppressed the value" not in message.lower()
+
+
+def test_explicit_zero_count_succeeds(tmp_path: Path) -> None:
+    workbook_path = tmp_path / "explicit_zero.xlsx"
+    _write_workbook(
+        workbook_path,
+        [
+            _grade_row(
+                "MAC-1105 -001-C (89033)",
+                a=3,
+                b=0,
+                c=0,
+                d=0,
+                f=0,
+                i=0,
+                s=0,
+                u=0,
+                w=0,
+                o=0,
+                total=3,
+            )
+        ],
     )
 
     records = parse_grade_workbook(workbook_path)
 
+    assert len(records) == 1
+    assert records[0].a_count == 3
     assert records[0].b_count == 0
     assert records[0].c_count == 0
-    assert records[0].w_count == 1
     assert records[0].total_grades == 3
 
 

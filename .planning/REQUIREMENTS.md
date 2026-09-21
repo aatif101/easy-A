@@ -166,7 +166,7 @@ Kept for traceability. Verified present in code at `62fb2f1`.
   CHM 2045/2045L suffix-course guard is resolved without weakening it; config and stored data are
   reconciled. (MVP1-P3.)
 
-- [ ] **REQ-GRADES-01**: Ingested Tampa courses have real historical grade data, and easiness is
+- [◐] **REQ-GRADES-01**: Ingested Tampa courses have real historical grade data, and easiness is
   computed from it. *Context*: the current hosted DB has **0 grade rows** — every easiness is an
   `effective_n = 0` global fallback. Grade→course attribution is currently broken
   (`GradeDistribution.course_id` is set to `None` at ingest, `src/easy_a/grades/ingest.py:140`), so
@@ -176,6 +176,18 @@ Kept for traceability. Verified present in code at `62fb2f1`.
   attribution fixed so current-term sections resolve their course history, per-course analytics
   validated against the source aggregate, and courses still lacking data recorded as lacking it —
   never quietly omitted. **Never commit raw export files.**
+  **MVP1-P1 done (2026-09-21, `04-01-SUMMARY.md` + `04-02-SUMMARY.md`):** `GradeDistribution.course_id`
+  is now resolved via `resolve_course_id()` on insert and update, with an atomic all-keys preflight
+  and same-key null-row repair; proved end-to-end on a generated workbook through a rebuilt 202701
+  cache to `GET /api/v1/rankings/search` (effective_n > 0 / score_source=course vs. an honest
+  effective_n = 0 / score_source=global control). Blank canonical grade-count and Total Grades
+  cells now fail closed with a row/column-specific, non-suppression-asserting reason instead of
+  being silently coerced to zero (explicit numeric zero remains valid), and every stored
+  `GradeDistribution` with a null `course_id` now surfaces as a deterministic
+  `unattributed_grade_row` data-quality error. **Still open:** no real historical grade data is
+  imported into the hosted DB yet — that is MVP1-P2 (Codex-owned data sourcing), required before
+  this requirement can be marked fully complete. OQ-04 (real InfoCenter blank-cell suppression
+  semantics) also remains genuinely unresolved and needs a real/sample export.
 
 ---
 
@@ -237,10 +249,10 @@ Not committed. Not required for the hosted beta.
 | Observation | Evidence | Where it lands |
 |-------------|----------|----------------|
 | No historical grade data in the current DB | 0 `GradeDistribution` rows on Supabase; all easiness is `effective_n = 0` fallback | REQ-GRADES-01 / MVP1-P2 |
-| Grade→course attribution broken | `GradeDistribution.course_id` set to `None` at ingest (`grades/ingest.py:140`); imported grades won't attach to current-term sections | MVP1-P1 (blocking) |
+| Grade→course attribution broken | **Fixed in MVP1-P1 (04-01, 2026-09-21)** — `resolve_course_id()` now resolves and persists `course_id` on insert/update, with an atomic preflight and null-row repair | Closed |
 | No "all Tampa" ingest path; suffix-course guard | ingestion is target-driven; USF's CHM 2045 query also returns CHM 2045L (33 base courses affected) | REQ-COVERAGE-03 / MVP1-P3 |
 | Search p95 above target at full scale | ~2.40s p95 at a 3,782-section synthetic fixture over Supabase | REQ-PERF-01 / MVP1-P4 |
-| Blank grade-cell / suppression semantics unresolved | `src/easy_a/grades/parser.py` converts every blank cell to `0` with no suppression path | Needs a real/sample InfoCenter export |
+| Blank grade-cell / suppression semantics unresolved | **Fail-closed rejection added in MVP1-P1 (04-02, 2026-09-21)** — blank canonical counts are now rejected rather than coerced to zero; the underlying real-export semantics (OQ-04) are still unresolved | Needs a real/sample InfoCenter export |
 | Deployment host and domain not supplied | — | After MVP 1 (hosted beta) |
 
 ### Confirmed healthy by the validation run
@@ -269,5 +281,9 @@ Not committed. Not required for the hosted beta.
 - Committing raw grade export files
 
 ---
-*Last updated: 2026-09-20 — reclassified REQ-GRADES-01/REQ-PERF-01 and added REQ-COVERAGE-03 under
-the MVP-1 milestone; dated beta-DB figures moved to `.planning/ARCHIVE.md`.*
+*Last updated: 2026-09-21 — MVP1-P1 (grade→course attribution fix) fully delivered across both
+plans (`04-01-SUMMARY.md` attribution/preflight/repair; `04-02-SUMMARY.md` fail-closed blank-cell
+policy + `unattributed_grade_row` quality guard). REQ-GRADES-01 stays partial (◐): MVP1-P2 (grade
+data sourcing) is still required before full completion. Previously updated 2026-09-20 —
+reclassified REQ-GRADES-01/REQ-PERF-01 and added REQ-COVERAGE-03 under the MVP-1 milestone; dated
+beta-DB figures moved to `.planning/ARCHIVE.md`.*

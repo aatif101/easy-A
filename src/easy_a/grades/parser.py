@@ -249,7 +249,7 @@ def _cell_to_text(value: Any) -> str:
 
 def _cell_to_int(value: Any, row_number: int, column_name: str) -> int:
     if _is_empty_cell(value):
-        return 0
+        raise ValueError(_blank_count_cell_message(row_number, column_name))
     if isinstance(value, bool):
         raise ValueError(f"{column_name} contains a boolean at row {row_number}")
     if isinstance(value, Integral):
@@ -262,7 +262,7 @@ def _cell_to_int(value: Any, row_number: int, column_name: str) -> int:
 
     text = str(value).strip().replace(",", "")
     if not text:
-        return 0
+        raise ValueError(_blank_count_cell_message(row_number, column_name))
     try:
         numeric_value = float(text)
     except ValueError as exc:
@@ -272,6 +272,14 @@ def _cell_to_int(value: Any, row_number: int, column_name: str) -> int:
     if not numeric_value.is_integer():
         raise ValueError(f"{column_name} contains non-integer value {value!r} at row {row_number}")
     return int(numeric_value)
+
+
+def _blank_count_cell_message(row_number: int, column_name: str) -> str:
+    return (
+        f"{column_name} is blank at row {row_number}; blank count-cell semantics are "
+        "unverified (cannot distinguish zero from unavailable or suppressed) and are "
+        "rejected rather than assumed."
+    )
 
 
 def _is_empty_cell(value: Any) -> bool:
