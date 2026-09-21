@@ -209,6 +209,12 @@ None beyond the plan's stated precondition, which was already satisfied: `EASY_A
 - Known, expected state after this plan: only CHM (23 courses) plus the original 10 pilot courses are ingested (427 Tampa sections total); the remaining ~211 subjects are configured but not yet ingested — that is explicitly 06-02's scope, not a gap in this plan.
 - `data/coverage-pilot-2026-09-20/suffix-query-risks.json`'s 33 base/suffix pairs are now only partially spot-checked (4 of 33 at the unit level, CHM validated live); 06-02/06-03 should treat full-scale ingestion itself as further validation of the remaining 29 pairs, consistent with 06-RESEARCH.md's own recommendation.
 
+## Self-Check: PASSED
+
+All key files created/modified in this plan confirmed present on disk, and all 8 commits
+(2020173, 284e987, 572302e, b542896, ad5eaa4, 6838cda, d27dbd0, ba68fc1) confirmed present in
+`git log`.
+
 ---
 *Phase: 06-mvp1-p3-all-tampa-section-ingestion-10-3-782*
 *Completed: 2026-09-21*
