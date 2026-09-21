@@ -2,7 +2,7 @@
 phase: "04"
 slug: "mvp1-p1-grade-course-attribution-fix"
 status: draft
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: false
 created: "2026-09-20"
 ---
@@ -38,10 +38,10 @@ created: "2026-09-20"
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 04-01-01 | 01 | 1 | REQ-GRADES-01 | T-04-01 | Resolve canonical course keys before mutation; preserve term/CRN/source identity | integration | `uv run pytest -q tests/grades/test_ingest.py -x` | ✅ | ⬜ pending |
-| 04-01-02 | 01 | 1 | REQ-GRADES-01 / D-07 | Reject blank canonical counts; accept explicit integer zero | unit | `uv run pytest -q tests/grades/test_parser.py -x` | ✅ | ⬜ pending |
-| 04-02-01 | 02 | 2 | REQ-GRADES-01 / D-20 | Generated XLSX proves direct attribution, `effective_n > 0`, honest no-history fallback, and cache refresh | vertical integration | `uv run pytest -q tests/test_grade_course_attribution.py -x` | ❌ W0 | ⬜ pending |
-| 04-02-02 | 02 | 2 | REQ-GRADES-01 / D-06 | Surface any stored null-attribution grade row as a quality finding | unit | `uv run pytest -q tests/quality/test_checks.py -x` | ✅ | ⬜ pending |
+| 04-01-01 | 01 | 1 | REQ-GRADES-01 / D-20 | T-04-01 | Generated XLSX proves direct attribution, `effective_n > 0`, honest no-history fallback, and cache refresh | vertical integration | `uv run pytest -q tests/test_grade_course_attribution.py -x` | ❌ W0 | ⬜ pending |
+| 04-01-02 | 01 | 1 | REQ-GRADES-01 | T-04-02 / T-04-03 | Resolve every canonical course key before mutation; repair null attribution while preserving term/CRN/source identity and provenance | integration | `uv run pytest -q tests/grades/test_ingest.py -x` | ✅ | ⬜ pending |
+| 04-02-01 | 02 | 2 | REQ-GRADES-01 / D-07 | T-04-07 | Reject blank canonical counts; accept explicit integer zero | unit | `uv run pytest -q tests/grades/test_parser.py -x` | ✅ | ⬜ pending |
+| 04-02-02 | 02 | 2 | REQ-GRADES-01 / D-06 | T-04-13 | Surface any stored null-attribution grade row as a quality finding | unit | `uv run pytest -q tests/quality/test_checks.py -x` | ✅ | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
@@ -67,11 +67,18 @@ created: "2026-09-20"
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15 seconds
-- [ ] `nyquist_compliant: true` set in frontmatter
+### Strategy completeness
 
-**Approval:** pending
+- [x] Every final task is mapped to its actual plan, wave, behavior, and automated target
+- [x] All tasks have `<automated>` verification or an explicit Wave 0 dependency
+- [x] Sampling continuity: no 3 consecutive tasks without automated verification
+- [x] No watch-mode flags
+- [x] Feedback-latency target is under 15 seconds
+- [x] `nyquist_compliant: true` is set in frontmatter
+
+### Execution readiness
+
+- [ ] Wave 0 test code has been implemented
+- [ ] All task and phase verification commands have passed during execution
+
+**Approval:** validation strategy is Nyquist-complete; Wave 0 implementation and execution results remain pending.

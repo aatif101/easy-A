@@ -352,17 +352,17 @@ The term values above are fixture values already defined verbatim in the test su
 
 No implementation recommendation depends on assuming what a USF InfoCenter blank means. The recommendation deliberately rejects blank canonical counts until evidence exists.
 
-## Open Questions
+## Open Questions — Resolved for Phase 04
 
-1. **What does a blank canonical grade-count cell mean in an approved USF InfoCenter XLSX export?**
+1. **(RESOLVED FOR PHASE 04) What does a blank canonical grade-count cell mean in an approved USF InfoCenter XLSX export?**
    - What we know: pandas distinguishes missing values from numeric zero, while repository code currently collapses both; official USF material reviewed here confirms the Grade Distribution administrative report and Excel export, but does not establish the blank-cell convention. [CITED: https://pandas.pydata.org/docs/reference/api/pandas.read_excel.html] [CITED: https://usfweb.usf.edu/dss/infocenter/Documentation/InfoCenter%20Overview.pdf]
-   - What's unclear: true zero, unavailable, or source suppression.
-   - Recommendation: Phase 04 fails closed; the owner is whoever holds approved ODS/registrar export access. Phase 05 must inspect one representative approved export before importing any row containing blanks. Do not label a value “suppressed” unless the source evidence supports that label.
+   - External uncertainty retained: the upstream meaning remains unknown; it may be true zero, unavailable, or source suppression.
+   - Phase 04 resolution: reject every blank canonical count cell. Phase 05 must establish source-backed semantics from a representative approved export before accepting any row containing blanks. Do not label a value “suppressed” unless the source evidence supports that label.
 
-2. **How should an export containing courses absent from `courses` be handled?**
+2. **(RESOLVED FOR PHASE 04) How should an export containing courses absent from `courses` be handled?**
    - What we know: all other core pipelines reject an unresolved canonical course, and analytics cannot safely attribute it. [VERIFIED: src/easy_a/common/lookups.py:33-49; src/easy_a/schedule/ingest.py:66-70]
-   - What's unclear: whether Phase 05 exports will be narrowly selected to already-ingested courses.
-   - Recommendation: reject the workbook before grade mutation with every unresolved `(subject, number)` reported. Do not silently skip rows, create placeholder courses, or store new null-attribution rows.
+   - External uncertainty retained: Phase 05 exports may or may not be narrowly selected to already-ingested courses.
+   - Phase 04 resolution: reject the whole workbook during canonical-course preflight, report every unresolved `(subject, number)`, and perform no grade mutation. Do not silently skip rows, create placeholder courses, or store new null-attribution rows.
 
 ## Environment Availability
 
