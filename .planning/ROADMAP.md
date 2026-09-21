@@ -284,6 +284,12 @@ computed from real data (`effective_n > 0`), not the global fallback.
 
 **Requirements**: REQ-GRADES-01
 
+**Plans:** 2 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Tracer: canonical course attribution from generated historical XLSX through 202701 cache-backed search, plus atomic backfill/dedup coverage
+- [ ] 04-02-PLAN.md — Fail-closed blank-count semantics and explicit null-attribution quality findings
+
 ---
 
 ## Phase 5: MVP1-P2 — Grade data sourcing + import to Supabase
