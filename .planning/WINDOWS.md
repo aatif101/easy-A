@@ -1,0 +1,120 @@
+---
+schema_version: 1
+open_count: 7
+waived_count: 0
+fixed_count: 0
+total_count: 7
+last_updated: 2026-09-20T22:57:39.281Z
+---
+
+# Broken Windows Ledger
+
+> Cross-phase defect register. With `workflow.windows_enforce` enabled, `/gsd-ship` blocks while `open_count > 0`.
+> Waive with `gsd-tools windows waive <id> "<reason>"` (reason required).
+> Mark fixed with `gsd-tools windows fixed <id>`.
+
+| id | phase | kind | file | line | description | status | reason | recorded_at | resolved_at |
+|----|-------|------|------|------|-------------|--------|--------|-------------|-------------|
+| 1 | 03.5 | unrun-verify | tests/api/test_rankings_api.py |  | API suite hangs entering Starlette TestClient under current Python 3.14 environment | open |  | 2026-09-20T17:37:06.936Z |  |
+| 2 | 03.5 | deviation | src/easy_a/rankings/service.py |  | Added optional as_of parameter for deterministic seat parity | open |  | 2026-09-20T17:37:06.942Z |  |
+| 3 | 03.5 | unrun-verify | tests/refresh/test_postgres_coverage.py |  | PostgreSQL integration verification not run because EASY_A_TEST_POSTGRES_URL is unset | open |  | 2026-09-20T18:06:21.972Z |  |
+| 4 | 03.5 | unrun-verify | scripts/check_data_quality.py |  | Quality CLI blocked before database access by pre-existing rankings cache import cycle | open |  | 2026-09-20T18:06:22.143Z |  |
+| 5 | 03.5 | deviation | src/easy_a/refresh/coverage.py |  | Filtered the HTML ingestion payload because ingest_schedule_html reparses its input | open |  | 2026-09-20T18:06:22.328Z |  |
+| 6 | 03.5 | deviation | tests/refresh/test_targets.py |  | Updated legacy cross-course rejection expectation for D-10 exact-course filtering | open |  | 2026-09-20T18:06:22.514Z |  |
+| 7 | 03.5 | unmet-truth | scripts/benchmark_rankings_search.py |  | Rankings-search p95 ~2.40s at 3782-section synthetic scale exceeds the ~1.5s target (REQ-PERF-01 acceptance criterion 2). Accepted deviation: deferred to a post-pilot tuning pass (index/query tuning); pilot scale ~132 sections not user-facing-blocked. Measured 2026-09-20. | open |  | 2026-09-20T22:57:39.281Z |  |
+
+````json
+[
+  {
+    "id": 1,
+    "kind": "unrun-verify",
+    "phase": "03.5",
+    "file": "tests/api/test_rankings_api.py",
+    "line": null,
+    "description": "API suite hangs entering Starlette TestClient under current Python 3.14 environment",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-20T17:37:06.936Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 2,
+    "kind": "deviation",
+    "phase": "03.5",
+    "file": "src/easy_a/rankings/service.py",
+    "line": null,
+    "description": "Added optional as_of parameter for deterministic seat parity",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-20T17:37:06.942Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 3,
+    "kind": "unrun-verify",
+    "phase": "03.5",
+    "file": "tests/refresh/test_postgres_coverage.py",
+    "line": null,
+    "description": "PostgreSQL integration verification not run because EASY_A_TEST_POSTGRES_URL is unset",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-20T18:06:21.972Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 4,
+    "kind": "unrun-verify",
+    "phase": "03.5",
+    "file": "scripts/check_data_quality.py",
+    "line": null,
+    "description": "Quality CLI blocked before database access by pre-existing rankings cache import cycle",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-20T18:06:22.143Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 5,
+    "kind": "deviation",
+    "phase": "03.5",
+    "file": "src/easy_a/refresh/coverage.py",
+    "line": null,
+    "description": "Filtered the HTML ingestion payload because ingest_schedule_html reparses its input",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-20T18:06:22.328Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 6,
+    "kind": "deviation",
+    "phase": "03.5",
+    "file": "tests/refresh/test_targets.py",
+    "line": null,
+    "description": "Updated legacy cross-course rejection expectation for D-10 exact-course filtering",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-20T18:06:22.514Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 7,
+    "kind": "unmet-truth",
+    "phase": "03.5",
+    "file": "scripts/benchmark_rankings_search.py",
+    "line": null,
+    "description": "Rankings-search p95 ~2.40s at 3782-section synthetic scale exceeds the ~1.5s target (REQ-PERF-01 acceptance criterion 2). Accepted deviation: deferred to a post-pilot tuning pass (index/query tuning); pilot scale ~132 sections not user-facing-blocked. Measured 2026-09-20.",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-20T22:57:39.281Z",
+    "resolved_at": null,
+    "milestone": null
+  }
+]
+````

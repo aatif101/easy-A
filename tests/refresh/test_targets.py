@@ -166,14 +166,14 @@ def test_crn_refresh_and_scope_rejection(db_session: Session) -> None:
     for crn in ["99999", "bad"]:
         with pytest.raises(ValueError):
             refresh_targets(db_session, term="202701", config=config, search=schedule, crn=crn)
-    with pytest.raises(ValueError, match="scope"):
-        refresh_targets(
-            db_session,
-            term="202701",
-            config=config,
-            subject="ENC",
-            search=lambda _: schedule(ScheduleSearchQuery(term="202701", subject="MAC")),
-        )
+    mismatched = refresh_targets(
+        db_session,
+        term="202701",
+        config=config,
+        subject="ENC",
+        search=lambda _: schedule(ScheduleSearchQuery(term="202701", subject="MAC")),
+    )
+    assert mismatched[0].section_count == 0
 
 
 def test_empty_pass_does_not_report_old_sections_as_refreshed(db_session: Session) -> None:

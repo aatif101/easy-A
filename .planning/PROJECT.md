@@ -13,11 +13,24 @@ on the frontend. It has real Spring 2027 schedule ingestion, real historical gra
 configurable course coverage, seat freshness classification, GenEd metadata and a data-quality
 pipeline. The API and frontend have been smoke-tested end to end.
 
-**Current baseline: `origin/main` = `d72f8f3d77a11f301f2b74f56088a217226feefa`**
-(verified by fetch on 2026-09-14).
+**Live facts (baseline SHA, section/grade counts, next action) live in `.planning/STATE.md`.** This
+file holds durable scope, the active milestone, and decisions.
 
-**Sprint 5 and real-data expansion validation are both complete.**
-**Current activity: Phase 2 is complete and verified on PR #18; review/merge is the current gate.**
+**Current milestone: MVP 1** (defined below). Sprint 5, real-data validation and the Tampa-only
+correction are complete; Phase 3.5 (ranking search performance) is delivered with its p95 goal
+folded into MVP 1.
+
+## Milestone — MVP 1
+
+**Goal:** all ~3,782 USF Tampa Spring 2027 (`202701`) sections ingested and **searchable against
+hosted Supabase**, each with **historical grade distributions imported** and **easiness computed
+from that real data** (not the `effective_n = 0` global fallback), with search **p95 < ~1.5s**.
+
+Verified RMP instructor links/ratings are **MVP 2**, not MVP 1. The phase sequence to reach MVP 1
+(grade-attribution fix → grade sourcing → all-Tampa ingestion → full-scale cache/perf → verify)
+lives in `.planning/ROADMAP.md` as MVP1-P1..P5. This milestone **supersedes** the earlier
+five-course "validated coverage" framing and the D-18 breadth deferral: full Tampa breadth is now
+the committed goal.
 
 ## Core Value
 
@@ -50,7 +63,8 @@ plausible-looking result.
   and error/loading/empty states — `web/src/`
 - ✓ Real Spring 2027 schedule ingestion, real historical grade imports, seat snapshots and a
   data-quality pipeline
-- ✓ Validated `MAC 1105` + `ENC 1101` real-data beta
+- ✓ End-to-end ingest → score → serve pipeline (validated earlier on a real-data beta; the current
+  hosted Supabase DB has **0 grade rows**, so easiness is all `effective_n = 0` fallback — see STATE.md)
 - ✓ Configurable course targets — `src/easy_a/refresh/targets.py`, `config/course_targets.toml`
 - ✓ Seat freshness classification and seat-only refresh — `src/easy_a/schedule/freshness.py`,
   `scripts/refresh_seats.py`
@@ -83,16 +97,20 @@ plausible-looking result.
 
 - [x] **REQ-DATA-02** — Exactly 47 non-Tampa Spring 2027 sections removed; clean Tampa refresh,
   stored counts, rankings API and coverage endpoint verified at 77 Tampa / 0 other-campus
-  sections on 2026-09-14. PR #18 awaits review and merge.
+  sections on 2026-09-14. Delivered on PR #18 (since merged).
 
-### Next — historical grade coverage
+### MVP 1 — historical grades + full Tampa coverage + performance
 
-- [ ] **REQ-GRADES-01** — Import approved historical grade exports for AMH 2020 → PSY 2012 →
-  BSC 1005 and validate the resulting analytics
+- [ ] **REQ-GRADES-01** — Import historical grade distributions for the ingested Tampa courses and
+  compute easiness from that real data (generalized beyond the original AMH/PSY/BSC pilot).
+  Requires the grade→course attribution fix (MVP1-P1); data sourcing is Codex-owned (MVP1-P2).
+- [ ] **REQ-COVERAGE-03** — Ingest all ~3,782 USF Tampa Spring 2027 sections (breadth), resolving
+  the CHM 2045/2045L suffix-course guard (MVP1-P3).
+- [ ] **REQ-PERF-01** — Ranking search p95 < ~1.5s against Supabase at full ~3,782-section scale
+  (MVP1-P4). Phase 3.5 delivered the SQL rewrite; the full-scale target is the remaining gate.
 
-### Later — hosted beta
+### After MVP 1 — hosted beta
 
-- [ ] **REQ-PERF-01** — Measure search performance at the widened coverage
 - [ ] **REQ-OPS-01** — Deployable, observable, reproducible hosted beta
 
 ### Later / optional
@@ -119,16 +137,17 @@ backlog for detail.
 
 ## Current gate
 
-**The data correction is complete; PR #18 must be reviewed and merged.**
-
-The Phase 2 branch adds a dry-run-first cleanup with exact-count and preservation checks, plus an
-independent `unsupported_campus_section` quality error. The reviewed apply removed 47 sections,
-47 linked seat snapshots and 47 instructor observations; it removed zero syllabi, grade rows,
-Tampa sections, historical sections or unrelated-term sections. A post-cleanup dry run found zero
-remaining eligible rows. PR #17 overlaps this work; consolidate on PR #18 and close the duplicate
-after review.
+The current gate is **MVP 1** (see the milestone above and `.planning/ROADMAP.md`). Sprint 5, the
+real-data validation, and the Tampa-only correction (PR #18) are all merged; Phase 3.5 is
+delivered. `.planning/STATE.md` holds the live next action; the immediate build step is MVP1-P1
+(the grade→course attribution fix).
 
 ## Context
+
+> **Most of this section is dated history from the earlier local beta DB** (5-course pilot, 75/77
+> sections, 237 grade rows, MAC/ENC real grade data). It does **not** describe the current hosted
+> Supabase DB — see `.planning/STATE.md` (132 sections / 10 courses / **0 grade rows**) and
+> `.planning/ARCHIVE.md`. Retained below only for provenance of the decisions that followed.
 
 **Real-data expansion validation (executed 2026-09-09).** All five configured Spring 2027
 (`202701`) targets verified present in the catalog:
@@ -187,7 +206,7 @@ status" below — those documents are proposals, and several of their claims are
 | Area | Exists now | Next |
 |------|---------------------|------|
 | Backend platform | FastAPI app factory, DI, schemas, domain services, ORM, Alembic | Deployment config (Phase 4) |
-| Course coverage | Five configured targets; current clean source-backed total is 77 Tampa sections | Historical grades for AMH/PSY/BSC (Phase 3) |
+| Course coverage | Current DB: 132 Tampa sections / 10 courses (see STATE.md) | All ~3,782 Tampa sections (MVP1-P3) |
 | Scoring | Historical easiness score, shrinkage, confidence labels, fallback | **Unchanged — preserved as baseline** |
 | Seats | Freshness classification, seat-only refresh, API fields, freshness UI | — |
 | Frontend | Explicit mock opt-in, pagination hardening, coverage UX, relative timestamps | — |
@@ -210,7 +229,8 @@ status" below — those documents are proposals, and several of their claims are
   improvement remain open
 - `src/easy_a/grades/parser.py` converts every blank cell to `0` with no suppression path.
   Unresolved: answering it needs a real or sample InfoCenter export.
-- PR #18 remains to be reviewed and merged; the live correction and verification are complete
+- Current DB has 0 grade rows and grade→course attribution is broken (`course_id` null at ingest);
+  imported grades will not attach to current-term sections until fixed (MVP1-P1)
 - AMH 2020, PSY 2012 and BSC 1005 have no imported historical grade data; each falls back to a
   global prior with `effective_n = 0` (REQ-GRADES-01)
 - Grade import initializes `course_id` to null; grade rows are unique by term/CRN/**source**, so
@@ -244,13 +264,11 @@ Treat it as input, never as an approved requirement.
 
 ## Constraints
 
-- **Validated coverage**: all five configured targets in `config/course_targets.toml` were
-  validated against real Spring 2027 data on 2026-09-09 — **75 verified Tampa sections**. Section
-  presence is validated for all five; *historical grade coverage* is not — AMH 2020, PSY 2012 and
-  BSC 1005 have none. Distinguish the two when reporting coverage. Do not claim campus-wide
-  support: five courses is the declared scope. A clean refresh on 2026-09-14 found 77 current
-  Tampa sections because AMH 2020 increased from 17 to 19; this does not rewrite the dated 75
-  count above.
+- **Coverage reporting honesty**: always distinguish *section presence* from *historical grade
+  coverage* — a section can be searchable while its easiness is still an `effective_n = 0`
+  fallback. Report each with its real source and date. (The earlier "five courses is the declared
+  scope" constraint is **superseded** by the MVP-1 milestone: full ~3,782-section Tampa breadth is
+  now the committed goal.)
 - **Preserve the existing scoring model**: the historical easiness score, its grade/withdrawal
   composition, Bayesian shrinkage, confidence labels, and course / instructor-course fallback
   behavior all stay. Seats, modality, GenEd and syllabus signals must not influence the score.
@@ -300,7 +318,7 @@ Treat it as input, never as an approved requirement.
 ### Current sprint scope
 
 - **D-14 [complete]:** Sprint 5 delivered configurable course targets, one-pass coverage refresh, seat-only refresh, seat freshness classification and API fields, a coverage metadata endpoint, explicit frontend mock opt-in, pagination hardening, freshness UX and PostgreSQL integration coverage. Merged via PR #14 and PR #15 at `62fb2f1`.
-- **D-15 [current-scope]:** Real-data expansion validation is complete (2026-09-09), and Tampa-only data correction is complete and verified on PR #18 (2026-09-14). Current gate is merging PR #18; next is historical grade coverage for AMH/PSY/BSC, then hosted beta. Still excludes a scoring rewrite, email alerts, auth/accounts, RMP, LLM features, and provider-specific deployment infrastructure.
+- **D-15 [current-scope]:** The current milestone is **MVP 1** — all ~3,782 USF Tampa Spring 2027 sections ingested and searchable on hosted Supabase, with historical grade distributions imported and easiness computed from them, at search p95 < ~1.5s. Sprint 5, real-data validation and the Tampa-only correction are complete; Phase 3.5 is delivered (perf goal folded into MVP 1). Still excludes a scoring rewrite, email alerts, auth/accounts, RMP (= MVP 2), LLM features, and provider-specific deployment infrastructure.
 - **D-20 [locked]:** A global-prior fallback score is not course history. Never present a course with `effective_n = 0` as having evidence-backed historical analytics.
 - **D-19 [locked]:** Never commit raw grade export files.
 
@@ -308,7 +326,7 @@ Treat it as input, never as an approved requirement.
 
 - **D-16 [deferred]:** Seat alerts and notifications. Appropriate only after near-live seat refresh works and the hosted beta is stable. Do not add subscriber, watch, outbox or email-provider work to the current execution sequence. Architecture notes are retained in the ROADMAP backlog as future / optional design considerations only.
 - **D-17 [deferred]:** Verified RMP profile links. Deferred until after hosted beta and core data stability; not a beta blocker. D-08's prohibitions apply whenever it is picked up.
-- **D-18 [deferred]:** Broader launch coverage breadth. Expansion is a coverage target subject to data availability, quality, refresh sustainability and performance — not a declared commitment.
+- **D-18 [superseded 2026-09-20]:** Broader launch coverage breadth was previously deferred. It is now the committed **MVP-1** goal — full ~3,782-section USF Tampa Spring 2027 breadth (data availability, quality, refresh sustainability and performance are handled within MVP1-P1..P5).
 
 </decisions>
 
@@ -336,5 +354,5 @@ Treat it as input, never as an approved requirement.
 | Demote the handoff docs to low-precedence archival inputs in the ingest manifest | Leaving `gsd-core-mvp-prompt.md` as a precedence-0 ADR meant any future `/gsd-ingest-docs` run could re-promote alerts, RMP, a scoring rewrite and campus-wide scope over current planning. | Applied 2026-09-08 |
 
 ---
-*Last updated: 2026-09-14 — Phase 2 cleanup and live verification recorded; PR #18 is the current
-merge gate, followed by approved grade exports for Phase 3.*
+*Last updated: 2026-09-20 — reframed around the MVP-1 milestone (full Tampa breadth + grades +
+performance); dated beta-DB history moved to `.planning/ARCHIVE.md`; D-18 breadth deferral superseded.*

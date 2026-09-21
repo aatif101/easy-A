@@ -4,9 +4,9 @@ Requirements for the sequence forward from the current working baseline. Easy-A 
 application with real ingestion, configurable course coverage and seat freshness — not a
 greenfield build.
 
-**Current baseline: `origin/main` = `d72f8f3`** (verified by fetch on 2026-09-14). Sprint 5 and
-real-data expansion validation are complete.
-**Current activity: Phase 2 is complete and verified on PR #18; review/merge is the current gate.**
+**Live facts (baseline SHA, counts) live in `.planning/STATE.md`.** Sprint 5, real-data validation
+and the Tampa-only correction (PR #18) are merged; Phase 3.5 is delivered.
+**Current milestone: MVP 1** — full Tampa coverage + historical grades + performance (see below).
 
 ## How requirements are classified
 
@@ -153,34 +153,43 @@ Kept for traceability. Verified present in code at `62fb2f1`.
   rows, and Spring 2027 quality reported 0 errors, 31 warnings and 31 info.
 
   *Delivery*: PR #18 contains the cleanup tooling, preservation checks, tests and independent
-  `unsupported_campus_section` quality guard. It is verified and awaits review/merge.
+  `unsupported_campus_section` quality guard. Verified and merged.
 
 ---
 
-## Next — historical grade coverage
+## MVP 1 — full Tampa coverage + historical grades
 
-- [ ] **REQ-GRADES-01**: The three newly validated courses have real historical grade data.
-  *Context*: `AMH 2020`, `PSY 2012` and `BSC 1005` currently have **no imported historical grade
-  data**. Each falls back to a global prior with `effective_n = 0`. **These fallback scores are
-  not evidence-backed course history and must not be described as such** — in the product, the
-  API, or these documents.
-  *Acceptance*: obtain and import approved historical grade exports in priority order
-  **AMH 2020 → PSY 2012 → BSC 1005**; validate the resulting course-level analytics against the
-  source aggregate per course; record which terms actually have data per course and which do not.
-  A course that still lacks data after the pass is recorded as lacking it, not quietly omitted.
-  Approved exports are an external input with a named owner. **Never commit raw export files.**
+- [ ] **REQ-COVERAGE-03**: All ~3,782 USF Tampa Spring 2027 sections are ingested and searchable.
+  *Context*: the current DB holds only 132 sections / 10 courses, and there is **no "all Tampa"
+  ingest path** yet — ingestion is target-driven off `config/course_targets.toml`.
+  *Acceptance*: catalog + schedule ingestion covers the full Tampa Spring 2027 set; the
+  CHM 2045/2045L suffix-course guard is resolved without weakening it; config and stored data are
+  reconciled. (MVP1-P3.)
+
+- [ ] **REQ-GRADES-01**: Ingested Tampa courses have real historical grade data, and easiness is
+  computed from it. *Context*: the current hosted DB has **0 grade rows** — every easiness is an
+  `effective_n = 0` global fallback. Grade→course attribution is currently broken
+  (`GradeDistribution.course_id` is set to `None` at ingest, `src/easy_a/grades/ingest.py:140`), so
+  imported grades would not attach to current-term sections; this must be fixed first (MVP1-P1).
+  **A global-prior fallback is not evidence-backed course history and must not be described as such.**
+  *Acceptance*: import historical grade distributions (data sourcing is Codex-owned, MVP1-P2),
+  attribution fixed so current-term sections resolve their course history, per-course analytics
+  validated against the source aggregate, and courses still lacking data recorded as lacking it —
+  never quietly omitted. **Never commit raw export files.**
 
 ---
 
-## Later — hosted beta
+## MVP 1 — performance
 
-- [◐] **REQ-PERF-01**: Search performance is measured at the widened coverage.
-  *Context*: an initial local measurement on 2026-09-14 returned all 77 corrected sections in
-  about **10.1 seconds**. This establishes a baseline and confirms the hosted-beta concern.
-  `GET /api/v1/rankings/search` ranks sections before slicing pagination.
-  *Remaining acceptance*: repeat the measurement in the hosted environment, define the target,
-  and improve or explicitly accept the result. Report real numbers with the dataset size and
-  environment where they were measured.
+- [◐] **REQ-PERF-01** (MVP-1 blocking): Ranking search is fast at full Tampa coverage.
+  *Context*: Phase 3.5 delivered the SQL rewrite that removed the per-section N+1 (which measured
+  ~600s at 132 sections over Supabase). Measured **~2.40s p95** at a 3,782-section synthetic fixture
+  over Supabase — still above target. The rewrite kept cached rankings byte-for-byte identical to
+  the on-demand results (automated parity test).
+  *Acceptance*: search page p95 **< ~1.5s** against Supabase at full ~3,782-section coverage,
+  scoring model and API contract unchanged, with real numbers, dataset size and environment (MVP1-P4).
+
+## After MVP 1 — hosted beta
 
 - [ ] **REQ-OPS-01**: The hosted beta is deployable, observable and reproducible.
   *Acceptance*: Minimal, portable deployment configuration — no provider-specific infrastructure.
@@ -227,12 +236,12 @@ Not committed. Not required for the hosted beta.
 
 | Observation | Evidence | Where it lands |
 |-------------|----------|----------------|
-| PR #18 not yet merged | Phase 2 implementation and live correction are verified on its branch | Current merge gate |
-| Search performance is slow at widened coverage | Initial local measurement: about 10.1 seconds for 77 sections; search ranks before slicing pagination | REQ-PERF-01 (hosted beta) |
-| AMH 2020, PSY 2012, BSC 1005 have no historical grade data | Validation run: global fallback, `effective_n = 0` for each | REQ-GRADES-01 |
-| Blank grade-cell / suppression semantics unresolved | `src/easy_a/grades/parser.py` converts every blank cell to `0` with no suppression path | Needs a real or sample InfoCenter export; owner holds ODS/registrar access |
-| Deployment host and domain not supplied | — | Before hosted beta |
-| `course_id` null on grade import; term/CRN/**source** dedup | Grade import behavior | BASE-04; watch during grade imports |
+| No historical grade data in the current DB | 0 `GradeDistribution` rows on Supabase; all easiness is `effective_n = 0` fallback | REQ-GRADES-01 / MVP1-P2 |
+| Grade→course attribution broken | `GradeDistribution.course_id` set to `None` at ingest (`grades/ingest.py:140`); imported grades won't attach to current-term sections | MVP1-P1 (blocking) |
+| No "all Tampa" ingest path; suffix-course guard | ingestion is target-driven; USF's CHM 2045 query also returns CHM 2045L (33 base courses affected) | REQ-COVERAGE-03 / MVP1-P3 |
+| Search p95 above target at full scale | ~2.40s p95 at a 3,782-section synthetic fixture over Supabase | REQ-PERF-01 / MVP1-P4 |
+| Blank grade-cell / suppression semantics unresolved | `src/easy_a/grades/parser.py` converts every blank cell to `0` with no suppression path | Needs a real/sample InfoCenter export |
+| Deployment host and domain not supplied | — | After MVP 1 (hosted beta) |
 
 ### Confirmed healthy by the validation run
 
@@ -241,8 +250,9 @@ Not committed. Not required for the hosted beta.
 - Seat refresh preserved previous snapshots and section identity, and left all 237 grade rows
   unchanged
 - Frontend and API verification passed with no browser console errors
-- Phase 2 cleanup preserved all 237 grade rows and 263 historical sections; current database,
-  rankings API and coverage endpoint agree at 77 Tampa / 0 other-campus configured sections
+- Phase 2 cleanup (old local beta DB) preserved all 237 grade rows and 263 historical sections and
+  reached 77 Tampa / 0 other-campus configured sections — **dated history**, superseded by the
+  current hosted Supabase DB (132 sections / 10 courses / 0 grade rows; see STATE.md / ARCHIVE.md)
 
 ---
 
@@ -259,5 +269,5 @@ Not committed. Not required for the hosted beta.
 - Committing raw grade export files
 
 ---
-*Last updated: 2026-09-14 — REQ-DATA-02 completed and verified on PR #18; initial corrected-data
-search latency recorded; PR merge and approved Phase 3 grade exports are next.*
+*Last updated: 2026-09-20 — reclassified REQ-GRADES-01/REQ-PERF-01 and added REQ-COVERAGE-03 under
+the MVP-1 milestone; dated beta-DB figures moved to `.planning/ARCHIVE.md`.*

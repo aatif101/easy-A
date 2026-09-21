@@ -1,0 +1,9 @@
+{
+  "command": ".venv/bin/pytest tests/refresh/test_coverage_suffix_guard.py::test_suffix_variants_are_excluded_before_scope_validation -x -q",
+  "exitCode": 1,
+  "output": "TAP version 13\nnot ok 1 - test_suffix_variants_are_excluded_before_scope_validation\n1..1\n# tests 1\n# pass 0\n# fail 1\n",
+  "targetTest": "test_suffix_variants_are_excluded_before_scope_validation",
+  "targetFile": "tests/refresh/test_coverage_suffix_guard.py",
+  "expected": "refresh_targets ingests the five exact CHM 2045 rows and silently excludes CHM 2045L",
+  "actual": "the existing course-scope guard rejected the complete response when it encountered CHM 2045L"
+}
