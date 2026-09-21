@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: "04"
-current_phase_name: MVP1-P1 — Grade→course attribution fix
 status: planning
-stopped_at: MVP 1 milestone set up; Phase 4 ready to plan
-last_updated: "2026-09-20T23:30:00.000Z"
-last_activity: 2026-09-20
-last_activity_desc: MVP 1 milestone set up; Phase 4 (grade attribution) ready to plan
-state_head: a90de4f60b319f9c389516356e272fff5cbf49de
+last_updated: "2026-09-21T03:36:01.056Z"
+state_head: abb8f5d5db9e8a9043ddab59687c19f5f0055c93
 progress:
-  total_phases: 9
+  total_phases: 10
   completed_phases: 3
-  total_plans: 0
+  total_plans: 7
   completed_plans: 0
   percent: 0
+last_activity: 2026-09-20
+current_phase_name: MVP1-P1 — Grade→course attribution fix
+current_phase: 04
+stopped_at: MVP 1 milestone set up; Phase 4 ready to plan
+last_activity_desc: MVP 1 milestone set up; Phase 4 (grade attribution) ready to plan
 ---
 
 # Project State
@@ -25,11 +25,13 @@ lives in `ARCHIVE.md`.
 ## Current state — as of 2026-09-20
 
 **Repo / git**
+
 - `origin/main` = `a70a85346796d886f5f04741b5fd2330b660e2cc` (verify by fetch before planning).
   PR #18 (Tampa guard) and PR #19 (Supabase wiring) are **merged**. Working branch:
   `dev1/tampa-coverage-pilot` (ahead of `origin/main`, unmerged).
 
 **Database (hosted Supabase — the only live DB now; the old local beta DB is history in `ARCHIVE.md`)**
+
 - Term 202701: **132 sections, all campus=Tampa, across 10 courses** — ACG 2021 (17), ACG 2071
   (15), AMH 2020 (19), ANT 2000 (5), BSC 1005 (2), ECO 2013 (3), ENC 1101 (41), MAC 1105 (5),
   MAC 2311 (15), PSY 2012 (10). 132 seat snapshots. **0 non-Tampa rows.**
@@ -40,10 +42,12 @@ lives in `ARCHIVE.md`.
   are out of sync (reconcile during MVP1-P3).
 
 **Full Tampa universe (for MVP-1 sizing)**
+
 - Enumerated 2026-09-20 across 265 public undergraduate catalog prefixes: **1,402 courses /
   3,782 Tampa sections** across 212 subjects. `courses.csv` is Git-ignored.
 
 **Phase 3.5 (ranking search performance) — delivered, NOT closed**
+
 - SQL search rewrite, `section_rankings` cache, cleanup cascade, and benchmark all shipped (5/5).
   Circular import that blocked `check_data_quality.py` fixed (`2bb984a`). Postgres suite 256
   passed; quality 0 errors.
@@ -60,6 +64,7 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 ## Next action
 
 Docs declutter is done (this update). Next build steps, in order (see ROADMAP MVP1-P1..P5):
+
 1. **MVP1-P1** — fix grade→course attribution (`GradeDistribution.course_id` is hard-coded `None`
    at `src/easy_a/grades/ingest.py:140`); prove easiness-from-grades end-to-end on a sample export.
 2. **MVP1-P2** — grade data sourcing (Codex-owned): source USF InfoCenter grade XLSX for Tampa
