@@ -334,7 +334,9 @@ Plans:
 
 **Requirements**: REQ-GRADES-01
 
-**Plans:** 1/2 plans executed (tracer-first; Wave 1 → Wave 2)
+**Status:** Complete — all 10 currently ingested courses are course-backed and operator-verified.
+
+**Plans:** 2/2 plans executed (tracer-first; Wave 1 → Wave 2)
 
 Plans:
 **Wave 1**
@@ -343,7 +345,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 05-02-PLAN.md — Import the remaining covered courses; complete the honest all-10-course coverage record (still-lacking courses never omitted); conditional OQ-04 blank-cell regression fixture; phase data gate
+- [x] 05-02-PLAN.md — Imported the remaining nine courses; completed and operator-approved the honest all-10-course coverage record; no real blank cells, so OQ-04 remains open and no conditional fixture was created
 
 ---
 
@@ -494,7 +496,7 @@ rewrite is planned or approved.
 | 3 — Historical grades | ↳ Folded into MVP 1 (Phases 4–5) | — |
 | 3.5 — Ranking search performance | ◐ Delivered; perf goal folded into Phase 7 | — |
 | 4 — MVP1-P1 grade→course attribution | Complete    | 100% |
-| 5 — MVP1-P2 grade sourcing + import | In Progress| 0% |
+| 5 — MVP1-P2 grade sourcing + import | Complete | 100% |
 | 6 — MVP1-P3 all-Tampa ingestion | ○ MVP 1 | 0% |
 | 7 — MVP1-P4 full-scale perf (p95 < 1.5s) | ○ MVP 1 | 0% |
 | 8 — MVP1-P5 MVP-1 verification | ○ MVP 1 | 0% |
@@ -514,7 +516,7 @@ rewrite is planned or approved.
 | REQ-COVERAGE-02 | 1 | ✓ Complete — search performance carved out to REQ-PERF-01 |
 | REQ-DATA-02 | 2 | ✓ Complete (PR #18 merged) |
 | REQ-COVERAGE-03 | 6 | ○ All-Tampa ingestion (MVP1-P3) |
-| REQ-GRADES-01 | 4–5 | ○ Attribution fix (P4) + grade sourcing/import (P5) |
+| REQ-GRADES-01 | 4–5 | ✓ Complete for current 10-course coverage; Phase 6 must extend the same contract to newly ingested courses |
 | REQ-PERF-01 | 7 | ◐ SQL rewrite delivered; p95 < 1.5s at full scale remains (MVP1-P4) |
 | REQ-OPS-01 | 9 | ○ After MVP 1 |
 

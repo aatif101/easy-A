@@ -166,11 +166,10 @@ Kept for traceability. Verified present in code at `62fb2f1`.
   CHM 2045/2045L suffix-course guard is resolved without weakening it; config and stored data are
   reconciled. (MVP1-P3.)
 
-- [◐] **REQ-GRADES-01**: Ingested Tampa courses have real historical grade data, and easiness is
-  computed from it. *Context*: the current hosted DB has **0 grade rows** — every easiness is an
-  `effective_n = 0` global fallback. Grade→course attribution is currently broken
-  (`GradeDistribution.course_id` is set to `None` at ingest, `src/easy_a/grades/ingest.py:140`), so
-  imported grades would not attach to current-term sections; this must be fixed first (MVP1-P1).
+- [x] **REQ-GRADES-01**: Ingested Tampa courses have real historical grade data, and easiness is
+  computed from it. *Current verified scope*: hosted Supabase has **179 Fall 2024 aggregate rows**
+  for all 10 currently ingested courses, totaling 7,544 raw grades. All 132 Spring 2027 sections
+  report `effective_n > 0` and `score_source=course` after the separate live cache rebuild.
   **A global-prior fallback is not evidence-backed course history and must not be described as such.**
   *Acceptance*: import historical grade distributions (data sourcing is Codex-owned, MVP1-P2),
   attribution fixed so current-term sections resolve their course history, per-course analytics
@@ -184,10 +183,13 @@ Kept for traceability. Verified present in code at `62fb2f1`.
   cells now fail closed with a row/column-specific, non-suppression-asserting reason instead of
   being silently coerced to zero (explicit numeric zero remains valid), and every stored
   `GradeDistribution` with a null `course_id` now surfaces as a deterministic
-  `unattributed_grade_row` data-quality error. **Still open:** no real historical grade data is
-  imported into the hosted DB yet — that is MVP1-P2 (Codex-owned data sourcing), required before
-  this requirement can be marked fully complete. OQ-04 (real InfoCenter blank-cell suppression
-  semantics) also remains genuinely unresolved and needs a real/sample export.
+  `unattributed_grade_row` data-quality error.
+  **MVP1-P2 done (2026-09-21, `05-01-SUMMARY.md` + `05-02-SUMMARY.md`):** every per-course raw
+  database total exactly matches its authenticated InfoCenter source total; the operator approved
+  the all-ten record; repeat import proved idempotent; no raw workbook is tracked. OQ-04 remains
+  genuinely unresolved because none of the 179 real rows contained a blank canonical cell. Phase 6
+  must extend this requirement to every newly ingested Tampa course, explicitly retaining a global
+  fallback for any course whose source data is unavailable.
 
 ---
 
@@ -248,7 +250,7 @@ Not committed. Not required for the hosted beta.
 
 | Observation | Evidence | Where it lands |
 |-------------|----------|----------------|
-| No historical grade data in the current DB | 0 `GradeDistribution` rows on Supabase; all easiness is `effective_n = 0` fallback | REQ-GRADES-01 / MVP1-P2 |
+| Historical grade coverage for future all-Tampa expansion | Current 10-course pilot is fully course-backed; newly added Phase 6 courses still require the same sourced-data or explicit-fallback treatment | REQ-GRADES-01 / MVP1-P3 |
 | Grade→course attribution broken | **Fixed in MVP1-P1 (04-01, 2026-09-21)** — `resolve_course_id()` now resolves and persists `course_id` on insert/update, with an atomic preflight and null-row repair | Closed |
 | No "all Tampa" ingest path; suffix-course guard | ingestion is target-driven; USF's CHM 2045 query also returns CHM 2045L (33 base courses affected) | REQ-COVERAGE-03 / MVP1-P3 |
 | Search p95 above target at full scale | ~2.40s p95 at a 3,782-section synthetic fixture over Supabase | REQ-PERF-01 / MVP1-P4 |
@@ -264,7 +266,7 @@ Not committed. Not required for the hosted beta.
 - Frontend and API verification passed with no browser console errors
 - Phase 2 cleanup (old local beta DB) preserved all 237 grade rows and 263 historical sections and
   reached 77 Tampa / 0 other-campus configured sections — **dated history**, superseded by the
-  current hosted Supabase DB (132 sections / 10 courses / 0 grade rows; see STATE.md / ARCHIVE.md)
+  current hosted Supabase DB (132 sections / 10 courses / 179 Fall 2024 grade rows; see STATE.md)
 
 ---
 
@@ -281,9 +283,9 @@ Not committed. Not required for the hosted beta.
 - Committing raw grade export files
 
 ---
-*Last updated: 2026-09-21 — MVP1-P1 (grade→course attribution fix) fully delivered across both
-plans (`04-01-SUMMARY.md` attribution/preflight/repair; `04-02-SUMMARY.md` fail-closed blank-cell
-policy + `unattributed_grade_row` quality guard). REQ-GRADES-01 stays partial (◐): MVP1-P2 (grade
-data sourcing) is still required before full completion. Previously updated 2026-09-20 —
+*Last updated: 2026-09-21 — MVP1-P2 imported and reconciled real Fall 2024 history for all 10
+currently ingested courses (179 rows / 7,544 grades); all 132 live sections are course-backed and
+the operator approved the all-course record. REQ-GRADES-01 is complete for current coverage and
+must be extended as Phase 6 adds courses. OQ-04 remains open. Previously updated 2026-09-20 —
 reclassified REQ-GRADES-01/REQ-PERF-01 and added REQ-COVERAGE-03 under the MVP-1 milestone; dated
 beta-DB figures moved to `.planning/ARCHIVE.md`.*

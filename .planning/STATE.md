@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-status: executing
-stopped_at: Completed 05-01-PLAN.md; checkpoint before scaling
-last_updated: "2026-09-21T18:44:20.012Z"
-state_head: 11fe3bb619942874b7e8cb1ef102b8a68454bb0e
+status: ready
+stopped_at: Phase 05 complete and verified; ready for Phase 06 planning/execution
+last_updated: "2026-09-21T19:40:00.000Z"
+state_head: d8e6ba61fc4778615f0568d83434ed44e18da2a4
 progress:
   total_phases: 10
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 11
-  completed_plans: 8
-  percent: 73
+  completed_plans: 9
+  percent: 82
 last_activity: 2026-09-21
-current_phase_name: MVP1-P2 — Grade data sourcing + import to Supabase
-current_phase: 5
-last_activity_desc: Phase 05 Plan 01 tracer completed and operator-approved; MAC 1105 now has verified Fall 2024 course-backed history in hosted Supabase
+current_phase_name: MVP1-P3 — All-Tampa section ingestion
+current_phase: 6
+last_activity_desc: Phase 05 complete and operator-approved; all 10 pilot courses now have reconciled Fall 2024 history and course-backed live rankings
 ---
 
 # Project State
@@ -36,10 +36,10 @@ lives in `ARCHIVE.md`.
 - Term 202701: **132 sections, all campus=Tampa, across 10 courses** — ACG 2021 (17), ACG 2071
   (15), AMH 2020 (19), ANT 2000 (5), BSC 1005 (2), ECO 2013 (3), ENC 1101 (41), MAC 1105 (5),
   MAC 2311 (15), PSY 2012 (10). 132 seat snapshots. **0 non-Tampa rows.**
-- **6 `GradeDistribution` rows for MAC 1105 (Fall 2024), 0 syllabi.** The five live MAC 1105
-  sections now have course-backed history (`effective_n=1102.0`, `score_source=course`); the
-  source and database raw totals both equal 1,138. Other courses remain explicit fallbacks.
-  Spring 2027 quality CLI: 0 errors, 112 warnings, 112 info findings.
+- **179 `GradeDistribution` rows across all 10 courses (Fall 2024), totaling 7,544 raw grades;
+  0 syllabi.** Every one of the 132 live sections has course-backed history (`effective_n > 0`,
+  `score_source=course`). Each per-course database raw total exactly matches its authenticated
+  InfoCenter source aggregate. Spring 2027 quality CLI: 0 errors, 0 warnings, 0 info findings.
 - `config/course_targets.toml` lists only 5 courses while the DB has 10 — config and stored data
   are out of sync (reconcile during MVP1-P3).
 
@@ -65,24 +65,22 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Next action
 
-**Phase 05 Plan 01 tracer is complete and human-approved.** A bounded authenticated InfoCenter
-SGDIS report for Tampa MAC 1105, Fall 2024, produced six aggregate rows totaling 1,138 grades.
-Hosted Supabase has the same raw total; after migration 0003 and the separate 202701 cache rebuild,
-all five live sections report `effective_n=1102.0` / `score_source=course`. The 202701 quality
-report has 0 errors. `docs/runbooks/grade-import.md` and `05-IMPORT-RECORD.md` retain the procedure
-and aggregate provenance; no raw workbook is tracked.
+**Phase 05 is complete and human-approved.** Ten bounded authenticated InfoCenter SGDIS reports
+for Tampa, Fall 2024, produced 179 aggregate rows totaling 7,544 grades. Every per-course hosted
+database raw total matches its source report; all 132 live sections report `effective_n > 0` /
+`score_source=course` after the separate 202701 cache rebuild. Quality is 0/0/0, idempotency was
+proved by repeat import, and no raw workbook is tracked.
 
-**1/2 plans complete** in Phase 05. **Do next: execute Plan 05-02 only after the checkpoint branch
-is safely pushed and scaling is explicitly resumed.**
+**2/2 plans complete** in Phase 05. **Do next: plan/execute Phase 06 (MVP1-P3) to expand from the
+10-course pilot to the full Tampa Spring 2027 universe, preserving the same honest grade-coverage
+contract for every newly added course.**
 
 Remaining build steps, in order (see ROADMAP MVP1-P2..P5):
 
-1. **MVP1-P2** — tracer complete for MAC 1105; scale the approved workflow to the remaining
-   ingested Tampa courses while preserving explicit term provenance and coverage gaps.
-2. **MVP1-P3** — all-Tampa section ingestion (10 → ~3,782); resolve the CHM 2045/2045L suffix-guard
+1. **MVP1-P3** — all-Tampa section ingestion (10 → ~3,782); resolve the CHM 2045/2045L suffix-guard
    blocker (33 base courses have suffix variants); reconcile config vs stored data.
-3. **MVP1-P4** — full-scale cache build + tune search to p95 < ~1.5s on Supabase.
-4. **MVP1-P5** — end-to-end MVP-1 verification.
+2. **MVP1-P4** — full-scale cache build + tune search to p95 < ~1.5s on Supabase.
+3. **MVP1-P5** — end-to-end MVP-1 verification.
 
 ## History
 
@@ -104,8 +102,9 @@ are in `.planning/ARCHIVE.md`. They describe the earlier local beta DB and are n
 
 ## Still open
 
-- **Historical coverage remains incomplete** — MAC 1105 is backed by six real Fall 2024 aggregate
-  rows, but the other nine currently ingested courses still lack course-backed grade evidence.
+- **Historical coverage must scale with Phase 06** — the current 10-course pilot is fully backed by
+  real Fall 2024 aggregates, but every newly ingested Tampa course must receive sourced history or
+  remain an explicit `effective_n=0` / `score_source=global` state.
 - **Blank grade-cell / suppression semantics (OQ-04)** — the upstream meaning of a blank InfoCenter
   cell is still genuinely unknown. MVP1-P1 (04-02, 2026-09-21) made the parser fail closed on any
   blank canonical count instead of silently coercing to `0`; that is a safety policy, not a
@@ -122,12 +121,12 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Phase 05 Plan 01 complete and approved; checkpoint before scaling
+**Stopped at:** Phase 05 complete and verified; ready for Phase 06
 **Resume file:** None
 
-Last session: 2026-09-21. Plan `05-01` imported and validated the MAC 1105 tracer against hosted
-Supabase; the operator approved the exact 1,138 raw-count match and course-backed flip.
-Next action: push `codex/phase5-1-tracer-checkpoint`, then resume Plan `05-02` when authorized.
+Last session: 2026-09-21. Plan `05-02` scaled the tracer workflow across all 10 pilot courses.
+The operator approved the complete record and exact raw-total matches. Next action: begin Phase 06
+all-Tampa ingestion planning/execution; do not push this Phase 05 completion commit unless asked.
 
 ## Performance Metrics
 
@@ -140,6 +139,7 @@ Next action: push `codex/phase5-1-tracer-checkpoint`, then resume Plan `05-02` w
 | Phase 04 P01 | 25min | 2 tasks | 3 files |
 | Phase 04 P02 | 15min | 2 tasks | 4 files |
 | Phase 05 P01 | 54min | 3 tasks | 3 files |
+| Phase 05 P02 | 55min | 3 tasks | 2 files |
 
 ## Decisions
 
@@ -147,3 +147,5 @@ Next action: push `codex/phase5-1-tracer-checkpoint`, then resume Plan `05-02` w
 - [Phase 04-02]: Wrote the blank-cell rejection reason as a stated two-sided ambiguity (cannot distinguish zero from unavailable or suppressed) rather than asserting suppression, and kept unattributed_grade_row additive alongside grade_total_mismatch/orphan_grade_row rather than merging them (D-06, D-07).
 - [Phase 05-01]: Reconciled the exact source Total Grades sum to raw total_grade_count, never the Bayesian-smoothed easiness score, and required a separate 202701 cache rebuild after historical imports.
 - [Phase 05-01]: Advanced hosted Supabase from migration 0002 to checked-in migration 0003 after the tracer exposed the missing section_rankings table.
+- [Phase 05-02]: Used one exact-course Fall 2024 Tampa report per course, imported each historically, then rebuilt the 202701 cache once after all imports.
+- [Phase 05-02]: No observed real export contained a blank canonical count, so OQ-04 remains open and the fail-closed parser was left unchanged.
