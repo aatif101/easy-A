@@ -374,7 +374,7 @@ Plans:
 
 **Requirements**: REQ-COVERAGE-03
 
-**Plans:** 1/3 plans executed (tracer-first; Wave 1 → Wave 2 → Wave 3)
+**Plans:** 2/3 plans executed (tracer-first; Wave 1 → Wave 2 → Wave 3)
 
 Plans:
 **Wave 1**
@@ -383,7 +383,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 06-02-PLAN.md — Resumable, paced per-subject orchestrator + runbook, blocking-human go-live checkpoint, full-scale all-Tampa ingestion (~1,402 courses / ~3,782 sections) into hosted Supabase
+- [x] 06-02-PLAN.md — Resumable, paced per-subject orchestrator + runbook, blocking-human go-live checkpoint, full-scale all-Tampa ingestion (~1,402 courses / ~3,782 sections) into hosted Supabase
 
 **Wave 3** *(blocked on Wave 2)*
 

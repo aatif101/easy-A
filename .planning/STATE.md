@@ -1,9 +1,9 @@
 ---
 gsd_state_version: "1.0"
-current_plan: 2
+current_plan: 3
 status: ready
-stopped_at: Completed 06-02 Task 1 (orchestrator + tests + runbook); halted at Task 2 blocking-human checkpoint -- awaiting operator authorization for the live full-scale USF run
-last_updated: "2026-09-21T21:54:30.121Z"
+stopped_at: 06-02 complete — full Tampa Spring 2027 universe ingested (212 subjects / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors). Ready for 06-03 validation.
+last_updated: "2026-09-22T04:20:00.000Z"
 state_head: bc2b60456b3322f188dcab884ce92135fcd5c51b
 progress:
   total_phases: 10
@@ -34,15 +34,16 @@ lives in `ARCHIVE.md`.
 
 **Database (hosted Supabase — the only live DB now; the old local beta DB is history in `ARCHIVE.md`)**
 
-- Term 202701: **132 sections, all campus=Tampa, across 10 courses** — ACG 2021 (17), ACG 2071
-  (15), AMH 2020 (19), ANT 2000 (5), BSC 1005 (2), ECO 2013 (3), ENC 1101 (41), MAC 1105 (5),
-  MAC 2311 (15), PSY 2012 (10). 132 seat snapshots. **0 non-Tampa rows.**
-- **179 `GradeDistribution` rows across all 10 courses (Fall 2024), totaling 7,544 raw grades;
-  0 syllabi.** Every one of the 132 live sections has course-backed history (`effective_n > 0`,
-  `score_source=course`). Each per-course database raw total exactly matches its authenticated
-  InfoCenter source aggregate. Spring 2027 quality CLI: 0 errors, 0 warnings, 0 info findings.
-- `config/course_targets.toml` lists only 5 courses while the DB has 10 — config and stored data
-  are out of sync (reconcile during MVP1-P3).
+- Term 202701 (as of 2026-09-22, Phase 06 full ingest): **3,783 sections, all campus=Tampa, across
+  1,402 courses / 212 subjects. 0 non-Tampa rows. Quality: 0 errors.** (Was 132 sections / 10 courses
+  before Phase 06.)
+- **179 `GradeDistribution` rows, unchanged — only the 10 pilot courses carry sourced Fall-2024
+  history** (`effective_n > 0`, `score_source=course`). Every one of the ~1,392 newly ingested
+  courses is the honest `effective_n=0` / `score_source=global` state (D-20) — NOT course history.
+  Scaling grade coverage to the rest of Tampa is a separate future effort (bounded per-course SGDIS
+  imports, mirroring Phase 05), not MVP1-P3 scope.
+- `config/course_targets.toml` reconciled during Phase 06-01: now the full git-tracked 1,402-course
+  Tampa list (was 5), generated reproducibly from `courses.csv` via `scripts/generate_tampa_targets.py`.
 
 **Full Tampa universe (for MVP-1 sizing)**
 
