@@ -11,16 +11,29 @@ from easy_a.refresh.targets import CourseTarget, CourseTargets
 from easy_a.schedule.client import ScheduleSearchQuery
 from tests.refresh.test_targets import FIXTURES, NOW
 
+# A representative sample of the 33 base/suffix pairs in courses.csv (verified this session via
+# data/coverage-pilot-2026-09-20/suffix-query-risks.json and a direct courses.csv scan), proving
+# _retain_exact_course_rows generalizes beyond the single documented CHM 2045 case.
+SUFFIX_PAIRS = (
+    ("CHM", "2045", "2045L"),
+    ("BSC", "2010", "2010L"),
+    ("PHY", "2049", "2049L"),
+    ("APK", "3125", "3125L"),
+)
 
-def test_suffix_variants_are_excluded_before_scope_validation(db_session: Session) -> None:
-    config = _chm_config(db_session)
+
+@pytest.mark.parametrize(("subject", "base_number", "suffix_number"), SUFFIX_PAIRS)
+def test_suffix_variants_are_excluded_before_scope_validation(
+    db_session: Session, subject: str, base_number: str, suffix_number: str
+) -> None:
+    config = _course_config(db_session, subject, base_number)
 
     try:
         rows = refresh_targets(
             db_session,
             term="202701",
             config=config,
-            search=lambda query: _mixed_chm_response(query),
+            search=lambda query: _mixed_response(query, subject, base_number, suffix_number),
             observed_at=NOW,
         )
     except ValueError as exc:
@@ -38,27 +51,32 @@ def test_suffix_variants_are_excluded_before_scope_validation(db_session: Sessio
     }
 
 
-def test_non_tampa_exact_course_row_still_fails_scope_guard(db_session: Session) -> None:
-    config = _chm_config(db_session)
+@pytest.mark.parametrize(("subject", "base_number", "suffix_number"), SUFFIX_PAIRS)
+def test_non_tampa_exact_course_row_still_fails_scope_guard(
+    db_session: Session, subject: str, base_number: str, suffix_number: str
+) -> None:
+    config = _course_config(db_session, subject, base_number)
 
     with pytest.raises(ValueError, match="Tampa/course/CRN scope"):
         refresh_targets(
             db_session,
             term="202701",
             config=config,
-            search=lambda query: _mixed_chm_response(query, non_tampa_exact=True),
+            search=lambda query: _mixed_response(
+                query, subject, base_number, suffix_number, non_tampa_exact=True
+            ),
             observed_at=NOW,
         )
 
     assert not list(db_session.scalars(select(Section)))
 
 
-def _chm_config(session: Session) -> CourseTargets:
+def _course_config(session: Session, subject: str, base_number: str) -> CourseTargets:
     session.add(
         Course(
-            subject="CHM",
-            number="2045",
-            title="General Chemistry I",
+            subject=subject,
+            number=base_number,
+            title=f"{subject} {base_number}",
             catalog_edition="2026-2027",
         )
     )
@@ -66,16 +84,19 @@ def _chm_config(session: Session) -> CourseTargets:
     return CourseTargets(
         catalog_edition="2026-2027",
         catalog_url_template="https://example.test/{subject}/{number}",
-        targets=(CourseTarget(subject="CHM", number="2045"),),
+        targets=(CourseTarget(subject=subject, number=base_number),),
     )
 
 
-def _mixed_chm_response(
+def _mixed_response(
     query: ScheduleSearchQuery,
+    subject: str,
+    base_number: str,
+    suffix_number: str,
     *,
     non_tampa_exact: bool = False,
 ) -> str:
-    assert (query.subject, query.course, query.campus) == ("CHM", "2045", "T")
+    assert (query.subject, query.course, query.campus) == (subject, base_number, "T")
     html = (FIXTURES / "schedule_current.html").read_text(encoding="utf-8")
     soup = BeautifulSoup(html, "lxml")
     source_rows = [row for row in soup.find_all("tr") if len(row.find_all("td")) == 24]
@@ -91,7 +112,7 @@ def _mixed_chm_response(
         assert isinstance(row, Tag)
         cells = row.find_all("td", recursive=False)
         cells[3].string = f"2100{index}"
-        cells[4].string = "CHM 2045"
+        cells[4].string = f"{subject} {base_number}"
         if non_tampa_exact and index == 3:
             cells[21].string = "St. Petersburg"
         table.append(row)
@@ -100,6 +121,6 @@ def _mixed_chm_response(
     assert isinstance(suffix_row, Tag)
     suffix_cells = suffix_row.find_all("td", recursive=False)
     suffix_cells[3].string = "21999"
-    suffix_cells[4].string = "CHM 2045L"
+    suffix_cells[4].string = f"{subject} {suffix_number}"
     table.append(suffix_row)
     return str(soup)
