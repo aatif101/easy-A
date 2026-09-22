@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import Select, and_, delete, func, or_, select
+from sqlalchemy import Select, delete, func, select, tuple_
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import ColumnElement
 
@@ -156,8 +156,10 @@ def _count(session: Session, statement: Select[tuple[int]]) -> int:
 def _target_filter(targets: tuple[CourseTarget, ...]) -> ColumnElement[bool]:
     if not targets:
         raise CleanupError("At least one configured course target is required.")
-    return or_(
-        *(and_(Course.subject == item.subject, Course.number == item.number) for item in targets)
+    # A composite IN clause (rather than a deep OR-of-AND tree) scales to the full
+    # ~1,402-target universe without tripping SQLite's expression-tree depth limit.
+    return tuple_(Course.subject, Course.number).in_(
+        [(item.subject, item.number) for item in targets]
     )
 
 

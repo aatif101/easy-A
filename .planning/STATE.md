@@ -1,18 +1,19 @@
 ---
 gsd_state_version: "1.0"
+current_plan: 3
 status: ready
-stopped_at: Phase 05 complete and verified; ready for Phase 06 planning/execution
-last_updated: "2026-09-21T19:40:00.000Z"
-state_head: d8e6ba61fc4778615f0568d83434ed44e18da2a4
+stopped_at: Completed 06-03-PLAN.md -- REQ-COVERAGE-03 proven at scale against live hosted Supabase; Phase 06 (MVP1-P3) complete
+last_updated: "2026-09-22T09:16:59.935Z"
+state_head: 95d57e43905784b20542a3ef9c0e4ad03eff3e0d
 progress:
   total_phases: 10
   completed_phases: 5
-  total_plans: 11
-  completed_plans: 9
-  percent: 82
+  total_plans: 12
+  completed_plans: 12
+  percent: 50
 last_activity: 2026-09-21
-current_phase_name: MVP1-P3 — All-Tampa section ingestion
 current_phase: 6
+current_phase_name: MVP1-P3 — All-Tampa section ingestion
 last_activity_desc: Phase 05 complete and operator-approved; all 10 pilot courses now have reconciled Fall 2024 history and course-backed live rankings
 ---
 
@@ -22,7 +23,7 @@ last_activity_desc: Phase 05 complete and operator-approved; all 10 pilot course
 rules live in `PROJECT.md` `<decisions>`; the phase sequence lives in `ROADMAP.md`; dated history
 lives in `ARCHIVE.md`.
 
-## Current state — as of 2026-09-21
+## Current state — as of 2026-09-22
 
 **Repo / git**
 
@@ -33,15 +34,16 @@ lives in `ARCHIVE.md`.
 
 **Database (hosted Supabase — the only live DB now; the old local beta DB is history in `ARCHIVE.md`)**
 
-- Term 202701: **132 sections, all campus=Tampa, across 10 courses** — ACG 2021 (17), ACG 2071
-  (15), AMH 2020 (19), ANT 2000 (5), BSC 1005 (2), ECO 2013 (3), ENC 1101 (41), MAC 1105 (5),
-  MAC 2311 (15), PSY 2012 (10). 132 seat snapshots. **0 non-Tampa rows.**
-- **179 `GradeDistribution` rows across all 10 courses (Fall 2024), totaling 7,544 raw grades;
-  0 syllabi.** Every one of the 132 live sections has course-backed history (`effective_n > 0`,
-  `score_source=course`). Each per-course database raw total exactly matches its authenticated
-  InfoCenter source aggregate. Spring 2027 quality CLI: 0 errors, 0 warnings, 0 info findings.
-- `config/course_targets.toml` lists only 5 courses while the DB has 10 — config and stored data
-  are out of sync (reconcile during MVP1-P3).
+- Term 202701 (as of 2026-09-22, Phase 06 full ingest): **3,783 sections, all campus=Tampa, across
+  1,402 courses / 212 subjects. 0 non-Tampa rows. Quality: 0 errors.** (Was 132 sections / 10 courses
+  before Phase 06.)
+- **179 `GradeDistribution` rows, unchanged — only the 10 pilot courses carry sourced Fall-2024
+  history** (`effective_n > 0`, `score_source=course`). Every one of the ~1,392 newly ingested
+  courses is the honest `effective_n=0` / `score_source=global` state (D-20) — NOT course history.
+  Scaling grade coverage to the rest of Tampa is a separate future effort (bounded per-course SGDIS
+  imports, mirroring Phase 05), not MVP1-P3 scope.
+- `config/course_targets.toml` reconciled during Phase 06-01: now the full git-tracked 1,402-course
+  Tampa list (was 5), generated reproducibly from `courses.csv` via `scripts/generate_tampa_targets.py`.
 
 **Full Tampa universe (for MVP-1 sizing)**
 
@@ -63,24 +65,29 @@ All ~3,782 USF Tampa Spring 2027 sections ingested + searchable against hosted S
 historical grade distributions imported and easiness computed from that real data, search
 p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`. RMP links = MVP 2.
 
+## Current Position
+
+Current Plan: 3
+Total Plans in Phase: 3
+
 ## Next action
 
-**Phase 05 is complete and human-approved.** Ten bounded authenticated InfoCenter SGDIS reports
-for Tampa, Fall 2024, produced 179 aggregate rows totaling 7,544 grades. Every per-course hosted
-database raw total matches its source report; all 132 live sections report `effective_n > 0` /
-`score_source=course` after the separate 202701 cache rebuild. Quality is 0/0/0, idempotency was
-proved by repeat import, and no raw workbook is tracked.
+**Phase 06 (MVP1-P3) is complete (3/3 plans).** The full Tampa Spring 2027 universe is ingested and
+validated against live hosted Supabase: **212 subjects / 1,402 courses / 3,783 sections, 0 non-Tampa
+rows, 0 quality errors.** The scale validator (`scripts/validate_tampa_ingest.py`) passes all three
+checks — suffix-exact (all 33 base/suffix pairs), reconciliation (3,783 = coverage_metadata sum =
+rankings-search total), and honest-coverage (D-20). REQ-COVERAGE-03 marked complete. Full suite:
+295 passed, 3 skipped.
 
-**2/2 plans complete** in Phase 05. **Do next: plan/execute Phase 06 (MVP1-P3) to expand from the
-10-course pilot to the full Tampa Spring 2027 universe, preserving the same honest grade-coverage
-contract for every newly added course.**
+**Do next: Phase 07 (MVP1-P4)** — full-scale cache build + tune search to p95 < ~1.5s on Supabase.
+Fold in the deferred perf fix from Phase 06: `get_course_historical_outcome_stats` recomputes the
+global/subject grade aggregate per course (~5 round-trips/course); batching/hoisting it speeds both
+the whole-term quality/ranking rebuild and search.
 
-Remaining build steps, in order (see ROADMAP MVP1-P2..P5):
+Remaining build steps (see ROADMAP MVP1-P4..P5):
 
-1. **MVP1-P3** — all-Tampa section ingestion (10 → ~3,782); resolve the CHM 2045/2045L suffix-guard
-   blocker (33 base courses have suffix variants); reconcile config vs stored data.
-2. **MVP1-P4** — full-scale cache build + tune search to p95 < ~1.5s on Supabase.
-3. **MVP1-P5** — end-to-end MVP-1 verification.
+1. **MVP1-P4** — full-scale cache build + tune search to p95 < ~1.5s on Supabase.
+2. **MVP1-P5** — end-to-end MVP-1 verification.
 
 ## History
 
@@ -102,15 +109,17 @@ are in `.planning/ARCHIVE.md`. They describe the earlier local beta DB and are n
 
 ## Still open
 
-- **Historical coverage must scale with Phase 06** — the current 10-course pilot is fully backed by
-  real Fall 2024 aggregates, but every newly ingested Tampa course must receive sourced history or
-  remain an explicit `effective_n=0` / `score_source=global` state.
+- **Grade-history coverage for the new courses (separate future effort)** — Phase 06 ingested the
+  full section universe; the ~1,392 newly added courses are correctly the honest `effective_n=0` /
+  `score_source=global` state (validated). Giving them sourced history is a bounded per-course SGDIS
+  import effort (mirroring Phase 05), NOT part of MVP1-P3, and not yet scheduled.
 - **Blank grade-cell / suppression semantics (OQ-04)** — the upstream meaning of a blank InfoCenter
   cell is still genuinely unknown. MVP1-P1 (04-02, 2026-09-21) made the parser fail closed on any
   blank canonical count instead of silently coercing to `0`; that is a safety policy, not a
   resolution of OQ-04. Needs a real/sample InfoCenter export.
-- **Suffix-course query guard** — USF's CHM 2045 query also returns CHM 2045L; the exact-course
-  guard rejects it. 33 base courses have suffix variants; resolve before scaling (do not weaken it).
+- ~~**Suffix-course query guard**~~ **RESOLVED (Phase 06)** — the merged `_retain_exact_course_rows`
+  guard held across all 33 base/suffix pairs at full scale; `assert_suffix_exact_ingest` confirms no
+  L-variant leakage. Guard code unchanged.
 - **Search p95 at full scale** — ~2.40s on Supabase at 3,782 sections; must reach < ~1.5s for MVP 1.
 - **Deployment host and domain** not yet supplied.
 
@@ -121,12 +130,16 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Phase 05 complete and verified; ready for Phase 06
+**Stopped at:** Phase 06 (MVP1-P3) complete — REQ-COVERAGE-03 proven at scale against live hosted Supabase
 **Resume file:** None
 
-Last session: 2026-09-21. Plan `05-02` scaled the tracer workflow across all 10 pilot courses.
-The operator approved the complete record and exact raw-total matches. Next action: begin Phase 06
-all-Tampa ingestion planning/execution; do not push this Phase 05 completion commit unless asked.
+Last session: 2026-09-22. Phase 06 executed end-to-end: tracer (CHM) → full ingestion (212 subjects
+/ 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
+pass). The operator authorized the live run and it completed. Two operational fixes landed in the
+orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
+per-subject whole-term quality scan to one final pass (O(n²)→O(n)); `coverage.py`/`target_cli.py`
+guards untouched. Deferred to Phase 07: batch/hoist the per-course grade aggregate. Next action:
+Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 
 ## Performance Metrics
 
@@ -140,6 +153,8 @@ all-Tampa ingestion planning/execution; do not push this Phase 05 completion com
 | Phase 04 P02 | 15min | 2 tasks | 4 files |
 | Phase 05 P01 | 54min | 3 tasks | 3 files |
 | Phase 05 P02 | 55min | 3 tasks | 2 files |
+| Phase 06 P01 | 30min | 2 tasks | 8 files |
+| Phase 06 P03 | 75min | 3 tasks | 2 files |
 
 ## Decisions
 
@@ -149,3 +164,8 @@ all-Tampa ingestion planning/execution; do not push this Phase 05 completion com
 - [Phase 05-01]: Advanced hosted Supabase from migration 0002 to checked-in migration 0003 after the tracer exposed the missing section_rankings table.
 - [Phase 05-02]: Used one exact-course Fall 2024 Tampa report per course, imported each historically, then rebuilt the 202701 cache once after all imports.
 - [Phase 05-02]: No observed real export contained a blank canonical count, so OQ-04 remains open and the fail-closed parser was left unchanged.
+- [Phase 6]: [Phase 06-01]: Reconciled config/course_targets.toml to the full ~1,402-entry generated list (locked decision 1); CHM ingested end-to-end (23 courses/295 sections) against hosted Supabase with 0 quality errors, proving the suffix guard, Tampa scope guard, and D-20 honest-coverage contract at scale.
+- [Phase 6]: [Phase 06-01]: Fixed src/easy_a/refresh/cleanup.py's _target_filter (OR-of-AND -> composite tuple_(...).in_(...)) after the full-scale config tripped SQLite's expression-tree depth limit in an existing test; coverage.py/targets.py/target_cli.py remained unmodified throughout.
+- [Phase 06]: [Phase 06-02]: Built scripts/refresh_all_tampa.py as a resumable, paced per-subject orchestrator that shells out to the unmodified refresh_course_coverage.py once per subject (own process/transaction each), records completed subjects to a progress file for resume, and continues past a failed subject rather than aborting; coverage.py/target_cli.py remain unmodified. Halted at the plan's blocking-human checkpoint before the ~2,800-request live USF run.
+- [Phase 6]: [Phase 06-03]: validate_tampa_ingest.py's suffix-leak signal is a suffix course ingested but owning 0 stored sections (not a Section-Course join mismatch, which the FK guarantees can't happen); real proof against the live DB found no leak across all 33 pairs.
+- [Phase 6]: [Phase 06-03]: gsd tdd-red-evidence is Node-TAP-specific and cannot classify pytest output (always zero_tests_discovered); workflow.tdd_mode is false for this project so the automated gate isn't enforced -- RED/GREEN was verified directly via pytest's own per-test evidence instead.

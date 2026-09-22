@@ -159,7 +159,7 @@ Kept for traceability. Verified present in code at `62fb2f1`.
 
 ## MVP 1 — full Tampa coverage + historical grades
 
-- [ ] **REQ-COVERAGE-03**: All ~3,782 USF Tampa Spring 2027 sections are ingested and searchable.
+- [x] **REQ-COVERAGE-03**: All ~3,782 USF Tampa Spring 2027 sections are ingested and searchable.
   *Context*: the current DB holds only 132 sections / 10 courses, and there is **no "all Tampa"
   ingest path** yet — ingestion is target-driven off `config/course_targets.toml`.
   *Acceptance*: catalog + schedule ingestion covers the full Tampa Spring 2027 set; the

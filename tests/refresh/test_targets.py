@@ -12,13 +12,49 @@ from easy_a.models import GradeDistribution, SeatSnapshot, Section
 from easy_a.quality.checks import run_quality_checks
 from easy_a.rankings import rank_section
 from easy_a.refresh.coverage import coverage_metadata, refresh_targets
-from easy_a.refresh.targets import CourseTarget, load_targets
+from easy_a.refresh.targets import CourseTarget, CourseTargets, load_targets
 from easy_a.schedule.client import ScheduleSearchQuery
 from easy_a.schedule.freshness import classify_observation, snapshot_freshness
 from tests.rankings.test_service import _add_grade, _add_syllabus
 
 NOW = datetime(2026, 9, 8, tzinfo=UTC)
 FIXTURES = Path(__file__).parents[1] / "fixtures"
+PILOT_CATALOG_URL_TEMPLATE = (
+    "https://cloud.usf.edu/academic-programs/details/prefix/{subject}/code/{number}"
+)
+
+
+def _pilot_config() -> CourseTargets:
+    """The original 5-course pilot set, isolated from the full ~1,402-entry default config
+    that config/course_targets.toml now holds (Phase 06 / MVP1-P3)."""
+    return CourseTargets(
+        catalog_edition="2026-2027",
+        catalog_url_template=PILOT_CATALOG_URL_TEMPLATE,
+        targets=(
+            CourseTarget(subject="MAC", number="1105"),
+            CourseTarget(subject="ENC", number="1101"),
+            CourseTarget(subject="AMH", number="2020"),
+            CourseTarget(subject="PSY", number="2012"),
+            CourseTarget(subject="BSC", number="1005"),
+        ),
+    )
+
+
+def _write_pilot_targets_file(tmp_path: Path) -> Path:
+    """Serialize _pilot_config() to a temp TOML file for CLI-driven tests via --targets."""
+    path = tmp_path / "pilot_targets.toml"
+    lines = [
+        'catalog_edition = "2026-2027"',
+        f'catalog_url_template = "{PILOT_CATALOG_URL_TEMPLATE}"',
+        "",
+    ]
+    for target in _pilot_config().targets:
+        lines.append("[[targets]]")
+        lines.append(f'subject = "{target.subject}"')
+        lines.append(f'number = "{target.number}"')
+    lines.append("")
+    path.write_text("\n".join(lines), encoding="utf-8")
+    return path
 
 
 def schedule(query: ScheduleSearchQuery) -> str:
@@ -38,7 +74,9 @@ def schedule(query: ScheduleSearchQuery) -> str:
 
 def test_config_parsing_and_filters(tmp_path: Path) -> None:
     config = load_targets()
-    assert len(config.targets) == 5
+    # config/course_targets.toml now holds the full generated Tampa universe (Phase 06 /
+    # MVP1-P3), not the original 5-course pilot set.
+    assert len(config.targets) >= 1400
     assert config.select("mac", "1105") == (CourseTarget(subject="MAC", number="1105"),)
     for subject, course in [(None, "1105"), ("XXX", None)]:
         with pytest.raises(ValueError):
@@ -54,7 +92,7 @@ def test_config_parsing_and_filters(tmp_path: Path) -> None:
 
 
 def test_multiple_coverage_refresh_and_missing(db_session: Session) -> None:
-    config = load_targets()
+    config = _pilot_config()
     queried = []
 
     def search(query: ScheduleSearchQuery) -> str:
@@ -72,7 +110,7 @@ def test_multiple_coverage_refresh_and_missing(db_session: Session) -> None:
 
 
 def test_catalog_refresh_creates_required_metadata(db_session: Session) -> None:
-    config = load_targets()
+    config = _pilot_config()
 
     def catalog(url: str) -> str:
         assert "/prefix/PSY/code/2012" in url
@@ -223,7 +261,7 @@ def test_unavailable_and_custom_thresholds() -> None:
 
 
 def test_multiple_catalog_targets(db_session: Session) -> None:
-    config = load_targets().model_copy(update={"targets": load_targets().targets[:2]})
+    config = _pilot_config().model_copy(update={"targets": _pilot_config().targets[:2]})
     urls = []
 
     def catalog(url: str) -> str:
@@ -248,12 +286,14 @@ def test_cli_one_pass_and_empty_warning(
     db_session: Session,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
 ) -> None:
     from sqlalchemy.orm import sessionmaker
 
     from easy_a.refresh.target_cli import main
 
     calls = []
+    targets_path = _write_pilot_targets_file(tmp_path)
 
     def search(self: object, query: ScheduleSearchQuery) -> str:
         calls.append(query)
@@ -264,14 +304,28 @@ def test_cli_one_pass_and_empty_warning(
         lambda: sessionmaker(bind=db_session.get_bind()),
     )
     monkeypatch.setattr("easy_a.schedule.client.StaffScheduleClient.search", search)
-    assert main(["--term", "202701", "--subject", "MAC", "--course", "1105"]) == 0
+    assert (
+        main(
+            [
+                "--term",
+                "202701",
+                "--targets",
+                str(targets_path),
+                "--subject",
+                "MAC",
+                "--course",
+                "1105",
+            ]
+        )
+        == 0
+    )
     assert len(calls) == 1
     assert "Sections: 2" in capsys.readouterr().out
     monkeypatch.setattr(
         "easy_a.schedule.client.StaffScheduleClient.search",
         lambda self, query: (FIXTURES / "schedule_not_found.html").read_text(),
     )
-    assert main(["--term", "202701", "--subject", "MAC"]) == 0
+    assert main(["--term", "202701", "--targets", str(targets_path), "--subject", "MAC"]) == 0
     output = capsys.readouterr().out
     assert "Missing targets: 1" in output
     assert "target_missing_refresh" in output
@@ -306,6 +360,7 @@ def test_refresh_cli_explicit_quality_scope(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     coverage: bool,
+    tmp_path: Path,
 ) -> None:
     from functools import partial
 
@@ -313,7 +368,8 @@ def test_refresh_cli_explicit_quality_scope(
 
     from easy_a.refresh.target_cli import main
 
-    config = load_targets()
+    targets_path = _write_pilot_targets_file(tmp_path)
+    config = _pilot_config()
     refresh_targets(
         db_session,
         term="202701",
@@ -340,7 +396,7 @@ def test_refresh_cli_explicit_quality_scope(
     monkeypatch.setattr(
         "easy_a.refresh.target_cli.refresh_targets", partial(refresh_targets, catalog_fetch=catalog)
     )
-    assert main(["--term", "202701"], coverage=coverage) == 0
+    assert main(["--term", "202701", "--targets", str(targets_path)], coverage=coverage) == 0
     output = capsys.readouterr().out
     assert "Missing targets: 5" in output
     assert "warning: target_missing_sections:" in output
