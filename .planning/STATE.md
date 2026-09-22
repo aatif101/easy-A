@@ -1,20 +1,20 @@
 ---
-gsd_state_version: "1.0"
-current_plan: 3
+gsd_state_version: 1.0
+current_plan: 0
 status: ready
-stopped_at: Completed 06-03-PLAN.md -- REQ-COVERAGE-03 proven at scale against live hosted Supabase; Phase 06 (MVP1-P3) complete
-last_updated: "2026-09-22T09:16:59.935Z"
-state_head: 95d57e43905784b20542a3ef9c0e4ad03eff3e0d
+stopped_at: Phase 07 planned (3 plans, 3 waves); ready for 07-01 execution
+last_updated: "2026-09-22T19:51:14.904Z"
+state_head: 4305b82f3be40fa9eb64a6fcabf8f8cfefc7b3cf
 progress:
   total_phases: 10
   completed_phases: 5
-  total_plans: 12
+  total_plans: 15
   completed_plans: 12
   percent: 50
-last_activity: 2026-09-21
-current_phase: 6
-current_phase_name: MVP1-P3 — All-Tampa section ingestion
-last_activity_desc: Phase 05 complete and operator-approved; all 10 pilot courses now have reconciled Fall 2024 history and course-backed live rankings
+last_activity: 2026-09-22
+current_phase_name: MVP1-P4 — Full-scale cache build + search performance (p95 < ~1.5s)
+current_phase: 7
+last_activity_desc: Phase 07 research and three-wave plan verified; execution begins with live read-only HTTP baseline
 ---
 
 # Project State
@@ -27,21 +27,21 @@ lives in `ARCHIVE.md`.
 
 **Repo / git**
 
-- `origin/main` = `d556c2822f7a7dd8d0d450cf543c4eb1c8fb55f7` (verified by fetch).
-  Phase 5 planning tip `origin/dev1/tampa-coverage-pilot` =
-  `8893b9b178df005b7f4a30e4a1fa84c7b6f961c4`. Checkpoint branch:
-  `codex/phase5-1-tracer-checkpoint`, based directly on that planning tip.
+- `origin/main` = `bba84b27f70889b9494e98d2c144c19a7f9cabca` (verified by fetch on
+  2026-09-22). Phase 07 planning branch: `codex/phase7-plan`, descended from that tip.
 
 **Database (hosted Supabase — the only live DB now; the old local beta DB is history in `ARCHIVE.md`)**
 
 - Term 202701 (as of 2026-09-22, Phase 06 full ingest): **3,783 sections, all campus=Tampa, across
   1,402 courses / 212 subjects. 0 non-Tampa rows. Quality: 0 errors.** (Was 132 sections / 10 courses
   before Phase 06.)
+
 - **179 `GradeDistribution` rows, unchanged — only the 10 pilot courses carry sourced Fall-2024
   history** (`effective_n > 0`, `score_source=course`). Every one of the ~1,392 newly ingested
   courses is the honest `effective_n=0` / `score_source=global` state (D-20) — NOT course history.
   Scaling grade coverage to the rest of Tampa is a separate future effort (bounded per-course SGDIS
   imports, mirroring Phase 05), not MVP1-P3 scope.
+
 - `config/course_targets.toml` reconciled during Phase 06-01: now the full git-tracked 1,402-course
   Tampa list (was 5), generated reproducibly from `courses.csv` via `scripts/generate_tampa_targets.py`.
 
@@ -55,6 +55,7 @@ lives in `ARCHIVE.md`.
 - SQL search rewrite, `section_rankings` cache, cleanup cascade, and benchmark all shipped (5/5).
   Circular import that blocked `check_data_quality.py` fixed (`2bb984a`). Postgres suite 256
   passed; quality 0 errors.
+
 - Performance goal **not met**: p95 ~**2.40s** at a 3,782-section synthetic fixture over Supabase,
   above the ~1.5s target. Accepted deviation (`WINDOWS.md`); folded into MVP-1 as blocking phase
   MVP1-P4 (since MVP 1 targets Supabase, not local).
@@ -67,7 +68,7 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: 3
+Current Plan: 0
 Total Plans in Phase: 3
 
 ## Next action
@@ -79,10 +80,12 @@ checks — suffix-exact (all 33 base/suffix pairs), reconciliation (3,783 = cove
 rankings-search total), and honest-coverage (D-20). REQ-COVERAGE-03 marked complete. Full suite:
 295 passed, 3 skipped.
 
-**Do next: Phase 07 (MVP1-P4)** — full-scale cache build + tune search to p95 < ~1.5s on Supabase.
-Fold in the deferred perf fix from Phase 06: `get_course_historical_outcome_stats` recomputes the
-global/subject grade aggregate per course (~5 round-trips/course); batching/hoisting it speeds both
-the whole-term quality/ranking rebuild and search.
+**Do next: execute Phase 07 (MVP1-P4)** — three plans in three waves. Plan 01 establishes a
+read-only HTTP search and whole-term cache-build baseline against the live hosted term; Plan 02
+batches repeated grade evidence while preserving score parity; Plan 03 tunes only measured search
+bottlenecks and records the hosted HTTP p95 acceptance result. The Phase 07 research, validation
+strategy, pattern map, and plans are in `.planning/phases/07-mvp1-p4-full-scale-cache-build-search-performance-p95-1-5s/`.
+No new Phase 07 latency result has been measured yet.
 
 Remaining build steps (see ROADMAP MVP1-P4..P5):
 
@@ -104,6 +107,7 @@ are in `.planning/ARCHIVE.md`. They describe the earlier local beta DB and are n
 - D-10: verify `origin/main` by fetch; do not check out/merge an unverified local `main`
 - Note: the D-18 "broader launch coverage is deferred" decision is **superseded** — full Tampa
   breadth is now the MVP-1 goal (see PROJECT.md). Email alerts (D-16) and RMP (D-17, = MVP 2) stay deferred.
+
 - Phase 03.5: cache non-seat ranking fields and hydrate live seats at read time; whole-term cache
   rebuild wrapped into `refresh_data`; cleanup cascade covers `section_rankings`.
 
@@ -113,13 +117,16 @@ are in `.planning/ARCHIVE.md`. They describe the earlier local beta DB and are n
   full section universe; the ~1,392 newly added courses are correctly the honest `effective_n=0` /
   `score_source=global` state (validated). Giving them sourced history is a bounded per-course SGDIS
   import effort (mirroring Phase 05), NOT part of MVP1-P3, and not yet scheduled.
+
 - **Blank grade-cell / suppression semantics (OQ-04)** — the upstream meaning of a blank InfoCenter
   cell is still genuinely unknown. MVP1-P1 (04-02, 2026-09-21) made the parser fail closed on any
   blank canonical count instead of silently coercing to `0`; that is a safety policy, not a
   resolution of OQ-04. Needs a real/sample InfoCenter export.
+
 - ~~**Suffix-course query guard**~~ **RESOLVED (Phase 06)** — the merged `_retain_exact_course_rows`
   guard held across all 33 base/suffix pairs at full scale; `assert_suffix_exact_ingest` confirms no
   L-variant leakage. Guard code unchanged.
+
 - **Search p95 at full scale** — ~2.40s on Supabase at 3,782 sections; must reach < ~1.5s for MVP 1.
 - **Deployment host and domain** not yet supplied.
 

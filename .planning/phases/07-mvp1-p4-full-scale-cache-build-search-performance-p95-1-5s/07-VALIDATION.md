@@ -9,7 +9,7 @@ created: 2026-09-22
 
 # Phase 7 — Validation Strategy
 
-> Per-phase validation contract for REQ-PERF-01. Update the task map after plans are final.
+> Per-phase validation contract for REQ-PERF-01 and the three verified plans.
 
 ## Test Infrastructure
 
@@ -30,14 +30,14 @@ created: 2026-09-22
 
 ## Per-Task Verification Map
 
-The planner will assign task IDs and automated commands. Every cache or search behavior change must have a targeted parity/regression check. The final performance task requires a dated live measurement.
-
-| Behavior | Requirement | Test or evidence |
-|----------|-------------|------------------|
-| Batched cache build preserves every non-seat ranking field, fallback source, confidence, and provenance | REQ-PERF-01 | `tests/rankings/test_cache_parity.py` and PostgreSQL integration path |
-| SQL count, filters, sorts, ties, pagination, and live seats preserve the API contract | REQ-PERF-01 | `tests/api/test_rankings_search_sql.py` |
-| Benchmark labels the resolved engine target and never prints credentials | REQ-PERF-01 | Focused benchmark unit tests and smoke run |
-| Hosted search p95 is below 1.5 seconds over the full live Tampa term | REQ-PERF-01 | Dated read-only Supabase benchmark report with 3,783-section dataset, query mix, p50/p95/max, and environment |
+| Task | Wave | Requirement | Test or evidence |
+|------|------|-------------|------------------|
+| 07-01-01 — live benchmark tracer | 1 | REQ-PERF-01 | `uv run pytest tests/api/test_benchmark_rankings_search.py tests/api/test_rankings_search_sql.py -q` |
+| 07-01-02 — full-scale baseline | 1 | REQ-PERF-01 | `uv run python scripts/benchmark_rankings_search.py --live --http-base-url http://127.0.0.1:8000 --term 202701 --iterations 50`; dated baseline report |
+| 07-02-01 — batched historical evidence | 2 | REQ-PERF-01 | `uv run pytest tests/analytics/test_queries.py -q` |
+| 07-02-02 — full-term cache and quality paths | 2 | REQ-PERF-01 | `uv run pytest tests/rankings/test_cache_parity.py tests/refresh/test_rankings_cache_refresh.py tests/analytics/test_queries.py -q` |
+| 07-03-01 — measured search query tuning | 3 | REQ-PERF-01 | `uv run pytest tests/api/test_rankings_search_sql.py tests/rankings/test_cache_parity.py -q` |
+| 07-03-02 — index decision and hosted p95 gate | 3 | REQ-PERF-01 | Full suite, live loopback HTTP benchmark, Phase 6 scale validator, and dated 07-PERF-REPORT.md |
 
 ## Wave 0 Requirements
 
@@ -49,7 +49,7 @@ The planner will assign task IDs and automated commands. Every cache or search b
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| Full-scale hosted latency | REQ-PERF-01 | Requires reachable hosted Supabase and its real live data. | Run the read-only benchmark against the resolved hosted engine, record dated 3,783-section environment and p95, and check it is below 1.5 seconds. |
+| Full-scale hosted latency | REQ-PERF-01 | Requires reachable hosted Supabase and its real live data. | Run the read-only loopback HTTP benchmark against the hosted engine, record dated actual section count and p95 from at least 50 measured complete responses, and check it is below 1.5 seconds. |
 | Query plan diagnosis | REQ-PERF-01 | Plans depend on live PostgreSQL statistics. | Run `EXPLAIN (ANALYZE, BUFFERS)` for the representative count and page statements before and after tuning; redact credentials and raw grade rows. |
 
 ## Validation Sign-Off

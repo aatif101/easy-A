@@ -415,6 +415,19 @@ Phase 3.5's open performance goal.
 
 **Requirements**: REQ-PERF-01
 
+**Plans:** 3 planned (Wave 1 → Wave 2 → Wave 3)
+**Wave 1**
+
+- [ ] 07-01-PLAN.md — Tracer: read-only live HTTP benchmark, resolved-engine label, and full-scale baseline
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 07-02-PLAN.md — Batch historical evidence for cache and quality rebuilds with exact score/fallback parity
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 07-03-PLAN.md — Tune measured search bottlenecks and indexes; verify hosted HTTP p95 < 1.5s
+
 ---
 
 ## Phase 8: MVP1-P5 — End-to-end MVP-1 verification
@@ -512,8 +525,8 @@ rewrite is planned or approved.
 | 3.5 — Ranking search performance | ◐ Delivered; perf goal folded into Phase 7 | — |
 | 4 — MVP1-P1 grade→course attribution | Complete    | 100% |
 | 5 — MVP1-P2 grade sourcing + import | Complete | 100% |
-| 6 — MVP1-P3 all-Tampa ingestion | In Progress| 0% |
-| 7 — MVP1-P4 full-scale perf (p95 < 1.5s) | ○ MVP 1 | 0% |
+| 6 — MVP1-P3 all-Tampa ingestion | ✓ Complete | 100% |
+| 7 — MVP1-P4 full-scale perf (p95 < 1.5s) | Planned | 0% |
 | 8 — MVP1-P5 MVP-1 verification | ○ MVP 1 | 0% |
 | 9 — Hosted beta | ○ After MVP 1 | 0% |
 
@@ -530,7 +543,7 @@ rewrite is planned or approved.
 | REQ-TEST-01 | Sprint 5 | ◐ Partial — PostgreSQL integration exists, skips without config |
 | REQ-COVERAGE-02 | 1 | ✓ Complete — search performance carved out to REQ-PERF-01 |
 | REQ-DATA-02 | 2 | ✓ Complete (PR #18 merged) |
-| REQ-COVERAGE-03 | 6 | ○ All-Tampa ingestion (MVP1-P3) |
+| REQ-COVERAGE-03 | 6 | ✓ Complete — live 3,783-section reconciliation and quality validation |
 | REQ-GRADES-01 | 4–5 | ✓ Complete for current 10-course coverage; Phase 6 must extend the same contract to newly ingested courses |
 | REQ-PERF-01 | 7 | ◐ SQL rewrite delivered; p95 < 1.5s at full scale remains (MVP1-P4) |
 | REQ-OPS-01 | 9 | ○ After MVP 1 |
