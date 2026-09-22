@@ -23,7 +23,7 @@ last_activity_desc: Phase 05 complete and operator-approved; all 10 pilot course
 rules live in `PROJECT.md` `<decisions>`; the phase sequence lives in `ROADMAP.md`; dated history
 lives in `ARCHIVE.md`.
 
-## Current state — as of 2026-09-21
+## Current state — as of 2026-09-22
 
 **Repo / git**
 
@@ -72,22 +72,22 @@ Total Plans in Phase: 3
 
 ## Next action
 
-**Phase 05 is complete and human-approved.** Ten bounded authenticated InfoCenter SGDIS reports
-for Tampa, Fall 2024, produced 179 aggregate rows totaling 7,544 grades. Every per-course hosted
-database raw total matches its source report; all 132 live sections report `effective_n > 0` /
-`score_source=course` after the separate 202701 cache rebuild. Quality is 0/0/0, idempotency was
-proved by repeat import, and no raw workbook is tracked.
+**Phase 06 (MVP1-P3) is complete (3/3 plans).** The full Tampa Spring 2027 universe is ingested and
+validated against live hosted Supabase: **212 subjects / 1,402 courses / 3,783 sections, 0 non-Tampa
+rows, 0 quality errors.** The scale validator (`scripts/validate_tampa_ingest.py`) passes all three
+checks — suffix-exact (all 33 base/suffix pairs), reconciliation (3,783 = coverage_metadata sum =
+rankings-search total), and honest-coverage (D-20). REQ-COVERAGE-03 marked complete. Full suite:
+295 passed, 3 skipped.
 
-**2/2 plans complete** in Phase 05. **Do next: plan/execute Phase 06 (MVP1-P3) to expand from the
-10-course pilot to the full Tampa Spring 2027 universe, preserving the same honest grade-coverage
-contract for every newly added course.**
+**Do next: Phase 07 (MVP1-P4)** — full-scale cache build + tune search to p95 < ~1.5s on Supabase.
+Fold in the deferred perf fix from Phase 06: `get_course_historical_outcome_stats` recomputes the
+global/subject grade aggregate per course (~5 round-trips/course); batching/hoisting it speeds both
+the whole-term quality/ranking rebuild and search.
 
-Remaining build steps, in order (see ROADMAP MVP1-P2..P5):
+Remaining build steps (see ROADMAP MVP1-P4..P5):
 
-1. **MVP1-P3** — all-Tampa section ingestion (10 → ~3,782); resolve the CHM 2045/2045L suffix-guard
-   blocker (33 base courses have suffix variants); reconcile config vs stored data.
-2. **MVP1-P4** — full-scale cache build + tune search to p95 < ~1.5s on Supabase.
-3. **MVP1-P5** — end-to-end MVP-1 verification.
+1. **MVP1-P4** — full-scale cache build + tune search to p95 < ~1.5s on Supabase.
+2. **MVP1-P5** — end-to-end MVP-1 verification.
 
 ## History
 
@@ -109,15 +109,17 @@ are in `.planning/ARCHIVE.md`. They describe the earlier local beta DB and are n
 
 ## Still open
 
-- **Historical coverage must scale with Phase 06** — the current 10-course pilot is fully backed by
-  real Fall 2024 aggregates, but every newly ingested Tampa course must receive sourced history or
-  remain an explicit `effective_n=0` / `score_source=global` state.
+- **Grade-history coverage for the new courses (separate future effort)** — Phase 06 ingested the
+  full section universe; the ~1,392 newly added courses are correctly the honest `effective_n=0` /
+  `score_source=global` state (validated). Giving them sourced history is a bounded per-course SGDIS
+  import effort (mirroring Phase 05), NOT part of MVP1-P3, and not yet scheduled.
 - **Blank grade-cell / suppression semantics (OQ-04)** — the upstream meaning of a blank InfoCenter
   cell is still genuinely unknown. MVP1-P1 (04-02, 2026-09-21) made the parser fail closed on any
   blank canonical count instead of silently coercing to `0`; that is a safety policy, not a
   resolution of OQ-04. Needs a real/sample InfoCenter export.
-- **Suffix-course query guard** — USF's CHM 2045 query also returns CHM 2045L; the exact-course
-  guard rejects it. 33 base courses have suffix variants; resolve before scaling (do not weaken it).
+- ~~**Suffix-course query guard**~~ **RESOLVED (Phase 06)** — the merged `_retain_exact_course_rows`
+  guard held across all 33 base/suffix pairs at full scale; `assert_suffix_exact_ingest` confirms no
+  L-variant leakage. Guard code unchanged.
 - **Search p95 at full scale** — ~2.40s on Supabase at 3,782 sections; must reach < ~1.5s for MVP 1.
 - **Deployment host and domain** not yet supplied.
 
@@ -128,15 +130,16 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Completed 06-03-PLAN.md -- REQ-COVERAGE-03 proven at scale against live hosted Supabase; Phase 06 (MVP1-P3) complete
+**Stopped at:** Phase 06 (MVP1-P3) complete — REQ-COVERAGE-03 proven at scale against live hosted Supabase
 **Resume file:** None
 
-Last session: 2026-09-22T09:16:59.891Z
-06-02 Task 1 (resumable, paced orchestrator + unit test + runbook) is committed and verified. The
-plan is intentionally halted at Task 2 — a `gate="blocking-human"` checkpoint — before Task 3 (the
-~2,800-request live USF ingestion). Next action: the operator must review
-`docs/runbooks/all-tampa-ingestion.md` and confirm courses.csv freshness + pacing, then explicitly
-authorize the live run before any executor proceeds to Task 3.
+Last session: 2026-09-22. Phase 06 executed end-to-end: tracer (CHM) → full ingestion (212 subjects
+/ 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
+pass). The operator authorized the live run and it completed. Two operational fixes landed in the
+orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
+per-subject whole-term quality scan to one final pass (O(n²)→O(n)); `coverage.py`/`target_cli.py`
+guards untouched. Deferred to Phase 07: batch/hoist the per-course grade aggregate. Next action:
+Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 
 ## Performance Metrics
 
