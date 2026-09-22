@@ -22,23 +22,27 @@ a transaction-pooler boolean are reported.
 from __future__ import annotations
 
 import argparse
+import ipaddress
+import json
 import math
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from urllib.parse import urlsplit
 from uuid import uuid4
 
-from sqlalchemy import create_engine, text
+import httpx
+from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import Session
 
 from easy_a.api.routes.rankings import search_rankings
-from easy_a.api.schemas import RankingSort
+from easy_a.api.schemas import RankingSort, RankingsSearchResponse
 from easy_a.common.terms import TermParseError, normalize_banner_term_code
-from easy_a.db import Base, get_engine, is_transaction_pooler
+from easy_a.db import Base, get_engine
 from easy_a.models import Course, GradeDistribution, SeatSnapshot, Section, SectionInstructor, Term
-from easy_a.rankings.cache import refresh_section_rankings
+from easy_a.rankings.cache import SectionRankingCache, refresh_section_rankings
 
 DEFAULT_TERM = "202701"
 DEFAULT_ITERATIONS = 50
@@ -124,11 +128,39 @@ def build_parser() -> argparse.ArgumentParser:
             "no network access."
         ),
     )
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help="Read-only stored-term measurement; no synthetic fixture.",
+    )
+    parser.add_argument(
+        "--http-base-url", help="Loopback API served with the same DATABASE_URL as this process."
+    )
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if args.iterations > 10000:
+        parser.error("iterations must not exceed 10000")
+    if args.live and (args.smoke or args.iterations < 50):
+        parser.error("--live requires at least 50 iterations and cannot use --smoke")
+    if args.http_base_url and not args.live:
+        parser.error("--http-base-url requires --live")
+    if args.http_base_url:
+        try:
+            args.http_base_url = _http_base_url(args.http_base_url)
+        except ValueError:
+            parser.error("HTTP target must be a plain loopback origin")
+    if args.live:
+        _run_live(
+            term=args.term,
+            iterations=args.iterations,
+            url=args.url,
+            http_base_url=args.http_base_url,
+        )
+        return 0
     if args.smoke:
         _run_smoke(term=args.term, iterations=args.iterations, sections=args.sections)
         return 0
@@ -139,6 +171,136 @@ def main(argv: Sequence[str] | None = None) -> int:
         url=args.url,
     )
     return 0
+
+
+def _http_base_url(value: str) -> str:
+    parsed = urlsplit(value)
+    host = parsed.hostname
+    try:
+        loopback = host == "localhost" or ipaddress.ip_address(host or "").is_loopback
+        _ = parsed.port  # Validate malformed ports without printing the supplied URL.
+    except ValueError:
+        loopback = False
+    if (
+        parsed.scheme != "http"
+        or not loopback
+        or parsed.username
+        or parsed.password
+        or parsed.path not in ("", "/")
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError("HTTP target must be a plain loopback origin")
+    return value.rstrip("/")
+
+
+def _query_params(term: str, query: _SearchQuery) -> dict:
+    return {
+        k: v
+        for k, v in {
+            "term": term,
+            "subject": query.subject,
+            "seats_open": query.seats_open,
+            "min_easiness": query.min_easiness,
+            "sort": query.sort.value,
+            "limit": query.limit,
+            "offset": query.offset,
+        }.items()
+        if v is not None
+    }
+
+
+def _http_search(
+    client: httpx.Client, base_url: str, term: str, query: _SearchQuery
+) -> RankingsSearchResponse:
+    response = client.get(base_url + "/api/v1/rankings/search", params=_query_params(term, query))
+    if response.status_code != 200:
+        raise ValueError(f"HTTP search failed with status {response.status_code}")
+    try:
+        result = RankingsSearchResponse.model_validate(response.json())
+    except ValueError:
+        raise ValueError("Invalid HTTP search response") from None
+    if (
+        result.limit != query.limit
+        or result.offset != query.offset
+        or result.total < 0
+        or len(result.items) > query.limit
+    ):
+        raise ValueError("HTTP search pagination mismatch")
+    return result
+
+
+def _run_live(*, term: str, iterations: int, url: str | None, http_base_url: str | None) -> None:
+    engine = get_engine(url) if url else get_engine()
+    try:
+        with (
+            Session(engine) as session,
+            httpx.Client(timeout=60, trust_env=False, follow_redirects=False) as client,
+        ):
+            if engine.dialect.name == "postgresql":
+                session.execute(text("SET TRANSACTION READ ONLY"))
+            stored = session.scalar(
+                select(func.count()).select_from(Section).join(Term).where(Term.banner_code == term)
+            )
+            cached = session.scalar(
+                select(func.count())
+                .select_from(SectionRankingCache)
+                .where(SectionRankingCache.term == term)
+            )
+            if not stored or cached != stored:
+                raise ValueError("Stored section and cache counts must be nonzero and equal")
+            queries = _representative_queries(iterations=iterations, subjects=list(SUBJECTS[:6]))
+            mode = (
+                "loopback HTTP request + body + JSON validation"
+                if http_base_url
+                else "in-process route diagnostic"
+            )
+            if http_base_url:
+                broad = _SearchQuery(None, False, None, RankingSort.course, 50, 0)
+                if _http_search(client, http_base_url, term, broad).total != stored:
+                    raise ValueError("HTTP total does not reconcile with stored term")
+            durations = []
+            for i, query in enumerate(queries[:5] + queries):
+                start = time.perf_counter()
+                if http_base_url:
+                    _http_search(client, http_base_url, term, query)
+                else:
+                    params = _query_params(term, query)
+                    params["sort"] = query.sort
+                    search_rankings(session=session, **params)
+                elapsed = time.perf_counter() - start
+                if i >= 5:
+                    durations.append(elapsed)
+            print(f"UTC: {datetime.now(UTC).isoformat()}; term={term}; warmup=5; mode={mode}")
+            _report(
+                durations=durations,
+                dataset_size=cached,
+                engine=engine,
+                url=None,
+                dataset="stored term",
+                mode=mode,
+            )
+            for query, duration in zip(queries, durations, strict=True):
+                print(
+                    json.dumps(
+                        {
+                            "query": _query_params(term, query),
+                            "elapsed_ms": round(duration * 1000, 3),
+                        }
+                    )
+                )
+            for sort in RankingSort:
+                values = sorted(
+                    d for q, d in zip(queries, durations, strict=True) if q.sort == sort
+                )
+                print(
+                    f"sort={sort.value} count={len(values)} "
+                    f"p50_ms={_percentile(values, 0.5) * 1000:.2f} "
+                    f"p95_ms={_percentile(values, 0.95) * 1000:.2f} "
+                    f"max_ms={max(values) * 1000:.2f}"
+                )
+    finally:
+        engine.dispose()
 
 
 def _run_smoke(*, term: str, iterations: int, sections: int) -> None:
@@ -158,9 +320,7 @@ def _run_smoke(*, term: str, iterations: int, sections: int) -> None:
         engine.dispose()
 
 
-def _run_against_postgres(
-    *, term: str, iterations: int, sections: int, url: str | None
-) -> None:
+def _run_against_postgres(*, term: str, iterations: int, sections: int, url: str | None) -> None:
     engine = get_engine(url) if url else get_engine()
     try:
         if engine.dialect.name != "postgresql":
@@ -370,9 +530,7 @@ def _seed_synthetic_dataset(
     return sections_created
 
 
-def _representative_queries(
-    *, iterations: int, subjects: list[str]
-) -> list[_SearchQuery]:
+def _representative_queries(*, iterations: int, subjects: list[str]) -> list[_SearchQuery]:
     sorts = list(RankingSort)
     queries: list[_SearchQuery] = []
     for i in range(iterations):
@@ -390,7 +548,13 @@ def _representative_queries(
 
 
 def _report(
-    *, durations: list[float], dataset_size: int, engine: Engine, url: str | None
+    *,
+    durations: list[float],
+    dataset_size: int,
+    engine: Engine,
+    url: str | None,
+    dataset: str = "synthetic test fixture",
+    mode: str = "in-process route diagnostic",
 ) -> None:
     if not durations:
         raise RuntimeError("No search iterations were measured.")
@@ -399,10 +563,15 @@ def _report(
     p95 = _percentile(sorted_durations, 0.95)
     p_max = sorted_durations[-1]
     dialect = engine.dialect.name
-    pooler = bool(url is not None and dialect == "postgresql" and is_transaction_pooler(url))
-    environment = _environment_label(dialect=dialect, url=url)
+    resolved = engine.url
+    pooler = dialect == "postgresql" and (
+        resolved.port == 6543 or "pooler.supabase.com" in (resolved.host or "")
+    )
+    environment = _environment_label(dialect=dialect, url=resolved).replace(
+        "synthetic test fixture", dataset
+    )
 
-    print(f"Dataset size: {dataset_size} sections (synthetic test fixture)")
+    print(f"Dataset size: {dataset_size} sections ({dataset}); mode={mode}")
     print(f"Environment: dialect={dialect}, pooler={pooler}, {environment}")
     print(f"Iterations: {len(durations)}")
     print(
@@ -421,14 +590,14 @@ def _report(
 
 def _environment_label(*, dialect: str, url: str | None) -> str:
     is_supabase = url is not None and (
-        is_transaction_pooler(url) or "supabase.com" in (make_url(url).host or "").lower()
+        (make_url(url).host or "").lower().endswith((".supabase.com", ".supabase.co"))
     )
     if dialect == "sqlite":
         target = "SQLite"
     elif is_supabase:
         target = "Supabase"
     elif dialect == "postgresql":
-        target = "local Postgres"
+        target = "Postgres (other host)"
     else:
         target = dialect
     return f"synthetic test fixture over {target}"
