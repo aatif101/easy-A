@@ -121,3 +121,14 @@ def test_cli_rejects_unbounded_iterations_and_incompatible_modes():
     ):
         with pytest.raises(SystemExit):
             benchmark.main(args)
+
+
+def test_live_failure_does_not_print_driver_secrets(monkeypatch, capsys):
+    def fail(**kwargs):
+        raise RuntimeError("postgres://secret_user:secret_password@private-host/db")
+
+    monkeypatch.setattr(benchmark, "_run_live", fail)
+    assert benchmark.main(["--live"]) == 1
+    output = capsys.readouterr()
+    assert "RuntimeError" in output.err
+    assert "secret" not in output.err and "private-host" not in output.err

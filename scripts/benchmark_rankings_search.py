@@ -1,4 +1,4 @@
-"""Benchmark GET /api/v1/rankings/search over a seeded synthetic dataset.
+"""Benchmark rankings search on stored data or a rolled-back synthetic fixture.
 
 This is a repeatable, offline-capable performance harness for REQ-PERF-01. It seeds a
 parameterized number of synthetic sections -- clearly labeled a test fixture -- and times
@@ -7,6 +7,8 @@ representative rankings-search queries against the rewritten cache-backed search
 every reported number.
 
 Two run modes:
+- ``--live``: read-only stored-term route diagnosis. Add ``--http-base-url`` for
+  loopback HTTP measurement against an API started with the same DATABASE_URL.
 - ``--smoke``: seeds a small dataset on in-memory SQLite. No network, no credentials, safe to
   run in CI as a self-verification of the harness itself.
 - default: seeds the requested dataset inside a throwaway PostgreSQL schema on a real
@@ -25,6 +27,7 @@ import argparse
 import ipaddress
 import json
 import math
+import sys
 import time
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -154,12 +157,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         except ValueError:
             parser.error("HTTP target must be a plain loopback origin")
     if args.live:
-        _run_live(
-            term=args.term,
-            iterations=args.iterations,
-            url=args.url,
-            http_base_url=args.http_base_url,
-        )
+        try:
+            _run_live(
+                term=args.term,
+                iterations=args.iterations,
+                url=args.url,
+                http_base_url=args.http_base_url,
+            )
+        except Exception as exc:
+            # Driver/HTTP exception strings can include connection targets and secrets.
+            print(
+                f"Live benchmark failed ({type(exc).__name__}); no result claimed.", file=sys.stderr
+            )
+            return 1
         return 0
     if args.smoke:
         _run_smoke(term=args.term, iterations=args.iterations, sections=args.sections)
@@ -232,6 +242,7 @@ def _http_search(
 
 def _run_live(*, term: str, iterations: int, url: str | None, http_base_url: str | None) -> None:
     engine = get_engine(url) if url else get_engine()
+    engine.echo = False
     try:
         with (
             Session(engine) as session,
