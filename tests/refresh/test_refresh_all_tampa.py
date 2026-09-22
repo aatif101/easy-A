@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -34,7 +35,9 @@ def test_invokes_refresh_course_coverage_once_per_subject_with_correct_args(
     progress_path = tmp_path / "progress.txt"
     calls: list[tuple[str, Path, str]] = []
 
-    def fake_run_subject(term: str, targets: Path, subject: str) -> int:
+    def fake_run_subject(
+        term: str, targets: Path, subject: str, *, timeout_seconds: float | None = None
+    ) -> int:
         calls.append((term, targets, subject))
         return 0
 
@@ -70,7 +73,9 @@ def test_run_subject_shells_out_to_refresh_course_coverage_with_correct_flags(
     class _FakeCompletedProcess:
         returncode = 0
 
-    def fake_run(cmd: list[str], *, check: bool) -> _FakeCompletedProcess:
+    def fake_run(
+        cmd: list[str], *, check: bool, timeout: float | None = None
+    ) -> _FakeCompletedProcess:
         captured_cmd.extend(cmd)
         captured_check.append(check)
         return _FakeCompletedProcess()
@@ -119,7 +124,9 @@ def test_progress_file_append_and_resume_skip(
     progress_path = tmp_path / "progress.txt"
     calls: list[str] = []
 
-    def fake_run_subject(term: str, targets: Path, subject: str) -> int:
+    def fake_run_subject(
+        term: str, targets: Path, subject: str, *, timeout_seconds: float | None = None
+    ) -> int:
         calls.append(subject)
         return 0
 
@@ -150,7 +157,9 @@ def test_failed_subject_is_recorded_and_run_continues_not_aborts(
     progress_path = tmp_path / "progress.txt"
     calls: list[str] = []
 
-    def fake_run_subject(term: str, targets: Path, subject: str) -> int:
+    def fake_run_subject(
+        term: str, targets: Path, subject: str, *, timeout_seconds: float | None = None
+    ) -> int:
         calls.append(subject)
         return 1 if subject == "MAC" else 0
 
@@ -174,7 +183,9 @@ def test_final_summary_reports_completed_skipped_and_failed_counts(
     progress_path = tmp_path / "progress.txt"
     progress_path.write_text("ENC\n", encoding="utf-8")
 
-    def fake_run_subject(term: str, targets: Path, subject: str) -> int:
+    def fake_run_subject(
+        term: str, targets: Path, subject: str, *, timeout_seconds: float | None = None
+    ) -> int:
         return 1 if subject == "PSY" else 0
 
     monkeypatch.setattr(refresh_all_tampa, "_run_subject", fake_run_subject)
@@ -190,3 +201,92 @@ def test_final_summary_reports_completed_skipped_and_failed_counts(
     assert "Already done (skipped): 1" in output
     assert "Failed: 1" in output
     assert "PSY" in output
+
+
+def test_run_subject_timeout_returns_failure_sentinel_and_does_not_raise(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    targets_path = tmp_path / "targets.toml"
+    targets_path.write_text("placeholder", encoding="utf-8")
+
+    def fake_run(cmd: list[str], *, check: bool, timeout: float | None = None) -> object:
+        # A stalled subject: subprocess.run kills the child and raises TimeoutExpired.
+        raise subprocess.TimeoutExpired(cmd, timeout or 0.0)
+
+    monkeypatch.setattr("scripts.refresh_all_tampa.subprocess.run", fake_run)
+    returncode = refresh_all_tampa._run_subject(
+        "202701", targets_path, "MAC", timeout_seconds=1.0
+    )
+    # A hang is converted to a non-zero sentinel, not propagated as an exception.
+    assert returncode == refresh_all_tampa.SUBJECT_TIMEOUT_RETURNCODE
+    assert returncode != 0
+
+
+def test_timed_out_subject_is_recorded_as_failed_and_run_continues(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    targets_path = _write_targets(tmp_path / "targets.toml", ["ENC", "MAC", "PSY"])
+    progress_path = tmp_path / "progress.txt"
+    seen: list[tuple[str, float | None]] = []
+
+    def fake_run_subject(
+        term: str, targets: Path, subject: str, *, timeout_seconds: float | None = None
+    ) -> int:
+        seen.append((subject, timeout_seconds))
+        # MAC stalls and is killed by the per-subject timeout.
+        return refresh_all_tampa.SUBJECT_TIMEOUT_RETURNCODE if subject == "MAC" else 0
+
+    monkeypatch.setattr(refresh_all_tampa, "_run_subject", fake_run_subject)
+    exit_code = refresh_all_tampa.main(
+        [
+            "--term",
+            "202701",
+            "--targets",
+            str(targets_path),
+            "--progress",
+            str(progress_path),
+            "--subject-timeout",
+            "300",
+        ],
+        sleep_fn=lambda seconds: None,
+    )
+
+    assert exit_code == 1
+    # The MAC timeout did not abort the run; PSY was still attempted.
+    assert [subject for subject, _ in seen] == ["ENC", "MAC", "PSY"]
+    # The configured per-subject timeout is threaded through to every invocation.
+    assert all(timeout == 300.0 for _, timeout in seen)
+    # A timed-out subject is NOT recorded as completed, so a re-run resumes it.
+    assert progress_path.read_text(encoding="utf-8").splitlines() == ["ENC", "PSY"]
+
+
+def test_subject_timeout_zero_disables_the_ceiling(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    targets_path = _write_targets(tmp_path / "targets.toml", ["ENC"])
+    progress_path = tmp_path / "progress.txt"
+    seen_timeouts: list[float | None] = []
+
+    def fake_run_subject(
+        term: str, targets: Path, subject: str, *, timeout_seconds: float | None = None
+    ) -> int:
+        seen_timeouts.append(timeout_seconds)
+        return 0
+
+    monkeypatch.setattr(refresh_all_tampa, "_run_subject", fake_run_subject)
+    exit_code = refresh_all_tampa.main(
+        [
+            "--term",
+            "202701",
+            "--targets",
+            str(targets_path),
+            "--progress",
+            str(progress_path),
+            "--subject-timeout",
+            "0",
+        ],
+        sleep_fn=lambda seconds: None,
+    )
+    assert exit_code == 0
+    # 0 disables the ceiling -> no timeout is passed to the subprocess.
+    assert seen_timeouts == [None]

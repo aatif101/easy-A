@@ -12,6 +12,13 @@ from easy_a.refresh.targets import load_targets
 DEFAULT_TARGETS = Path("config/course_targets.toml")
 DEFAULT_PROGRESS = Path("refresh_all_tampa.progress")
 DEFAULT_PACE_SECONDS = 2.0
+# Per-subject wall-clock ceiling. A stalled subject (e.g. a hung DB operation with no
+# statement timeout) must NOT freeze the whole sequential run; when a subject exceeds this,
+# its subprocess is killed and the subject is recorded as failed so the run continues.
+DEFAULT_SUBJECT_TIMEOUT_SECONDS = 900.0
+# Sentinel returncode used when a subject is killed for exceeding --subject-timeout
+# (mirrors the conventional GNU `timeout` exit status).
+SUBJECT_TIMEOUT_RETURNCODE = 124
 
 
 def enumerate_subjects(
@@ -43,22 +50,41 @@ def record_completed_subject(progress_path: Path, subject: str) -> None:
         fh.write(f"{subject}\n")
 
 
-def _run_subject(term: str, targets_path: Path, subject: str) -> int:
+def _run_subject(
+    term: str,
+    targets_path: Path,
+    subject: str,
+    *,
+    timeout_seconds: float | None = None,
+) -> int:
     """Invoke refresh_course_coverage.py for exactly one subject, as its own OS process and
-    its own database transaction. No cross-subject transaction is ever opened here."""
-    result = subprocess.run(
-        [
-            sys.executable,
-            "scripts/refresh_course_coverage.py",
-            "--term",
-            term,
-            "--targets",
-            str(targets_path),
-            "--subject",
-            subject,
-        ],
-        check=False,
-    )
+    its own database transaction. No cross-subject transaction is ever opened here.
+
+    When ``timeout_seconds`` is set and the subject exceeds it, the subprocess is killed and
+    ``SUBJECT_TIMEOUT_RETURNCODE`` is returned so the caller records the subject as failed and
+    moves on -- a hang on one subject never freezes the whole run."""
+    try:
+        result = subprocess.run(
+            [
+                sys.executable,
+                "scripts/refresh_course_coverage.py",
+                "--term",
+                term,
+                "--targets",
+                str(targets_path),
+                "--subject",
+                subject,
+            ],
+            check=False,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired:
+        print(
+            f"Subject {subject} exceeded --subject-timeout ({timeout_seconds}s); "
+            "killed and recorded as failed. Re-run to resume it.",
+            file=sys.stderr,
+        )
+        return SUBJECT_TIMEOUT_RETURNCODE
     return result.returncode
 
 
@@ -91,6 +117,14 @@ def build_parser() -> argparse.ArgumentParser:
         help=f"Progress file recording completed subjects for resume (default {DEFAULT_PROGRESS}).",
     )
     parser.add_argument(
+        "--subject-timeout",
+        type=float,
+        default=DEFAULT_SUBJECT_TIMEOUT_SECONDS,
+        help=f"Per-subject wall-clock ceiling in seconds (default {DEFAULT_SUBJECT_TIMEOUT_SECONDS}). "
+        f"A subject exceeding this is killed and recorded as failed so the run continues; "
+        f"0 or negative disables the ceiling.",
+    )
+    parser.add_argument(
         "--subjects",
         nargs="*",
         default=None,
@@ -109,6 +143,10 @@ def main(
     subjects = enumerate_subjects(args.targets, requested_subjects)
     already_done = load_completed_subjects(args.progress)
 
+    subject_timeout = (
+        args.subject_timeout if args.subject_timeout and args.subject_timeout > 0 else None
+    )
+
     skipped = [subject for subject in subjects if subject in already_done]
     remaining = [subject for subject in subjects if subject not in already_done]
 
@@ -118,7 +156,9 @@ def main(
     for index, subject in enumerate(remaining):
         if index > 0:
             sleep_fn(args.pace_seconds)
-        returncode = _run_subject(args.term, args.targets, subject)
+        returncode = _run_subject(
+            args.term, args.targets, subject, timeout_seconds=subject_timeout
+        )
         if returncode == 0:
             record_completed_subject(args.progress, subject)
             completed.append(subject)
