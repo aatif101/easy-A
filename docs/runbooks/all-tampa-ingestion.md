@@ -78,4 +78,8 @@ Record the final measured, dated course/section counts here after each full run,
 
 | Date | Operator decision (courses.csv freshness / pacing) | Courses | Sections | Quality errors |
 |------|------------------------------------------------------|---------|----------|-----------------|
-| _pending_ | _pending Task 2 operator approval_ | — | — | — |
+| 2026-09-22 | Accepted the dated 2026-09-20 snapshot; `--pace-seconds 2` | 1,402 | 3,783 | 0 |
+
+**Run notes (2026-09-22):** Full Tampa Spring 2027 ingest — all 212 subjects, 1,402 courses, 3,783 sections, **0 non-Tampa rows, 0 quality errors**. `grade_distributions` unchanged at 179 (only the 10 pilot courses carry sourced history; all newly ingested courses are the honest `effective_n=0` / `score_source=global` state per D-20). Two operational fixes were applied mid-run and are now part of `refresh_all_tampa.py`:
+- `--subject-timeout` (default 900s): a stalled subject subprocess is killed and recorded as failed so the run continues, rather than freezing the whole sequential run.
+- The per-subject whole-term quality check was O(n²) across a bulk load; the orchestrator now drives `scripts/refresh_subject_fast.py` (same guarded `refresh_targets`, quality check deferred) per subject and runs **one** whole-term quality check at the end. Subject `SOW` hit a transient `ScheduleParseError` on the first pass and succeeded on resume (13 courses / 15 sections).
