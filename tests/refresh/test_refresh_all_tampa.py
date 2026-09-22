@@ -52,6 +52,7 @@ def test_invokes_refresh_course_coverage_once_per_subject_with_correct_args(
             str(progress_path),
         ],
         sleep_fn=lambda seconds: None,
+        quality_fn=lambda term: 0,
     )
     assert exit_code == 0
     # Distinct subjects, sorted, one invocation each, carrying term/targets/subject through.
@@ -62,7 +63,7 @@ def test_invokes_refresh_course_coverage_once_per_subject_with_correct_args(
     ]
 
 
-def test_run_subject_shells_out_to_refresh_course_coverage_with_correct_flags(
+def test_run_subject_shells_out_to_fast_ingest_with_correct_flags(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     targets_path = tmp_path / "targets.toml"
@@ -85,10 +86,63 @@ def test_run_subject_shells_out_to_refresh_course_coverage_with_correct_flags(
 
     assert returncode == 0
     assert captured_check == [False]
-    assert "scripts/refresh_course_coverage.py" in captured_cmd
+    # Bulk ingest uses the fast per-subject path (quality check deferred), NOT the
+    # standard refresh_course_coverage.py entrypoint (which runs a whole-term quality
+    # scan every call).
+    assert "scripts/refresh_subject_fast.py" in captured_cmd
+    assert "scripts/refresh_course_coverage.py" not in captured_cmd
     assert captured_cmd[captured_cmd.index("--term") + 1] == "202701"
     assert captured_cmd[captured_cmd.index("--targets") + 1] == str(targets_path)
     assert captured_cmd[captured_cmd.index("--subject") + 1] == "MAC"
+
+
+def test_final_quality_check_runs_once_after_all_subjects_and_affects_exit(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    targets_path = _write_targets(tmp_path / "targets.toml", ["ENC", "MAC"])
+    progress_path = tmp_path / "progress.txt"
+    quality_calls: list[str] = []
+
+    monkeypatch.setattr(refresh_all_tampa, "_run_subject", lambda *a, **k: 0)
+
+    def fake_quality(term: str) -> int:
+        quality_calls.append(term)
+        return 2  # two quality errors reported by the single final pass
+
+    exit_code = refresh_all_tampa.main(
+        ["--term", "202701", "--targets", str(targets_path), "--progress", str(progress_path)],
+        sleep_fn=lambda seconds: None,
+        quality_fn=fake_quality,
+    )
+    # The whole-term quality check runs exactly once (not once per subject), with the term.
+    assert quality_calls == ["202701"]
+    # Final quality errors fail the run even though every subject ingested cleanly.
+    assert exit_code == 1
+
+
+def test_skip_final_quality_does_not_run_the_check(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    targets_path = _write_targets(tmp_path / "targets.toml", ["ENC"])
+    progress_path = tmp_path / "progress.txt"
+    quality_calls: list[str] = []
+
+    monkeypatch.setattr(refresh_all_tampa, "_run_subject", lambda *a, **k: 0)
+    exit_code = refresh_all_tampa.main(
+        [
+            "--term",
+            "202701",
+            "--targets",
+            str(targets_path),
+            "--progress",
+            str(progress_path),
+            "--skip-final-quality",
+        ],
+        sleep_fn=lambda seconds: None,
+        quality_fn=lambda term: quality_calls.append(term) or 5,
+    )
+    assert quality_calls == []  # skipped entirely
+    assert exit_code == 0
 
 
 def test_paces_between_subjects_not_before_the_first(
@@ -111,6 +165,7 @@ def test_paces_between_subjects_not_before_the_first(
             "5",
         ],
         sleep_fn=sleeps.append,
+        quality_fn=lambda term: 0,
     )
     assert exit_code == 0
     # 3 subjects -> 2 pacing sleeps, each with the configured pace-seconds; none before the first.
@@ -135,6 +190,7 @@ def test_progress_file_append_and_resume_skip(
     first_exit = refresh_all_tampa.main(
         ["--term", "202701", "--targets", str(targets_path), "--progress", str(progress_path)],
         sleep_fn=lambda seconds: None,
+        quality_fn=lambda term: 0,
     )
     assert first_exit == 0
     assert calls == ["ENC", "MAC"]
@@ -144,6 +200,7 @@ def test_progress_file_append_and_resume_skip(
     second_exit = refresh_all_tampa.main(
         ["--term", "202701", "--targets", str(targets_path), "--progress", str(progress_path)],
         sleep_fn=lambda seconds: None,
+        quality_fn=lambda term: 0,
     )
     assert second_exit == 0
     # Both subjects already recorded in the progress file -> resume run invokes neither.
@@ -167,6 +224,7 @@ def test_failed_subject_is_recorded_and_run_continues_not_aborts(
     exit_code = refresh_all_tampa.main(
         ["--term", "202701", "--targets", str(targets_path), "--progress", str(progress_path)],
         sleep_fn=lambda seconds: None,
+        quality_fn=lambda term: 0,
     )
 
     assert exit_code == 1
@@ -192,6 +250,7 @@ def test_final_summary_reports_completed_skipped_and_failed_counts(
     exit_code = refresh_all_tampa.main(
         ["--term", "202701", "--targets", str(targets_path), "--progress", str(progress_path)],
         sleep_fn=lambda seconds: None,
+        quality_fn=lambda term: 0,
     )
     output = capsys.readouterr().out
 
@@ -249,6 +308,7 @@ def test_timed_out_subject_is_recorded_as_failed_and_run_continues(
             "300",
         ],
         sleep_fn=lambda seconds: None,
+        quality_fn=lambda term: 0,
     )
 
     assert exit_code == 1
@@ -286,6 +346,7 @@ def test_subject_timeout_zero_disables_the_ceiling(
             "0",
         ],
         sleep_fn=lambda seconds: None,
+        quality_fn=lambda term: 0,
     )
     assert exit_code == 0
     # 0 disables the ceiling -> no timeout is passed to the subprocess.

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import subprocess
 import sys
 import time
@@ -67,7 +68,7 @@ def _run_subject(
         result = subprocess.run(
             [
                 sys.executable,
-                "scripts/refresh_course_coverage.py",
+                "scripts/refresh_subject_fast.py",
                 "--term",
                 term,
                 "--targets",
@@ -86,6 +87,32 @@ def _run_subject(
         )
         return SUBJECT_TIMEOUT_RETURNCODE
     return result.returncode
+
+
+def run_final_quality_check(term: str) -> int:
+    """Run ONE whole-term quality check after all subjects are ingested, returning the
+    error count. This replaces the per-subject whole-term quality scan (which was O(n^2)
+    across a bulk load); the check runs exactly once here, at the end."""
+    completed = subprocess.run(
+        [sys.executable, "scripts/check_data_quality.py", "--term", term, "--json"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    if completed.returncode != 0 and not completed.stdout.strip():
+        print(
+            f"Final quality check could not run (exit {completed.returncode}): "
+            f"{completed.stderr.strip()[:500]}",
+            file=sys.stderr,
+        )
+        return -1
+    try:
+        report = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        print("Final quality check produced unparseable output.", file=sys.stderr)
+        return -1
+    findings = report.get("findings", report if isinstance(report, list) else [])
+    return sum(1 for finding in findings if finding.get("severity") == "error")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -130,6 +157,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional explicit subject subset (default: every distinct subject in --targets).",
     )
+    parser.add_argument(
+        "--skip-final-quality",
+        action="store_true",
+        help="Skip the single whole-term quality check run after all subjects complete "
+        "(the per-subject quality scan is always deferred; this skips even the final pass).",
+    )
     return parser
 
 
@@ -137,6 +170,7 @@ def main(
     argv: list[str] | None = None,
     *,
     sleep_fn: Callable[[float], None] = time.sleep,
+    quality_fn: Callable[[str], int] = run_final_quality_check,
 ) -> int:
     args = build_parser().parse_args(argv)
     requested_subjects = tuple(args.subjects) if args.subjects else None
@@ -172,7 +206,13 @@ def main(
     if failed:
         print(f"Failed subjects: {', '.join(failed)}")
 
-    return 1 if failed else 0
+    # One whole-term quality check after all subjects (deferred from the per-subject path).
+    final_quality_errors = 0
+    if not args.skip_final_quality:
+        final_quality_errors = quality_fn(args.term)
+        print(f"Final quality errors: {final_quality_errors}")
+
+    return 1 if (failed or final_quality_errors != 0) else 0
 
 
 if __name__ == "__main__":
