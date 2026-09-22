@@ -2,14 +2,14 @@
 gsd_state_version: "1.0"
 current_plan: 3
 status: ready
-stopped_at: 06-02 complete — full Tampa Spring 2027 universe ingested (212 subjects / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors). Ready for 06-03 validation.
-last_updated: "2026-09-22T04:20:00.000Z"
-state_head: bc2b60456b3322f188dcab884ce92135fcd5c51b
+stopped_at: Completed 06-03-PLAN.md -- REQ-COVERAGE-03 proven at scale against live hosted Supabase; Phase 06 (MVP1-P3) complete
+last_updated: "2026-09-22T09:16:59.935Z"
+state_head: 95d57e43905784b20542a3ef9c0e4ad03eff3e0d
 progress:
   total_phases: 10
   completed_phases: 5
   total_plans: 12
-  completed_plans: 10
+  completed_plans: 12
   percent: 50
 last_activity: 2026-09-21
 current_phase: 6
@@ -67,7 +67,7 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 3
 
 ## Next action
@@ -128,10 +128,10 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Completed 06-02 Task 1 (orchestrator + tests + runbook); halted at Task 2 blocking-human checkpoint -- awaiting operator authorization for the live full-scale USF run
-**Resume file:** .planning/phases/06-mvp1-p3-all-tampa-section-ingestion-10-3-782/06-02-PLAN.md
+**Stopped at:** Completed 06-03-PLAN.md -- REQ-COVERAGE-03 proven at scale against live hosted Supabase; Phase 06 (MVP1-P3) complete
+**Resume file:** None
 
-Last session: 2026-09-21T21:54:25.987Z
+Last session: 2026-09-22T09:16:59.891Z
 06-02 Task 1 (resumable, paced orchestrator + unit test + runbook) is committed and verified. The
 plan is intentionally halted at Task 2 — a `gate="blocking-human"` checkpoint — before Task 3 (the
 ~2,800-request live USF ingestion). Next action: the operator must review
@@ -151,6 +151,7 @@ authorize the live run before any executor proceeds to Task 3.
 | Phase 05 P01 | 54min | 3 tasks | 3 files |
 | Phase 05 P02 | 55min | 3 tasks | 2 files |
 | Phase 06 P01 | 30min | 2 tasks | 8 files |
+| Phase 06 P03 | 75min | 3 tasks | 2 files |
 
 ## Decisions
 
@@ -163,3 +164,5 @@ authorize the live run before any executor proceeds to Task 3.
 - [Phase 6]: [Phase 06-01]: Reconciled config/course_targets.toml to the full ~1,402-entry generated list (locked decision 1); CHM ingested end-to-end (23 courses/295 sections) against hosted Supabase with 0 quality errors, proving the suffix guard, Tampa scope guard, and D-20 honest-coverage contract at scale.
 - [Phase 6]: [Phase 06-01]: Fixed src/easy_a/refresh/cleanup.py's _target_filter (OR-of-AND -> composite tuple_(...).in_(...)) after the full-scale config tripped SQLite's expression-tree depth limit in an existing test; coverage.py/targets.py/target_cli.py remained unmodified throughout.
 - [Phase 06]: [Phase 06-02]: Built scripts/refresh_all_tampa.py as a resumable, paced per-subject orchestrator that shells out to the unmodified refresh_course_coverage.py once per subject (own process/transaction each), records completed subjects to a progress file for resume, and continues past a failed subject rather than aborting; coverage.py/target_cli.py remain unmodified. Halted at the plan's blocking-human checkpoint before the ~2,800-request live USF run.
+- [Phase 6]: [Phase 06-03]: validate_tampa_ingest.py's suffix-leak signal is a suffix course ingested but owning 0 stored sections (not a Section-Course join mismatch, which the FK guarantees can't happen); real proof against the live DB found no leak across all 33 pairs.
+- [Phase 6]: [Phase 06-03]: gsd tdd-red-evidence is Node-TAP-specific and cannot classify pytest output (always zero_tests_discovered); workflow.tdd_mode is false for this project so the automated gate isn't enforced -- RED/GREEN was verified directly via pytest's own per-test evidence instead.

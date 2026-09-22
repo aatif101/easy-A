@@ -374,7 +374,7 @@ Plans:
 
 **Requirements**: REQ-COVERAGE-03
 
-**Plans:** 2/3 plans executed (tracer-first; Wave 1 → Wave 2 → Wave 3)
+**Plans:** 3/3 plans executed (tracer-first; Wave 1 → Wave 2 → Wave 3)
 
 Plans:
 **Wave 1**
@@ -387,7 +387,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 06-03-PLAN.md — Scale validation: all 33 suffix-variant base courses exact-only, 0 non-Tampa, quality 0 errors, stored/coverage/API counts agree, config vs stored reconciled, honest-coverage (D-20) at scale
+- [x] 06-03-PLAN.md — Scale validation: all 33 suffix-variant base courses exact-only, 0 non-Tampa, quality 0 errors, stored/coverage/API counts agree, config vs stored reconciled, honest-coverage (D-20) at scale
 
 ---
 
