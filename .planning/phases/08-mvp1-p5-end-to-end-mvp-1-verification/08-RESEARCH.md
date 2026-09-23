@@ -4,6 +4,16 @@
 **Domain:** Live data and product contract verification
 **Confidence:** HIGH for repository behavior and dated evidence; MEDIUM for live-state continuity until rerun
 
+> **Superseded in part (2026-09-23, after the grade import and PROJECT.md D-21).** This research
+> was written before the grade import. Its grade-coverage figures (132 of 3,783 sections, 563
+> subject, 3,088 global) and the recommendation to route a grade-source/import follow-up are
+> superseded. Live read on 2026-09-23: 3,122 evidence-backed sections; 661 listed D-21 exceptions
+> (311 subject, 50 global, 300 `course` with `effective_n = 0`). The MVP-1 grade criterion is now
+> D-21 (evidence-backed or listed source-limited exception; fallbacks never count as course
+> history), and Phase 8 does no grade sourcing. Note also that `assert_honest_coverage` in
+> `scripts/validate_tampa_ingest.py` rejects the 300 `course`/`effective_n = 0` rows as written;
+> plan 08-02 encodes the D-21 non-letter-grade exception there. Everything else below is reusable.
+
 ## User Constraints
 
 No Phase 8 `CONTEXT.md` exists. The controlling constraints are the milestone and D-01–D-20 decisions in `PROJECT.md`, the live facts in `STATE.md`, and the Phase 8 success criteria in `ROADMAP.md`. [VERIFIED: .planning/PROJECT.md:23-32,302-329; .planning/STATE.md:16-69; .planning/ROADMAP.md:434-446]

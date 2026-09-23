@@ -1,20 +1,20 @@
 ---
-gsd_state_version: 1.0
-current_plan: 3
-status: complete
-stopped_at: Grade import complete (Spring 2025-Spring 2026); Phase 08 gate to be amended, then re-plan
-last_updated: "2026-09-23T22:00:00Z"
-state_head: 4e4b944bca22b8dc1189a5efe2f7f5f59849a164
+gsd_state_version: "1.0"
+current_plan: 0
+status: ready_to_execute
+stopped_at: Phase 08 plans revised to D-21 and checker-passed; ready to execute
+last_updated: "2026-09-23T22:43:41.027Z"
+state_head: c063c27727f9cb87bb55da7b8f2ea76175abab67
 progress:
   total_phases: 10
   completed_phases: 6
-  total_plans: 15
+  total_plans: 19
   completed_plans: 15
-  percent: 60
+  percent: 79
 last_activity: 2026-09-23
-current_phase_name: MVP1-P4 full-scale cache and search performance
-current_phase: 7
-last_activity_desc: Grade import finished; 3,422 of 3,783 sections match own-course history (3,122 with effective_n>0); Phase 08 draft plans merged
+current_phase_name: mvp1-p5-end-to-end-mvp-1-verification
+current_phase: 8
+last_activity_desc: Phase 08 re-planned against live D-21 inventory (3,122 evidence-backed / 661 exceptions); checker passed
 ---
 
 # Project State
@@ -27,9 +27,8 @@ lives in `ARCHIVE.md`.
 
 **Repo / git**
 
-- `origin/main` = `4e4b944bca22b8dc1189a5efe2f7f5f59849a164` (verified by fetch on
-  2026-09-23; Phase 07 merged via PR #25). Grade import + Phase 08 drafts are on the PR branch
-  `codex/college-grade-import` descended from that tip.
+- `origin/main` = `c063c27727f9cb87bb55da7b8f2ea76175abab67` (verified by fetch on
+  2026-09-23; grade import, D-21 amendment and Phase 08 drafts merged via PRs #26–#28).
 
 **Database (hosted Supabase — the only live DB now; the old local beta DB is history in `ARCHIVE.md`)**
 
@@ -38,17 +37,15 @@ lives in `ARCHIVE.md`.
   2026-09-22; the 1,402-entry target list is not the represented-course count.) (Was 132 sections / 10 courses
   before Phase 06.)
 
-- **6,887 `GradeDistribution` rows** in hosted Supabase as of 2026-09-23: 6,708 newly imported
-  from Spring 2025, Summer 2025, Fall 2025, and Spring 2026 for Muma, Engineering, and Arts and
-  Sciences, plus 179 pre-existing Fall 2024 pilot rows. Summer 2026 returned no rows for all three
-  colleges. The user set **Spring 2025 as the oldest term for new coverage work**; the old pilot
-  rows remain. See `grade-coverage-import-2026-09-23.md` for the term and department ledger.
-- Of 3,783 Spring 2027 Tampa sections, **2,571 sections / 793 courses** match their own course's
-  historical grade rows; **1,212 sections / 608 courses** lack an own-course match. The rebuilt
-  cache has 2,362 sections / 767 courses with own-course source and `effective_n > 0`, 402
-  subject-fallback sections, and 810 global-fallback sections. Quality: **0 errors**, 1,566
-  low-confidence warnings, 810 no-history info findings. Do not describe subject/global fallback
-  as that course's own grade distribution.
+- **8,662 `GradeDistribution` rows** in hosted Supabase (live query 2026-09-23): `202408` 179
+  (pilot), `202501` 2,096, `202505` 465, `202508` 2,887, `202601` 3,035; 0 with null `course_id`.
+  Summer 2026 returned no rows. Spring 2025 is the oldest term for coverage work; coverage work is
+  stopped by decision (D-21). Ledger: `grade-coverage-import-2026-09-23.md`.
+- Spring 2027 Tampa `section_rankings` (live, rebuilt 2026-09-23 21:51Z after the last grade
+  ingest): `course` & `effective_n > 0` **3,122** sections / 1,117 courses (evidence-backed);
+  `course` & `effective_n = 0` 300 (x4900 non-letter-grade); `subject` 311; `global` 50. D-21:
+  3,122 evidence-backed, 661 listed source-limited exceptions. Do not describe subject/global
+  fallback as that course's own grade distribution.
 
 - `config/course_targets.toml` reconciled during Phase 06-01: now the full git-tracked 1,402-course
   Tampa list (was 5), generated reproducibly from `courses.csv` via `scripts/generate_tampa_targets.py`.
@@ -77,8 +74,8 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: 3 (complete)
-Total Plans in Phase: 3
+Current Plan: 0 (Phase 08 ready to execute)
+Total Plans in Phase: 4
 
 ## Next action
 
@@ -95,10 +92,10 @@ history has no letter-grade weight, so they show the prior); `subject` fallback 
 The 361 unmatched sections are source-limited (InfoCenter omits <5-student courses). Quality: 0
 errors. See `.planning/grade-coverage-import-2026-09-23.md`.
 
-**Do next:** Phase 08 gate amended by PROJECT.md D-21 (source range exhausted; source-limited
-exceptions honestly labeled; fallbacks never count as course history). Rerun `/gsd-plan-phase 8` and
-its checker against the live inventory before `/gsd-execute-phase 8`. Also decide UI wording for the
-300 x4900-series `course`/`effective_n = 0` sections. Read `.planning/HANDOFF.json` and the Phase 08 `.continue-here.md`.
+**Do next:** `/gsd-execute-phase 8`. Phase 08 plans (08-01..08-04, 2 waves) were revised to encode
+D-21 against the live inventory and passed the independent plan checker (0 blockers, 0 warnings) on
+2026-09-23. UI decision (user, 2026-09-23): `course`/`effective_n = 0` rows show "No letter-grade
+history (pass/fail or independent study) — score is a prior" — presentation-only, in 08-03.
 
 ## History
 
@@ -145,17 +142,15 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Three-college grade import complete for all available terms from Spring 2025
-through Summer 2026, with Spring 2025 set as the oldest term for new work. Spring 2027 cache
-rebuilt and quality checked. Remaining coverage is in other Tampa colleges.
-**Resume file:** `grade-coverage-import-2026-09-23.md`
+**Stopped at:** 2026-09-23 — Phase 08 re-planned to D-21 and checker-passed; not yet executed.
+Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
+**Resume file:** none — run `/gsd-execute-phase 8`.
 
 Earlier session: 2026-09-23. Phase 07 execution ran across three sessions. Codex (Windows clone)
 completed the 07-01 benchmarks and baseline. A Claude Code WSL session fetched that branch,
 committed the measurement script and 07-02 grade batching, then ended mid-measurement. A third
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
-
 
 Last session: 2026-09-22. Phase 06 executed end-to-end: tracer (CHM) → full ingestion (212 subjects
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks

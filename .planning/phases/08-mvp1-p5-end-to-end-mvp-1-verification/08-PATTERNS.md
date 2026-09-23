@@ -4,6 +4,15 @@
 **Files analyzed:** 9 likely new or modified files; no `CONTEXT.md` exists
 **Analogs found:** 9 / 9
 
+> **Updated 2026-09-23 for PROJECT.md D-21.** Where this map says the full MVP-1 verdict requires
+> sourced history on every section, read D-21 instead: every section is evidence-backed or a listed
+> source-limited exception (`no_rows`, `non_letter_grade`), fallbacks never count as course history,
+> and no grade sourcing happens in Phase 8. The UI analogs now also cover `score_source=course`
+> with `effective_n = 0` (x4900-series pass/fail or independent-study history). The ordering
+> analog is settled: `sort=course` is already a total order, so 08-01 does not modify
+> `src/easy_a/api/routes/rankings.py`. The validator analog gains one change in 08-02
+> (`assert_honest_coverage` accepts the evidence-proven non-letter-grade exception).
+
 These are planning assignments, not a mandate to create every file. The planner may combine the two read-only CLIs if one focused verification command is simpler. All analog paths below are Git-tracked source or evidence, checked with `git ls-files`.
 
 ## File Classification

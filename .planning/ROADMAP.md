@@ -446,6 +446,22 @@ Supabase; whole-term cache rebuild 4.77 s; quality pass 2.45 s. Evidence: `07-PE
 
 **Requirements**: REQ-COVERAGE-03, REQ-GRADES-01, REQ-PERF-01
 
+**Grade-coverage gate**: PROJECT.md D-21 — every section is evidence-backed or a listed
+source-limited exception; fallbacks never count as course history; no grade sourcing in this phase.
+
+**Plans:** 4 plans (tracer-first; Wave 1 ×3 parallel → Wave 2)
+
+Plans:
+**Wave 1**
+
+- [ ] 08-01-PLAN.md — Tracer: read-only full-page API identity scan (every stored term+CRN exactly once)
+- [ ] 08-02-PLAN.md — D-21 grade inventory with per-section exception list; validator accepts evidence-proven non-letter-grade exceptions
+- [ ] 08-03-PLAN.md — Presentation-only evidence wording for course/effective_n=0, global and subject rows (desktop, mobile, details)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 08-04-PLAN.md — Dated hosted verification report, committed D-21 exception list, Phase 8 and MVP-1 verdicts
+
 ---
 
 ## Phase 9: Hosted Beta — Deployment, CI, Observability
