@@ -117,8 +117,12 @@ def search_rankings(
 
     if seats_in_keys and not seats_open:
         keys = _join_latest_snapshot(keys, key_snapshot)
+    # A CTE referenced twice below is evaluated once by PostgreSQL.
     page_keys = (
-        keys.order_by(*_search_order(sort, key_snapshot)).limit(limit).offset(offset).subquery()
+        keys.order_by(*_search_order(sort, key_snapshot))
+        .limit(limit)
+        .offset(offset)
+        .cte("page_keys")
     )
     page_section_ids = select(page_keys.c.section_id)
     page_snapshot = _latest_snapshot(section_ids=page_section_ids)

@@ -132,7 +132,7 @@ def test_sql_search_executes_one_count_and_one_page_query(
     selects = [
         statement
         for statement in statements
-        if statement.lstrip().upper().startswith("SELECT")
+        if statement.lstrip().upper().startswith(("SELECT", "WITH"))
     ]
     assert len(selects) == 2
     assert all("section_rankings" in statement for statement in selects)
@@ -232,7 +232,7 @@ def _record_selects(
     finally:
         event.remove(engine, "before_cursor_execute", record_statement)
     assert response.status_code == 200
-    return [s for s in statements if s.lstrip().upper().startswith("SELECT")]
+    return [s for s in statements if s.lstrip().upper().startswith(("SELECT", "WITH"))]
 
 
 @pytest.mark.parametrize(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
 from pathlib import Path
 
@@ -108,7 +109,11 @@ def test_live_mode_does_not_write_or_seed(monkeypatch, capsys):
         benchmark, "_seed_synthetic_dataset", lambda *args, **kwargs: pytest.fail("live seed")
     )
     benchmark._run_live(term="202701", iterations=50, url=None, http_base_url=None)
-    assert statements and all(s.lstrip().upper().startswith("SELECT") for s in statements)
+    assert statements and all(
+        s.lstrip().upper().startswith(("SELECT", "WITH"))
+        and not re.search(r"\b(INSERT|UPDATE|DELETE)\b", s.upper())
+        for s in statements
+    )
     assert "stored term" in capsys.readouterr().out
 
 
