@@ -5,7 +5,7 @@ from importlib.util import find_spec
 from inspect import signature
 from typing import Any
 
-from sqlalchemy import inspect, select
+from sqlalchemy import event, inspect, select
 from sqlalchemy.orm import Session
 
 from easy_a.analytics.confidence import ConfidenceLabel, PriorLevel, ScoreSource
@@ -372,3 +372,41 @@ def _add_snapshot(session: Session, section_id: int, *, seats_remaining: int) ->
             wait_seats_available=0,
         )
     )
+
+
+def test_whole_term_refresh_reads_grades_a_bounded_number_of_times(
+    db_session: Session,
+) -> None:
+    _SectionRankingCache, _hydrate_ranking, refresh_section_rankings = _cache_api()
+    mac = _course(db_session, "MAC", "1105")
+    _add_grade(db_session, course_id=mac.id, crn="89033", a=80, b=20, w=5)
+    _add_section(db_session, course_id=mac.id, crn="70001", instructor="I. Rothstein")
+
+    def grade_reads_for_refresh(extra_courses: range) -> int:
+        for index in extra_courses:
+            course = _add_course(
+                db_session,
+                course_id=200 + index,
+                subject="ZZZ",
+                number=f"4{index:03d}",
+            )
+            _add_section(db_session, course_id=course.id, crn=f"9{index:04d}", instructor=None)
+        db_session.commit()
+        statements: list[str] = []
+
+        def record(conn, cursor, statement, parameters, context, executemany) -> None:
+            statements.append(statement.lower())
+
+        engine = db_session.get_bind()
+        event.listen(engine, "before_cursor_execute", record)
+        try:
+            refresh_section_rankings(db_session, term="202701")
+        finally:
+            event.remove(engine, "before_cursor_execute", record)
+        db_session.rollback()
+        return sum(
+            statement.lstrip().startswith("select") and "grade_distributions" in statement
+            for statement in statements
+        )
+
+    assert grade_reads_for_refresh(range(2)) == grade_reads_for_refresh(range(2, 14))

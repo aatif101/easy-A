@@ -3,17 +3,21 @@ from __future__ import annotations
 from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy import event
 from sqlalchemy.orm import Session
 
 from easy_a.analytics.confidence import PriorLevel, ScoreSource
+from easy_a.analytics.grades import RecencyConfig
 from easy_a.analytics.queries import (
     get_course_historical_outcome_stats,
     get_current_section_historical_analytics,
     get_instructor_course_historical_outcome_stats,
+    get_term_section_historical_analytics,
 )
 from easy_a.analytics.scoring import (
     DEFAULT_GRADE_PRIOR_STRENGTH,
     DEFAULT_WITHDRAWAL_PRIOR_STRENGTH,
+    ScoreConfig,
     bayesian_smooth,
 )
 from easy_a.models import (
@@ -357,13 +361,14 @@ def _add_course(
     course_id: int,
     number: str,
     subject: str = "MAC",
+    catalog_edition: str = "2026-2027",
 ) -> Course:
     course = Course(
         id=course_id,
         subject=subject,
         number=number,
         title=f"Synthetic {subject} {number}",
-        catalog_edition="2026-2027",
+        catalog_edition=catalog_edition,
     )
     session.add(course)
     session.flush()
@@ -407,3 +412,170 @@ def _add_section(
     )
     session.flush()
     return section
+
+
+def _seed_mixed_evidence_term(session: Session, *, extra_courses: int = 0) -> None:
+    """Seed every evidence branch: course, subject, global and instructor-course."""
+    # MAC 1105 (id 10) keeps course history; a second catalog edition shares its identity.
+    _add_course(session, course_id=14, number="1105", catalog_edition="2025-2026")
+    _add_course(session, course_id=12, number="1114")
+    _add_course(session, course_id=13, number="2311")
+    _add_course(session, course_id=15, number="2048", subject="PHY")
+
+    # Sourced history for MAC 1105 across two past terms, with instructor mappings.
+    _add_section(session, term_id=2, crn="89033", instructor="I. Rothstein")
+    _add_grade(session, term_id=2, crn="89033", a=60, b=30, c=10, w=5)
+    _add_section(session, term_id=3, crn="60001", instructor="I. Rothstein")
+    _add_grade(session, term_id=3, crn="60001", a=10, b=5, f=3, w=1)
+    _add_section(session, term_id=3, crn="60002", instructor="B. Sparse")
+    _add_grade(session, term_id=3, crn="60002", a=2, b=1, w=1)
+    _add_section(session, term_id=3, crn="60003", instructor="Staff")
+    _add_grade(session, term_id=3, crn="60003", b=7, c=4, d=2)
+    # Grade attributed to the other catalog edition, joined through no section.
+    _add_grade(session, term_id=2, crn="89040", course_id=14, a=5, c=5)
+    # Grade attributed to MAC 1114 but whose term+CRN section belongs to MAC 1105:
+    # it must count once for both courses under the existing OR policy.
+    _add_section(session, term_id=2, crn="89050", instructor="C. Cross")
+    _add_grade(session, term_id=2, crn="89050", course_id=12, a=3, d=4, w=2)
+    # Other subject-level MAC history.
+    _add_grade(session, term_id=2, crn="88002", course_id=12, a=20, b=20, f=10, w=6)
+    # ENC history only feeds the global prior.
+    _add_grade(session, term_id=3, crn="77001", course_id=11, a=40, c=5, w=3)
+    # A current-term grade row must be excluded by the pre-term filter.
+    _add_grade(session, term_id=1, crn="99999", a=500)
+
+    # Current-term sections covering each instructor state.
+    _add_section(session, term_id=1, crn="70001", instructor="I. Rothstein")
+    _add_section(session, term_id=1, crn="70002", instructor="B. Sparse")
+    _add_section(session, term_id=1, crn="70003", instructor="Staff")
+    _add_section(session, term_id=1, crn="70004", instructor=" ")
+    ambiguous = _add_section(session, term_id=1, crn="70005", instructor="I. Rothstein")
+    session.add(
+        SectionInstructor(
+            section_id=ambiguous.id,
+            name_raw="B. Sparse",
+            name_normalized=None,
+            source="synthetic",
+            observed_at=NOW,
+        )
+    )
+    _add_section(session, term_id=1, crn="70006", course_id=14, instructor="I. Rothstein")
+    _add_section(session, term_id=1, crn="70011", course_id=12, instructor="C. Cross")
+    _add_section(session, term_id=1, crn="70012", course_id=13, instructor="D. New")
+    _add_section(session, term_id=1, crn="70013", course_id=11, instructor="E. Writer")
+    _add_section(session, term_id=1, crn="70014", course_id=15, instructor="F. Physics")
+    for index in range(extra_courses):
+        course_id = 100 + index
+        _add_course(session, course_id=course_id, number=f"3{index:03d}", subject="ZZZ")
+        _add_section(
+            session,
+            term_id=1,
+            crn=f"8{index:04d}",
+            course_id=course_id,
+            instructor="Z. Extra",
+        )
+    session.commit()
+
+
+def _per_course_rows(
+    session: Session,
+    course_keys: list[tuple[str, str]],
+    config: ScoreConfig | None,
+) -> list:
+    rows = []
+    for subject, number in course_keys:
+        rows.extend(
+            get_current_section_historical_analytics(
+                session,
+                term_code="202701",
+                subject=subject,
+                course_number=number,
+                config=config,
+            )
+        )
+    return rows
+
+
+@pytest.mark.parametrize(
+    "config",
+    [None, ScoreConfig(recency=RecencyConfig(enabled=True, half_life_terms=1.0))],
+    ids=["unweighted", "recency"],
+)
+def test_term_batch_matches_per_course_analytics_exactly(
+    db_session: Session,
+    config: ScoreConfig | None,
+) -> None:
+    _seed_mixed_evidence_term(db_session)
+    course_keys = [
+        ("ENC", "1101"),
+        ("MAC", "1105"),
+        ("MAC", "1114"),
+        ("MAC", "2311"),
+        ("PHY", "2048"),
+    ]
+
+    expected = _per_course_rows(db_session, course_keys, config)
+    actual = get_term_section_historical_analytics(
+        db_session,
+        term_code="202701",
+        course_keys=course_keys,
+        config=config,
+    )
+
+    assert actual == expected
+    sources = {row.crn: row.stats.score_source for row in actual}
+    assert sources["70001"] is ScoreSource.instructor_course
+    assert sources["70002"] is ScoreSource.course
+    assert sources["70011"] is ScoreSource.course
+    assert sources["70012"] is ScoreSource.subject
+    assert sources["70013"] is ScoreSource.course
+    assert sources["70014"] is ScoreSource.global_
+    assert {row.crn for row in actual} >= {"70003", "70004", "70005", "70006"}
+
+
+def test_term_batch_returns_nothing_for_unknown_term_or_course(db_session: Session) -> None:
+    _seed_mixed_evidence_term(db_session)
+
+    assert (
+        get_term_section_historical_analytics(
+            db_session, term_code="209901", course_keys=[("MAC", "1105")]
+        )
+        == []
+    )
+    assert (
+        get_term_section_historical_analytics(
+            db_session, term_code="202701", course_keys=[("XYZ", "0000")]
+        )
+        == []
+    )
+
+
+def test_term_batch_statement_count_does_not_grow_with_courses(db_session: Session) -> None:
+    _seed_mixed_evidence_term(db_session, extra_courses=12)
+    small_keys = [("MAC", "1105"), ("ZZZ", "3000")]
+    large_keys = [("MAC", "1105")] + [("ZZZ", f"3{index:03d}") for index in range(12)]
+
+    def count_statements(course_keys: list[tuple[str, str]]) -> tuple[int, int]:
+        statements: list[str] = []
+
+        def record(conn, cursor, statement, parameters, context, executemany) -> None:
+            statements.append(statement.lower())
+
+        engine = db_session.get_bind()
+        event.listen(engine, "before_cursor_execute", record)
+        try:
+            get_term_section_historical_analytics(
+                db_session,
+                term_code="202701",
+                course_keys=course_keys,
+            )
+        finally:
+            event.remove(engine, "before_cursor_execute", record)
+        grade_reads = sum("grade_distributions" in statement for statement in statements)
+        return len(statements), grade_reads
+
+    small_total, small_grade_reads = count_statements(small_keys)
+    large_total, large_grade_reads = count_statements(large_keys)
+
+    assert large_total == small_total
+    assert large_grade_reads == small_grade_reads == 1

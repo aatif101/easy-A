@@ -111,23 +111,22 @@ def refresh_section_rankings(
     # this module (SectionRankingCache), and both of these depend (directly or
     # transitively) on easy_a.models — a top-level import here would deadlock
     # that cycle. Both are only used inside this function.
-    from easy_a.analytics.queries import get_current_section_historical_analytics
+    from easy_a.analytics.queries import get_term_section_historical_analytics
     from easy_a.signals.resolver import resolve_section_signals
 
     section_course_rows = list(session.execute(stmt).all())
-    analytics_by_crn = {}
     course_keys = sorted(
         {(course.subject, course.number) for _, course, _ in section_course_rows}
     )
-    for course_subject, number in course_keys:
-        for row in get_current_section_historical_analytics(
+    analytics_by_crn = {
+        row.crn: row.stats
+        for row in get_term_section_historical_analytics(
             session,
             term_code=normalized_term,
-            subject=course_subject,
-            course_number=number,
+            course_keys=course_keys,
             config=config,
-        ):
-            analytics_by_crn[row.crn] = row.stats
+        )
+    }
 
     section_ids = [section.id for section, _, _ in section_course_rows]
     existing_by_section_id = {

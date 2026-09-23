@@ -10,7 +10,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from easy_a.analytics.confidence import ConfidenceLabel
-from easy_a.analytics.queries import get_current_section_historical_analytics
+from easy_a.analytics.queries import get_term_section_historical_analytics
 from easy_a.common.campus import SUPPORTED_CAMPUS, describe_campus, same_campus
 from easy_a.common.instructors import CurrentInstructorStatus, get_current_instructor_state
 from easy_a.common.terms import normalize_banner_term_code
@@ -433,18 +433,17 @@ def _check_analytics(
     term: str,
     section_course_rows: Sequence[tuple[Section, Course]],
 ) -> list[QualityFinding]:
-    analytics_by_crn = {}
     course_keys = sorted(
         {(course.subject, course.number) for _, course in section_course_rows}
     )
-    for subject, course_number in course_keys:
-        for row in get_current_section_historical_analytics(
+    analytics_by_crn = {
+        row.crn: row.stats
+        for row in get_term_section_historical_analytics(
             session,
             term_code=term,
-            subject=subject,
-            course_number=course_number,
-        ):
-            analytics_by_crn[row.crn] = row.stats
+            course_keys=course_keys,
+        )
+    }
 
     findings: list[QualityFinding] = []
     for section, _course in section_course_rows:
