@@ -72,3 +72,15 @@ courses with fewer than five enrolled students, and we imported only exact cours
 The database's current `sections` table does not carry college or department. It therefore cannot
 reliably assign the 1,212 unmatched sections to a remaining department. Colleges outside Muma,
 Engineering, and Arts and Sciences have not been processed in this import run.
+
+## Final result (supersedes the interim counts above)
+
+Additional colleges were imported after the table above. Grade rows in hosted Supabase by term:
+`202408` 179, `202501` 2,096, `202505` 465, `202508` 2,887, `202601` 3,035 (8,662 total; ingest
+runs through 112). After the final Spring 2027 cache rebuild: data quality 0 errors, 1,058
+low-confidence warnings, 50 no-history info items.
+
+Spring 2027 Tampa: 3,783 sections / 1,401 courses. **361 sections (~9.5%) across 100 subjects
+have no own-course history** in Spring 2025–Spring 2026 (Summer 2026 empty). These are
+source-limited (InfoCenter omits courses under five students, new courses, or courses not offered
+in the window) and keep the honest subject/global fallback. Coverage work stopped here by decision.
