@@ -319,11 +319,11 @@ def _finding(findings: tuple[QualityFinding, ...], check_id: str) -> QualityFind
     return next(finding for finding in findings if finding.check_id == check_id)
 
 
-def test_quality_pass_grade_reads_do_not_grow_with_course_count(db_session: Session) -> None:
+def test_quality_pass_statements_do_not_grow_with_course_count(db_session: Session) -> None:
     db_session.add(_section(crn="10001"))
     db_session.commit()
 
-    def grade_reads_with_extra_courses(extra: range) -> int:
+    def statements_with_extra_courses(extra: range) -> list[str]:
         for index in extra:
             db_session.add(
                 Course(
@@ -352,6 +352,12 @@ def test_quality_pass_grade_reads_do_not_grow_with_course_count(db_session: Sess
         assert sum(f.check_id == "no_historical_analytics" for f in report.findings) == (
             1 + extra.stop
         )
+        return statements
+
+    def grade_reads(statements: list[str]) -> int:
         return sum("grade_distributions" in statement for statement in statements)
 
-    assert grade_reads_with_extra_courses(range(1)) == grade_reads_with_extra_courses(range(1, 9))
+    few = statements_with_extra_courses(range(1))
+    many = statements_with_extra_courses(range(1, 9))
+    assert grade_reads(few) == grade_reads(many)
+    assert len(few) == len(many)
