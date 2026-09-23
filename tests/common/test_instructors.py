@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from easy_a.common.instructors import (
     CurrentInstructorStatus,
     get_current_instructor_state,
+    get_current_instructor_states,
 )
 from easy_a.models import Section, SectionInstructor
 
@@ -56,6 +57,29 @@ def test_ambiguous_latest_state_preserves_latest_names_without_choosing(
     assert state.name is None
     assert state.status is CurrentInstructorStatus.ambiguous_latest_state
     assert state.latest_names == ("Instructor B", "Instructor C")
+
+
+def test_batched_states_equal_single_section_states(db_session: Session) -> None:
+    later = NOW + timedelta(days=1)
+    observations = {
+        910: [],
+        911: [("Instructor A", NOW), ("  ", later)],
+        912: [("Staff", NOW)],
+        913: [("Instructor B", later), ("Instructor C", later)],
+        914: [("Old Name", NOW), ("New Name", later)],
+        915: [("Same Name", later), ("same name", later)],
+    }
+    for section_id, names in observations.items():
+        _section(db_session, section_id=section_id)
+        for name, observed_at in names:
+            _observe(db_session, section_id=section_id, name=name, observed_at=observed_at)
+    db_session.commit()
+
+    batched = get_current_instructor_states(db_session, list(observations))
+
+    assert list(batched) == list(observations)
+    for section_id in observations:
+        assert batched[section_id] == get_current_instructor_state(db_session, section_id)
 
 
 def _section(db_session: Session, *, section_id: int) -> Section:

@@ -4,8 +4,9 @@ from datetime import UTC, datetime
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import case, exists, func, select
+from sqlalchemy import Select, case, exists, func, select
 from sqlalchemy.sql.elements import ColumnElement
+from sqlalchemy.sql.selectable import Subquery
 
 from easy_a.analytics.confidence import ConfidenceLabel
 from easy_a.api.dependencies import BannerTerm, DbSession
@@ -68,68 +69,28 @@ def search_rankings(
     normalized_gened_code = _optional_upper(gened_code)
     normalized_delivery_method = _optional_upper(delivery_method)
 
-    ranked_snapshots = (
-        select(
-            SeatSnapshot.id.label("snapshot_id"),
-            SeatSnapshot.section_id.label("snapshot_section_id"),
-            SeatSnapshot.observed_at.label("snapshot_observed_at"),
-            SeatSnapshot.capacity.label("snapshot_capacity"),
-            SeatSnapshot.enrollment.label("snapshot_enrollment"),
-            SeatSnapshot.seats_remaining.label("snapshot_seats_remaining"),
-            SeatSnapshot.wait_seats_available.label("snapshot_wait_seats_available"),
-            func.row_number()
-            .over(
-                partition_by=SeatSnapshot.section_id,
-                order_by=(SeatSnapshot.observed_at.desc(), SeatSnapshot.id.desc()),
-            )
-            .label("snapshot_rank"),
-        )
-        .subquery()
-    )
-    latest_snapshot = (
-        select(
-            ranked_snapshots.c.snapshot_id,
-            ranked_snapshots.c.snapshot_section_id,
-            ranked_snapshots.c.snapshot_observed_at,
-            ranked_snapshots.c.snapshot_capacity,
-            ranked_snapshots.c.snapshot_enrollment,
-            ranked_snapshots.c.snapshot_seats_remaining,
-            ranked_snapshots.c.snapshot_wait_seats_available,
-        )
-        .where(ranked_snapshots.c.snapshot_rank == 1)
-        .subquery()
-    )
-    effective_seats_remaining = case(
-        (
-            latest_snapshot.c.snapshot_id.is_not(None),
-            latest_snapshot.c.snapshot_seats_remaining,
-        ),
-        else_=Section.seats_remaining,
-    )
-    filtered = (
-        select(
-            SectionRankingCache,
-            Section,
-            latest_snapshot.c.snapshot_id,
-            latest_snapshot.c.snapshot_observed_at,
-            latest_snapshot.c.snapshot_capacity,
-            latest_snapshot.c.snapshot_enrollment,
-            latest_snapshot.c.snapshot_seats_remaining,
-            latest_snapshot.c.snapshot_wait_seats_available,
-        )
-        .join(Section, Section.id == SectionRankingCache.section_id)
-        .outerjoin(
-            latest_snapshot,
-            latest_snapshot.c.snapshot_section_id == SectionRankingCache.section_id,
-        )
-        .where(SectionRankingCache.term == term)
-    )
+    # The count and page-key queries read only narrow cache columns, and join latest seats
+    # only when seats filter or order the results. Full rows and their latest seat snapshot
+    # are then fetched for the requested page alone, so neither the latest-seat window nor
+    # the wide cache payload is evaluated for every section in the term.
+    seats_in_keys = seats_open or sort is RankingSort.seats_desc
+    key_snapshot = _latest_snapshot()
+    keys = select(
+        SectionRankingCache.section_id,
+        SectionRankingCache.subject,
+        SectionRankingCache.course_number,
+        SectionRankingCache.crn,
+        SectionRankingCache.easiness_score,
+        SectionRankingCache.smoothed_withdrawal_rate,
+    ).where(SectionRankingCache.term == term)
+    if seats_in_keys or normalized_gened_code is not None:
+        keys = keys.join(Section, Section.id == SectionRankingCache.section_id)
+    if seats_open:
+        keys = _join_latest_snapshot(keys, key_snapshot)
     if normalized_subject is not None:
-        filtered = filtered.where(SectionRankingCache.subject == normalized_subject)
+        keys = keys.where(SectionRankingCache.subject == normalized_subject)
     if normalized_course_number is not None:
-        filtered = filtered.where(
-            SectionRankingCache.course_number == normalized_course_number
-        )
+        keys = keys.where(SectionRankingCache.course_number == normalized_course_number)
     if normalized_gened_code is not None:
         gened_match = exists(
             select(1)
@@ -140,37 +101,50 @@ def search_rankings(
                 func.upper(CourseAttribute.attribute_code) == normalized_gened_code,
             )
         )
-        filtered = filtered.where(gened_match)
+        keys = keys.where(gened_match)
     if normalized_delivery_method is not None:
-        filtered = filtered.where(
+        keys = keys.where(
             func.upper(SectionRankingCache.delivery_method) == normalized_delivery_method
         )
     if seats_open:
-        filtered = filtered.where(effective_seats_remaining > 0)
+        keys = keys.where(_effective_seats_remaining(key_snapshot) > 0)
     if min_easiness is not None:
-        filtered = filtered.where(SectionRankingCache.easiness_score >= min_easiness)
+        keys = keys.where(SectionRankingCache.easiness_score >= min_easiness)
     if confidence is not None:
-        filtered = filtered.where(SectionRankingCache.confidence_label == confidence.value)
+        keys = keys.where(SectionRankingCache.confidence_label == confidence.value)
 
-    course_tiebreak = (
-        SectionRankingCache.subject.asc(),
-        SectionRankingCache.course_number.asc(),
-        SectionRankingCache.crn.asc(),
+    total = session.scalar(select(func.count()).select_from(keys.subquery())) or 0
+
+    if seats_in_keys and not seats_open:
+        keys = _join_latest_snapshot(keys, key_snapshot)
+    # A CTE referenced twice below is evaluated once by PostgreSQL.
+    page_keys = (
+        keys.order_by(*_search_order(sort, key_snapshot))
+        .limit(limit)
+        .offset(offset)
+        .cte("page_keys")
     )
-    order_by: tuple[ColumnElement[Any], ...]
-    if sort is RankingSort.easiness_asc:
-        order_by = (SectionRankingCache.easiness_score.asc(), *course_tiebreak)
-    elif sort is RankingSort.withdrawal_asc:
-        order_by = (SectionRankingCache.smoothed_withdrawal_rate.asc(), *course_tiebreak)
-    elif sort is RankingSort.seats_desc:
-        order_by = (func.coalesce(effective_seats_remaining, -1).desc(), *course_tiebreak)
-    elif sort is RankingSort.course:
-        order_by = course_tiebreak
-    else:
-        order_by = (SectionRankingCache.easiness_score.desc(), *course_tiebreak)
-
-    total = session.scalar(select(func.count()).select_from(filtered.subquery())) or 0
-    rows = session.execute(filtered.order_by(*order_by).limit(limit).offset(offset)).all()
+    page_section_ids = select(page_keys.c.section_id)
+    page_snapshot = _latest_snapshot(section_ids=page_section_ids)
+    rows = session.execute(
+        select(
+            SectionRankingCache,
+            Section,
+            page_snapshot.c.snapshot_id,
+            page_snapshot.c.snapshot_observed_at,
+            page_snapshot.c.snapshot_capacity,
+            page_snapshot.c.snapshot_enrollment,
+            page_snapshot.c.snapshot_seats_remaining,
+            page_snapshot.c.snapshot_wait_seats_available,
+        )
+        .join(Section, Section.id == SectionRankingCache.section_id)
+        .outerjoin(
+            page_snapshot,
+            page_snapshot.c.snapshot_section_id == SectionRankingCache.section_id,
+        )
+        .where(SectionRankingCache.section_id.in_(page_section_ids))
+        .order_by(*_search_order(sort, page_snapshot))
+    ).all()
     as_of = datetime.now(UTC)
     rankings: list[SectionRanking] = []
     for row in rows:
@@ -204,6 +178,81 @@ def search_rankings(
         limit=limit,
         offset=offset,
     )
+
+
+def _latest_snapshot(section_ids: Select[Any] | None = None) -> Subquery:
+    """Each section's latest seat snapshot: newest observed_at, then highest id."""
+    ranked = select(
+        SeatSnapshot.id.label("snapshot_id"),
+        SeatSnapshot.section_id.label("snapshot_section_id"),
+        SeatSnapshot.observed_at.label("snapshot_observed_at"),
+        SeatSnapshot.capacity.label("snapshot_capacity"),
+        SeatSnapshot.enrollment.label("snapshot_enrollment"),
+        SeatSnapshot.seats_remaining.label("snapshot_seats_remaining"),
+        SeatSnapshot.wait_seats_available.label("snapshot_wait_seats_available"),
+        func.row_number()
+        .over(
+            partition_by=SeatSnapshot.section_id,
+            order_by=(SeatSnapshot.observed_at.desc(), SeatSnapshot.id.desc()),
+        )
+        .label("snapshot_rank"),
+    )
+    if section_ids is not None:
+        ranked = ranked.where(SeatSnapshot.section_id.in_(section_ids))
+    ranked_snapshots = ranked.subquery()
+    return (
+        select(
+            ranked_snapshots.c.snapshot_id,
+            ranked_snapshots.c.snapshot_section_id,
+            ranked_snapshots.c.snapshot_observed_at,
+            ranked_snapshots.c.snapshot_capacity,
+            ranked_snapshots.c.snapshot_enrollment,
+            ranked_snapshots.c.snapshot_seats_remaining,
+            ranked_snapshots.c.snapshot_wait_seats_available,
+        )
+        .where(ranked_snapshots.c.snapshot_rank == 1)
+        .subquery()
+    )
+
+
+def _join_latest_snapshot(stmt: Select[Any], latest_snapshot: Subquery) -> Select[Any]:
+    return stmt.outerjoin(
+        latest_snapshot,
+        latest_snapshot.c.snapshot_section_id == SectionRankingCache.section_id,
+    )
+
+
+def _effective_seats_remaining(latest_snapshot: Subquery) -> ColumnElement[Any]:
+    return case(
+        (
+            latest_snapshot.c.snapshot_id.is_not(None),
+            latest_snapshot.c.snapshot_seats_remaining,
+        ),
+        else_=Section.seats_remaining,
+    )
+
+
+def _search_order(
+    sort: RankingSort,
+    latest_snapshot: Subquery,
+) -> tuple[ColumnElement[Any], ...]:
+    course_tiebreak = (
+        SectionRankingCache.subject.asc(),
+        SectionRankingCache.course_number.asc(),
+        SectionRankingCache.crn.asc(),
+    )
+    if sort is RankingSort.easiness_asc:
+        return (SectionRankingCache.easiness_score.asc(), *course_tiebreak)
+    if sort is RankingSort.withdrawal_asc:
+        return (SectionRankingCache.smoothed_withdrawal_rate.asc(), *course_tiebreak)
+    if sort is RankingSort.seats_desc:
+        return (
+            func.coalesce(_effective_seats_remaining(latest_snapshot), -1).desc(),
+            *course_tiebreak,
+        )
+    if sort is RankingSort.course:
+        return course_tiebreak
+    return (SectionRankingCache.easiness_score.desc(), *course_tiebreak)
 
 
 def _optional_upper(value: str | None) -> str | None:

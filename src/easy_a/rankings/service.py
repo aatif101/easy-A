@@ -1,12 +1,17 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from easy_a.analytics.scoring import HistoricalOutcomeStats, ScoreConfig
-from easy_a.common.instructors import CurrentInstructorStatus, get_current_instructor_state
+from easy_a.common.instructors import (
+    CurrentInstructorState,
+    CurrentInstructorStatus,
+    get_current_instructor_state,
+)
 from easy_a.common.terms import normalize_banner_term_code
 from easy_a.models import Course, CourseAttribute, SeatSnapshot, Section, Term
 from easy_a.rankings.models import (
@@ -161,7 +166,17 @@ def _latest_instructor_state(
     section: Section,
     term_code: str,
 ) -> tuple[str | None, RankingProvenance]:
-    instructor_state = get_current_instructor_state(session, section.id)
+    return _instructor_from_state(
+        get_current_instructor_state(session, section.id),
+        term_code=term_code,
+    )
+
+
+def _instructor_from_state(
+    instructor_state: CurrentInstructorState,
+    *,
+    term_code: str,
+) -> tuple[str | None, RankingProvenance]:
     if instructor_state.status is CurrentInstructorStatus.no_observations:
         return None, RankingProvenance(
             freshness=RankingFreshness.unavailable,
@@ -283,19 +298,26 @@ def _seat_info_for(
 
 
 def _gened_attributes_for(session: Session, course: Course) -> tuple[GenEdAttribute, ...]:
-    attributes = (
-        session.execute(
+    return _gened_attributes_by_course_id(session, [course.id]).get(course.id, ())
+
+
+def _gened_attributes_by_course_id(
+    session: Session,
+    course_ids: Sequence[int],
+) -> dict[int, tuple[GenEdAttribute, ...]]:
+    attributes_by_course_id: dict[int, list[GenEdAttribute]] = {}
+    if course_ids:
+        for attribute in session.scalars(
             select(CourseAttribute)
-            .where(CourseAttribute.course_id == course.id)
+            .where(CourseAttribute.course_id.in_(set(course_ids)))
             .order_by(CourseAttribute.attribute_code, CourseAttribute.id)
-        )
-        .scalars()
-        .all()
-    )
-    return tuple(
-        GenEdAttribute(code=attribute.attribute_code, label=attribute.attribute_label)
-        for attribute in attributes
-    )
+        ):
+            attributes_by_course_id.setdefault(attribute.course_id, []).append(
+                GenEdAttribute(code=attribute.attribute_code, label=attribute.attribute_label)
+            )
+    return {
+        course_id: tuple(attributes) for course_id, attributes in attributes_by_course_id.items()
+    }
 
 
 def _gened_provenance(

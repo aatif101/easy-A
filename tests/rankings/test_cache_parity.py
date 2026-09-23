@@ -5,11 +5,19 @@ from importlib.util import find_spec
 from inspect import signature
 from typing import Any
 
-from sqlalchemy import inspect, select
+from sqlalchemy import event, inspect, select
 from sqlalchemy.orm import Session
 
 from easy_a.analytics.confidence import ConfidenceLabel, PriorLevel, ScoreSource
-from easy_a.models import Course, GradeDistribution, SeatSnapshot, Section, SectionInstructor
+from easy_a.models import (
+    Course,
+    CourseAttribute,
+    GradeDistribution,
+    SeatSnapshot,
+    Section,
+    SectionInstructor,
+    Syllabus,
+)
 from easy_a.rankings.models import SectionRanking
 from easy_a.rankings.service import rank_section
 
@@ -370,5 +378,152 @@ def _add_snapshot(session: Session, section_id: int, *, seats_remaining: int) ->
             enrollment=40 - seats_remaining,
             seats_remaining=seats_remaining,
             wait_seats_available=0,
+        )
+    )
+
+
+def test_whole_term_refresh_reads_grades_a_bounded_number_of_times(
+    db_session: Session,
+) -> None:
+    _SectionRankingCache, _hydrate_ranking, refresh_section_rankings = _cache_api()
+    mac = _course(db_session, "MAC", "1105")
+    _add_grade(db_session, course_id=mac.id, crn="89033", a=80, b=20, w=5)
+    _add_section(db_session, course_id=mac.id, crn="70001", instructor="I. Rothstein")
+
+    def grade_reads_for_refresh(extra_courses: range) -> int:
+        for index in extra_courses:
+            course = _add_course(
+                db_session,
+                course_id=200 + index,
+                subject="ZZZ",
+                number=f"4{index:03d}",
+            )
+            _add_section(db_session, course_id=course.id, crn=f"9{index:04d}", instructor=None)
+        db_session.commit()
+        statements: list[str] = []
+
+        def record(conn, cursor, statement, parameters, context, executemany) -> None:
+            statements.append(statement.lower())
+
+        engine = db_session.get_bind()
+        event.listen(engine, "before_cursor_execute", record)
+        try:
+            refresh_section_rankings(db_session, term="202701")
+        finally:
+            event.remove(engine, "before_cursor_execute", record)
+        db_session.rollback()
+        return sum(
+            statement.lstrip().startswith("select") and "grade_distributions" in statement
+            for statement in statements
+        )
+
+    assert grade_reads_for_refresh(range(2)) == grade_reads_for_refresh(range(2, 14))
+
+
+def test_signal_gened_and_instructor_branches_match_on_demand(db_session: Session) -> None:
+    SectionRankingCache, hydrate_ranking, refresh_section_rankings = _cache_api()
+    mac = _course(db_session, "MAC", "1105")
+    enc = _course(db_session, "ENC", "1101")
+    db_session.add_all(
+        [
+            CourseAttribute(course_id=mac.id, attribute_code="SMT", attribute_label="Math"),
+            CourseAttribute(course_id=mac.id, attribute_code="QR", attribute_label="Quant"),
+        ]
+    )
+    current = _add_section(db_session, course_id=mac.id, crn="71001", instructor="I. Rothstein")
+    _add_syllabus(db_session, document_id="cur", term_id=1, crn="71001", course_id=mac.id,
+                  text="Attendance is required.", instructor="I. Rothstein")
+    noted = _add_section(db_session, course_id=mac.id, crn="71002", instructor=None)
+    noted.section_note = "Attendance is not required."
+    _add_section(db_session, course_id=enc.id, crn="71003", instructor="Leslaw Skrzypek")
+    _add_section(db_session, course_id=enc.id, crn="71004", instructor="Someone Else")
+    ambiguous = _add_section(db_session, course_id=enc.id, crn="71005", instructor="A. One")
+    db_session.add(
+        SectionInstructor(section_id=ambiguous.id, name_raw="B. Two", name_normalized="b. two",
+                          source="cache-parity", observed_at=AS_OF)
+    )
+    _add_syllabus(db_session, document_id="old-same", term_id=2, crn="89001", course_id=enc.id,
+                  text="No curve will be applied.", instructor="Leslaw Skrzypek")
+    _add_syllabus(db_session, document_id="old-other", term_id=2, crn="89002", course_id=enc.id,
+                  text="Attendance is required.", instructor="Other Person")
+    db_session.commit()
+    assert current.id and noted.id
+
+    assert refresh_section_rankings(db_session, term="202701") == 5
+    db_session.commit()
+
+    signal_sources = set()
+    for cache_row in db_session.scalars(select(SectionRankingCache)).all():
+        cached = hydrate_ranking(db_session, cache_row, as_of=AS_OF)
+        on_demand = rank_section(db_session, term="202701", crn=cache_row.crn, as_of=AS_OF)
+        _assert_full_parity(cached, on_demand)
+        signal_sources.add(cached.signal_provenance.source)
+    assert signal_sources >= {
+        "current_term_syllabus",
+        "schedule_section_note",
+        "historical_same_instructor_course",
+        "historical_same_course",
+    }
+
+
+def test_whole_term_refresh_statement_count_does_not_grow_with_sections(
+    db_session: Session,
+) -> None:
+    _SectionRankingCache, _hydrate_ranking, refresh_section_rankings = _cache_api()
+    mac = _course(db_session, "MAC", "1105")
+    _add_grade(db_session, course_id=mac.id, crn="89033", a=80, b=20, w=5)
+    _add_section(db_session, course_id=mac.id, crn="70001", instructor="I. Rothstein")
+
+    def statements_for_refresh(extra_courses: range) -> int:
+        for index in extra_courses:
+            course = _add_course(
+                db_session, course_id=300 + index, subject="ZZZ", number=f"5{index:03d}"
+            )
+            _add_section(db_session, course_id=course.id, crn=f"8{index:04d}", instructor="X Y")
+        db_session.commit()
+        refresh_section_rankings(db_session, term="202701")
+        db_session.commit()
+        count = 0
+
+        def record(conn, cursor, statement, parameters, context, executemany) -> None:
+            nonlocal count
+            count += 1
+
+        engine = db_session.get_bind()
+        event.listen(engine, "before_cursor_execute", record)
+        try:
+            refresh_section_rankings(db_session, term="202701")
+        finally:
+            event.remove(engine, "before_cursor_execute", record)
+        db_session.rollback()
+        return count
+
+    assert statements_for_refresh(range(2)) == statements_for_refresh(range(2, 14))
+
+
+def _add_syllabus(
+    session: Session,
+    *,
+    document_id: str,
+    term_id: int,
+    crn: str,
+    course_id: int,
+    text: str,
+    instructor: str,
+) -> None:
+    session.add(
+        Syllabus(
+            document_id=document_id,
+            term_id=term_id,
+            crn=crn,
+            course_id=course_id,
+            section_number="001",
+            instructor_raw=instructor,
+            title="Syllabus",
+            view_url=f"https://example.test/{document_id}",
+            fetched_at=AS_OF,
+            content_html=f"<p>{text}</p>",
+            content_text=text,
+            content_hash=document_id.ljust(64, "0")[:64],
         )
     )

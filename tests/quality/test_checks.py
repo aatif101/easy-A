@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+from sqlalchemy import event
 from sqlalchemy.orm import Session
 
-from easy_a.models import GradeDistribution, Section, SectionInstructor
+from easy_a.models import Course, GradeDistribution, Section, SectionInstructor
 from easy_a.quality import (
     QualityFinding,
     SeatValues,
@@ -316,3 +317,47 @@ def _instructor(section_id: int, name: str) -> SectionInstructor:
 
 def _finding(findings: tuple[QualityFinding, ...], check_id: str) -> QualityFinding:
     return next(finding for finding in findings if finding.check_id == check_id)
+
+
+def test_quality_pass_statements_do_not_grow_with_course_count(db_session: Session) -> None:
+    db_session.add(_section(crn="10001"))
+    db_session.commit()
+
+    def statements_with_extra_courses(extra: range) -> list[str]:
+        for index in extra:
+            db_session.add(
+                Course(
+                    id=300 + index,
+                    subject="ZZZ",
+                    number=f"5{index:03d}",
+                    title="Synthetic",
+                    catalog_edition="2026-2027",
+                )
+            )
+            section = _section(crn=f"3{index:04d}")
+            section.course_id = 300 + index
+            db_session.add(section)
+        db_session.commit()
+        statements: list[str] = []
+
+        def record(conn, cursor, statement, parameters, context, executemany) -> None:
+            statements.append(statement.lower())
+
+        engine = db_session.get_bind()
+        event.listen(engine, "before_cursor_execute", record)
+        try:
+            report = run_quality_checks(db_session, "202701", as_of=NOW)
+        finally:
+            event.remove(engine, "before_cursor_execute", record)
+        assert sum(f.check_id == "no_historical_analytics" for f in report.findings) == (
+            1 + extra.stop
+        )
+        return statements
+
+    def grade_reads(statements: list[str]) -> int:
+        return sum("grade_distributions" in statement for statement in statements)
+
+    few = statements_with_extra_courses(range(1))
+    many = statements_with_extra_courses(range(1, 9))
+    assert grade_reads(few) == grade_reads(many)
+    assert len(few) == len(many)

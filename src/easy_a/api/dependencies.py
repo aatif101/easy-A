@@ -1,19 +1,25 @@
 from __future__ import annotations
 
 from collections.abc import Generator
+from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Query
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from easy_a.common.terms import TermParseError, normalize_banner_term_code
-from easy_a.db import get_session_factory
+from easy_a.db import get_engine, get_session_factory
+
+
+@lru_cache
+def get_api_session_factory() -> sessionmaker[Session]:
+    """One engine (and connection pool) per API process instead of one per request."""
+    return get_session_factory(get_engine())
 
 
 def get_db_session() -> Generator[Session, None, None]:
-    session_factory = get_session_factory()
-    session = session_factory()
+    session = get_api_session_factory()()
     try:
         yield session
     except SQLAlchemyError:

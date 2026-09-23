@@ -18,6 +18,7 @@ from easy_a.models.sections import SeatSnapshot, Section
 
 if TYPE_CHECKING:
     from easy_a.rankings.models import SectionRanking
+    from easy_a.signals.models import ResolvedSignalSet
 
 
 class _LoadLatestSeatSnapshot:
@@ -81,10 +82,10 @@ def refresh_section_rankings(
     """Populate or refresh derived ranking rows without committing the caller's transaction."""
     from easy_a.rankings.models import RankingFreshness, RankingProvenance
     from easy_a.rankings.service import (
-        _gened_attributes_for,
+        _gened_attributes_by_course_id,
         _gened_provenance,
         _historical_summary,
-        _latest_instructor_state,
+        _instructor_from_state,
         _modality_for,
         _signal_provenance,
         _signals_for,
@@ -111,23 +112,23 @@ def refresh_section_rankings(
     # this module (SectionRankingCache), and both of these depend (directly or
     # transitively) on easy_a.models — a top-level import here would deadlock
     # that cycle. Both are only used inside this function.
-    from easy_a.analytics.queries import get_current_section_historical_analytics
-    from easy_a.signals.resolver import resolve_section_signals
+    from easy_a.analytics.queries import get_term_section_historical_analytics
+    from easy_a.common.instructors import get_current_instructor_states
+    from easy_a.signals.resolver import resolve_term_section_signals
 
     section_course_rows = list(session.execute(stmt).all())
-    analytics_by_crn = {}
     course_keys = sorted(
         {(course.subject, course.number) for _, course, _ in section_course_rows}
     )
-    for course_subject, number in course_keys:
-        for row in get_current_section_historical_analytics(
+    analytics_by_crn = {
+        row.crn: row.stats
+        for row in get_term_section_historical_analytics(
             session,
             term_code=normalized_term,
-            subject=course_subject,
-            course_number=number,
+            course_keys=course_keys,
             config=config,
-        ):
-            analytics_by_crn[row.crn] = row.stats
+        )
+    }
 
     section_ids = [section.id for section, _, _ in section_course_rows]
     existing_by_section_id = {
@@ -136,25 +137,40 @@ def refresh_section_rankings(
             select(SectionRankingCache).where(SectionRankingCache.section_id.in_(section_ids))
         )
     }
+    # Per-section lookups are read once for the whole selection: over a remote database
+    # each per-section query is a network round trip, which dominated whole-term rebuilds.
+    instructor_states = get_current_instructor_states(session, section_ids)
+    gened_by_course_id = _gened_attributes_by_course_id(
+        session,
+        [course.id for _, course, _ in section_course_rows],
+    )
+    signals_by_section_id: dict[int, ResolvedSignalSet] = {}
+    if section_course_rows:
+        signals_by_section_id = resolve_term_section_signals(
+            session,
+            term=section_course_rows[0][2],
+            sections=[section for section, _, _ in section_course_rows],
+            current_instructors={
+                section_id: state.name for section_id, state in instructor_states.items()
+            },
+        )
+    # One statement-time value for every row, as func.now() would give within this
+    # transaction, so unchanged-shape updates can be batched.
+    refreshed_at = session.scalar(select(func.now()))
 
     for section, course, term_row in section_course_rows:
         analytics_stats = analytics_by_crn[section.crn]
-        instructor, instructor_provenance = _latest_instructor_state(
-            session,
-            section=section,
+        instructor, instructor_provenance = _instructor_from_state(
+            instructor_states[section.id],
             term_code=term_row.banner_code,
         )
         modality = _modality_for(section, term_code=term_row.banner_code)
-        gened_attributes = _gened_attributes_for(session, course)
+        gened_attributes = gened_by_course_id.get(course.id, ())
         historical_analytics = _historical_summary(
             analytics_stats,
             before_term_code=term_row.banner_code,
         )
-        resolved_signals = resolve_section_signals(
-            session,
-            term=term_row.banner_code,
-            crn=section.crn,
-        )
+        resolved_signals = signals_by_section_id[section.id]
         payload: dict[str, Any] = {
             "section_id": section.id,
             "term": term_row.banner_code,
@@ -190,7 +206,7 @@ def refresh_section_rankings(
                 detail="resolved by current term and CRN",
             ).model_dump(mode="json"),
             "modality": modality.model_dump(mode="json"),
-            "refreshed_at": func.now(),
+            "refreshed_at": refreshed_at,
         }
         cache_row = existing_by_section_id.get(section.id)
         if cache_row is None:

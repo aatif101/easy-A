@@ -54,6 +54,51 @@ def get_current_instructor_state(session: Session, section_id: int) -> CurrentIn
         )
         .order_by(SectionInstructor.id)
     ).all()
+    return _state_from_latest(latest_observed_at, latest_raw_names)
+
+
+def get_current_instructor_states(
+    session: Session,
+    section_ids: Sequence[int],
+) -> dict[int, CurrentInstructorState]:
+    """Resolve get_current_instructor_state for many sections with one read."""
+    rows_by_section: dict[int, list[tuple[datetime, str]]] = {}
+    if section_ids:
+        rows = session.execute(
+            select(
+                SectionInstructor.section_id,
+                SectionInstructor.observed_at,
+                SectionInstructor.name_raw,
+            )
+            .where(SectionInstructor.section_id.in_(set(section_ids)))
+            .order_by(SectionInstructor.section_id, SectionInstructor.id)
+        )
+        for section_id, observed_at, name_raw in rows:
+            rows_by_section.setdefault(section_id, []).append((observed_at, name_raw))
+
+    states: dict[int, CurrentInstructorState] = {}
+    for section_id in section_ids:
+        observations = rows_by_section.get(section_id)
+        if not observations:
+            states[section_id] = CurrentInstructorState(
+                name=None,
+                status=CurrentInstructorStatus.no_observations,
+                latest_observed_at=None,
+                latest_names=(),
+            )
+            continue
+        latest_observed_at = max(observed_at for observed_at, _ in observations)
+        states[section_id] = _state_from_latest(
+            latest_observed_at,
+            [name for observed_at, name in observations if observed_at == latest_observed_at],
+        )
+    return states
+
+
+def _state_from_latest(
+    latest_observed_at: datetime,
+    latest_raw_names: Sequence[str],
+) -> CurrentInstructorState:
     latest_names = _unique_clean_names(latest_raw_names)
     if not latest_names:
         return CurrentInstructorState(
@@ -75,6 +120,7 @@ def get_current_instructor_state(session: Session, section_id: int) -> CurrentIn
         latest_observed_at=latest_observed_at,
         latest_names=latest_names,
     )
+
 
 
 def is_usable_instructor(instructor_name: str | None) -> bool:

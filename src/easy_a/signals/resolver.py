@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
+from functools import partial
+from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import Select, select
 from sqlalchemy.orm import Session
 
 from easy_a.common.instructors import get_current_instructor_state
@@ -75,11 +78,88 @@ def resolve_section_signals(
         .where(Syllabus.term_id == current_term.id, Syllabus.crn == section.crn)
         .order_by(Syllabus.fetched_at.desc(), Syllabus.id.desc())
     ).scalars().first()
+    return _resolve_signals(
+        section,
+        current_term.banner_code,
+        current_syllabus,
+        load_history=lambda: [
+            (syllabus, source_term.banner_code)
+            for syllabus, source_term in session.execute(
+                _history_statement(current_term.banner_code, [section.course_id])
+            )
+        ],
+        load_current_instructor=lambda: get_current_instructor_state(session, section.id).name,
+    )
+
+
+def resolve_term_section_signals(
+    session: Session,
+    *,
+    term: Term,
+    sections: Sequence[Section],
+    current_instructors: Mapping[int, str | None],
+) -> dict[int, ResolvedSignalSet]:
+    """resolve_section_signals for many sections of one term, reading syllabi once.
+
+    current_instructors maps each section id to its current instructor name, as
+    get_current_instructor_state would resolve it.
+    """
+    current_syllabus_by_crn: dict[str, Syllabus] = {}
+    for syllabus in session.scalars(
+        select(Syllabus)
+        .where(Syllabus.term_id == term.id)
+        .order_by(Syllabus.fetched_at.desc(), Syllabus.id.desc())
+    ):
+        current_syllabus_by_crn.setdefault(syllabus.crn, syllabus)
+
+    course_ids = sorted({section.course_id for section in sections})
+    history_by_course_id: dict[int, list[tuple[Syllabus, str]]] = {
+        course_id: [] for course_id in course_ids
+    }
+    if course_ids:
+        for syllabus, source_term in session.execute(
+            _history_statement(term.banner_code, course_ids)
+        ):
+            history_by_course_id[syllabus.course_id].append((syllabus, source_term.banner_code))
+
+    return {
+        section.id: _resolve_signals(
+            section,
+            term.banner_code,
+            current_syllabus_by_crn.get(section.crn),
+            load_history=partial(history_by_course_id.__getitem__, section.course_id),
+            load_current_instructor=partial(current_instructors.__getitem__, section.id),
+        )
+        for section in sections
+    }
+
+
+def _history_statement(current_term_code: str, course_ids: Sequence[int]) -> Select[Any]:
+    return (
+        select(Syllabus, Term)
+        .join(Term, Syllabus.term_id == Term.id)
+        .where(
+            Syllabus.course_id.in_(course_ids),
+            Term.banner_code < current_term_code,
+        )
+        .order_by(Term.banner_code.desc(), Syllabus.fetched_at.desc(), Syllabus.id.desc())
+    )
+
+
+def _resolve_signals(
+    section: Section,
+    current_term_code: str,
+    current_syllabus: Syllabus | None,
+    *,
+    load_history: Callable[[], list[tuple[Syllabus, str]]],
+    load_current_instructor: Callable[[], str | None],
+) -> ResolvedSignalSet:
+    """Source precedence: current syllabus, schedule note, same-instructor history, history."""
     if current_syllabus is not None:
         return _from_syllabus(
             section,
             current_syllabus,
-            current_term.banner_code,
+            current_term_code,
             SignalSourceKind.current_term_syllabus,
         )
 
@@ -88,28 +168,20 @@ def resolve_section_signals(
             section.section_note,
             source_kind=SignalSourceKind.schedule_section_note,
             source_identifier=f"section:{section.id}:note",
-            source_term=current_term.banner_code,
+            source_term=current_term_code,
         )
         if note_signals:
             return ResolvedSignalSet(
                 section_id=section.id,
                 signals=note_signals,
                 provenance=SignalSourceKind.schedule_section_note,
-                source_term=current_term.banner_code,
+                source_term=current_term_code,
                 historical=False,
             )
 
-    history = session.execute(
-        select(Syllabus, Term)
-        .join(Term, Syllabus.term_id == Term.id)
-        .where(
-            Syllabus.course_id == section.course_id,
-            Term.banner_code < current_term.banner_code,
-        )
-        .order_by(Term.banner_code.desc(), Syllabus.fetched_at.desc(), Syllabus.id.desc())
-    ).all()
+    history = load_history()
     if history:
-        current_instructor = get_current_instructor_state(session, section.id).name
+        current_instructor = load_current_instructor()
         instructor_resolution = resolve_instructor(
             current_instructor or "",
             [syllabus.instructor_raw for syllabus, _ in history if syllabus.instructor_raw],
@@ -121,7 +193,7 @@ def resolve_section_signals(
                     return _from_syllabus(
                         section,
                         syllabus,
-                        source_term.banner_code,
+                        source_term,
                         SignalSourceKind.historical_same_instructor_course,
                         instructor_match_confidence=instructor_resolution.confidence,
                     )
@@ -130,7 +202,7 @@ def resolve_section_signals(
         return _from_syllabus(
             section,
             syllabus,
-            source_term.banner_code,
+            source_term,
             SignalSourceKind.historical_same_course,
         )
 

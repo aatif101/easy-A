@@ -1,20 +1,20 @@
 ---
-gsd_state_version: "1.0"
+gsd_state_version: 1.0
 current_plan: 3
-status: ready
-stopped_at: Completed 06-03-PLAN.md -- REQ-COVERAGE-03 proven at scale against live hosted Supabase; Phase 06 (MVP1-P3) complete
-last_updated: "2026-09-22T09:16:59.935Z"
-state_head: 95d57e43905784b20542a3ef9c0e4ad03eff3e0d
+status: complete
+stopped_at: Phase 07 complete (3/3 plans); REQ-PERF-01 met; next is Phase 08 (MVP1-P5)
+last_updated: "2026-09-22T19:56:18.305Z"
+state_head: 1d2eabe34720e82dc40b481b4ec1551c3cd5bc0e
 progress:
   total_phases: 10
-  completed_phases: 5
-  total_plans: 12
-  completed_plans: 12
-  percent: 50
-last_activity: 2026-09-21
-current_phase: 6
-current_phase_name: MVP1-P3 — All-Tampa section ingestion
-last_activity_desc: Phase 05 complete and operator-approved; all 10 pilot courses now have reconciled Fall 2024 history and course-backed live rankings
+  completed_phases: 6
+  total_plans: 15
+  completed_plans: 15
+  percent: 60
+last_activity: 2026-09-23
+current_phase_name: MVP1-P4 full-scale cache and search performance
+current_phase: 7
+last_activity_desc: Phase 07 executed; hosted loopback HTTP search p95 309.91 ms at 3,783 sections
 ---
 
 # Project State
@@ -23,25 +23,29 @@ last_activity_desc: Phase 05 complete and operator-approved; all 10 pilot course
 rules live in `PROJECT.md` `<decisions>`; the phase sequence lives in `ROADMAP.md`; dated history
 lives in `ARCHIVE.md`.
 
-## Current state — as of 2026-09-22
+## Current state — as of 2026-09-23
 
 **Repo / git**
 
-- `origin/main` = `d556c2822f7a7dd8d0d450cf543c4eb1c8fb55f7` (verified by fetch).
-  Phase 5 planning tip `origin/dev1/tampa-coverage-pilot` =
-  `8893b9b178df005b7f4a30e4a1fa84c7b6f961c4`. Checkpoint branch:
-  `codex/phase5-1-tracer-checkpoint`, based directly on that planning tip.
+- `origin/main` = `bba84b27f70889b9494e98d2c144c19a7f9cabca` (verified by fetch on
+  2026-09-23). Phase 07 work branch: `codex/phase7-plan`, descended from that tip, not yet
+  pushed or merged.
 
 **Database (hosted Supabase — the only live DB now; the old local beta DB is history in `ARCHIVE.md`)**
 
 - Term 202701 (as of 2026-09-22, Phase 06 full ingest): **3,783 sections, all campus=Tampa, across
-  1,402 courses / 212 subjects. 0 non-Tampa rows. Quality: 0 errors.** (Was 132 sections / 10 courses
+  1,401 represented courses / 212 subjects. 0 non-Tampa rows. Quality: 0 errors.** (Live count
+  2026-09-22; the 1,402-entry target list is not the represented-course count.) (Was 132 sections / 10 courses
   before Phase 06.)
+
 - **179 `GradeDistribution` rows, unchanged — only the 10 pilot courses carry sourced Fall-2024
-  history** (`effective_n > 0`, `score_source=course`). Every one of the ~1,392 newly ingested
-  courses is the honest `effective_n=0` / `score_source=global` state (D-20) — NOT course history.
+  history** (132 sections, `score_source=course`). Live cache split (Phase 07 baseline,
+  2026-09-22): 132 sections / 10 courses `course`; 563 / 104 `subject` (same-subject pilot history
+  used as a subject-level fallback — NOT that course's own outcomes); 3,088 / 1,287 `global`
+  (honest `effective_n=0`, D-20).
   Scaling grade coverage to the rest of Tampa is a separate future effort (bounded per-course SGDIS
   imports, mirroring Phase 05), not MVP1-P3 scope.
+
 - `config/course_targets.toml` reconciled during Phase 06-01: now the full git-tracked 1,402-course
   Tampa list (was 5), generated reproducibly from `courses.csv` via `scripts/generate_tampa_targets.py`.
 
@@ -50,14 +54,16 @@ lives in `ARCHIVE.md`.
 - Enumerated 2026-09-20 across 265 public undergraduate catalog prefixes: **1,402 courses /
   3,782 Tampa sections** across 212 subjects. `courses.csv` is Git-ignored.
 
-**Phase 3.5 (ranking search performance) — delivered, NOT closed**
+**Search performance (Phase 07, 2026-09-23) — REQ-PERF-01 met**
 
-- SQL search rewrite, `section_rankings` cache, cleanup cascade, and benchmark all shipped (5/5).
-  Circular import that blocked `check_data_quality.py` fixed (`2bb984a`). Postgres suite 256
-  passed; quality 0 errors.
-- Performance goal **not met**: p95 ~**2.40s** at a 3,782-section synthetic fixture over Supabase,
-  above the ~1.5s target. Accepted deviation (`WINDOWS.md`); folded into MVP-1 as blocking phase
-  MVP1-P4 (since MVP 1 targets Supabase, not local).
+- Loopback HTTP `GET /api/v1/rankings/search` (local API over hosted Supabase, transaction
+  pooler, 3,783 stored sections, 50 measured after 5 warmups): **p50 217 ms, p95 309.91 ms**,
+  max 334 ms. Baseline was 1,202 ms p95. The Phase 3.5 synthetic 2.40 s figure is superseded.
+  Deployed and browser latency are not measured.
+- Whole-term cache rebuild: 3,783 rows in **4.77 s** (15 statements). The pre-batch run lost
+  its connection after about 30 minutes. Whole-term quality pass: **2.45 s** (was about 35 minutes).
+- Test baseline: 323 passed, 3 skipped. PostgreSQL integration tests still skip without
+  `EASY_A_TEST_POSTGRES_URL`.
 
 ## Current milestone — MVP 1
 
@@ -67,27 +73,21 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: 3
+Current Plan: 3 (complete)
 Total Plans in Phase: 3
 
 ## Next action
 
-**Phase 06 (MVP1-P3) is complete (3/3 plans).** The full Tampa Spring 2027 universe is ingested and
-validated against live hosted Supabase: **212 subjects / 1,402 courses / 3,783 sections, 0 non-Tampa
-rows, 0 quality errors.** The scale validator (`scripts/validate_tampa_ingest.py`) passes all three
-checks — suffix-exact (all 33 base/suffix pairs), reconciliation (3,783 = coverage_metadata sum =
-rankings-search total), and honest-coverage (D-20). REQ-COVERAGE-03 marked complete. Full suite:
-295 passed, 3 skipped.
+**Phase 07 (MVP1-P4) is complete (3/3 plans).** REQ-PERF-01 is met with live evidence in
+`.planning/phases/07-mvp1-p4-full-scale-cache-build-search-performance-p95-1-5s/07-PERF-REPORT.md`.
+The fixes were one DB engine per API process, key-first search paging with page-only latest-seat
+hydration, and whole-term batching of grade, instructor, GenEd and syllabus reads for the cache
+rebuild and quality pass. No scoring, API-contract or schema change; Alembic head is still 0003.
 
-**Do next: Phase 07 (MVP1-P4)** — full-scale cache build + tune search to p95 < ~1.5s on Supabase.
-Fold in the deferred perf fix from Phase 06: `get_course_historical_outcome_stats` recomputes the
-global/subject grade aggregate per course (~5 round-trips/course); batching/hoisting it speeds both
-the whole-term quality/ranking rebuild and search.
+**Do next:**
 
-Remaining build steps (see ROADMAP MVP1-P4..P5):
-
-1. **MVP1-P4** — full-scale cache build + tune search to p95 < ~1.5s on Supabase.
-2. **MVP1-P5** — end-to-end MVP-1 verification.
+1. Push `codex/phase7-plan` and open a PR to `main` (not done yet).
+2. **Phase 08 (MVP1-P5)**: end-to-end MVP-1 verification. Plan it with `/gsd-plan-phase 8`.
 
 ## History
 
@@ -104,23 +104,29 @@ are in `.planning/ARCHIVE.md`. They describe the earlier local beta DB and are n
 - D-10: verify `origin/main` by fetch; do not check out/merge an unverified local `main`
 - Note: the D-18 "broader launch coverage is deferred" decision is **superseded** — full Tampa
   breadth is now the MVP-1 goal (see PROJECT.md). Email alerts (D-16) and RMP (D-17, = MVP 2) stay deferred.
+
 - Phase 03.5: cache non-seat ranking fields and hydrate live seats at read time; whole-term cache
   rebuild wrapped into `refresh_data`; cleanup cascade covers `section_rankings`.
 
 ## Still open
 
 - **Grade-history coverage for the new courses (separate future effort)** — Phase 06 ingested the
-  full section universe; the ~1,392 newly added courses are correctly the honest `effective_n=0` /
-  `score_source=global` state (validated). Giving them sourced history is a bounded per-course SGDIS
+  full section universe; the ~1,391 newly added courses have no course-level history: 104 use the subject-level
+  fallback and 1,287 the honest `effective_n=0` / `score_source=global` state (live count
+  2026-09-22). Giving them sourced history is a bounded per-course SGDIS
   import effort (mirroring Phase 05), NOT part of MVP1-P3, and not yet scheduled.
+
 - **Blank grade-cell / suppression semantics (OQ-04)** — the upstream meaning of a blank InfoCenter
   cell is still genuinely unknown. MVP1-P1 (04-02, 2026-09-21) made the parser fail closed on any
   blank canonical count instead of silently coercing to `0`; that is a safety policy, not a
   resolution of OQ-04. Needs a real/sample InfoCenter export.
+
 - ~~**Suffix-course query guard**~~ **RESOLVED (Phase 06)** — the merged `_retain_exact_course_rows`
   guard held across all 33 base/suffix pairs at full scale; `assert_suffix_exact_ingest` confirms no
   L-variant leakage. Guard code unchanged.
-- **Search p95 at full scale** — ~2.40s on Supabase at 3,782 sections; must reach < ~1.5s for MVP 1.
+
+- ~~**Search p95 at full scale**~~ **RESOLVED (Phase 07)**: loopback HTTP p95 309.91 ms at 3,783
+  sections on hosted Supabase. Deployed-host latency is still to be measured once a host exists.
 - **Deployment host and domain** not yet supplied.
 
 ## Deferred — do not reintroduce as current scope
@@ -130,8 +136,15 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Phase 06 (MVP1-P3) complete — REQ-COVERAGE-03 proven at scale against live hosted Supabase
+**Stopped at:** Phase 07 (MVP1-P4) complete. REQ-PERF-01 was proven against live hosted Supabase.
 **Resume file:** None
+
+Last session: 2026-09-23. Phase 07 execution ran across three sessions. Codex (Windows clone)
+completed the 07-01 benchmarks and baseline. A Claude Code WSL session fetched that branch,
+committed the measurement script and 07-02 grade batching, then ended mid-measurement. A third
+session resumed from the commits and the untracked perf report, batched the per-section rebuild
+lookups, tuned the serve path (07-03), and recorded the final evidence.
+
 
 Last session: 2026-09-22. Phase 06 executed end-to-end: tracer (CHM) → full ingestion (212 subjects
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
@@ -155,6 +168,9 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 | Phase 05 P02 | 55min | 3 tasks | 2 files |
 | Phase 06 P01 | 30min | 2 tasks | 8 files |
 | Phase 06 P03 | 75min | 3 tasks | 2 files |
+| Phase 07 P01 | split sessions | 2 tasks | 4 files |
+| Phase 07 P02 | ~1h | 2 tasks | 10 files |
+| Phase 07 P03 | ~45min | 2 tasks | 5 files |
 
 ## Decisions
 
@@ -169,3 +185,6 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 - [Phase 06]: [Phase 06-02]: Built scripts/refresh_all_tampa.py as a resumable, paced per-subject orchestrator that shells out to the unmodified refresh_course_coverage.py once per subject (own process/transaction each), records completed subjects to a progress file for resume, and continues past a failed subject rather than aborting; coverage.py/target_cli.py remain unmodified. Halted at the plan's blocking-human checkpoint before the ~2,800-request live USF run.
 - [Phase 6]: [Phase 06-03]: validate_tampa_ingest.py's suffix-leak signal is a suffix course ingested but owning 0 stored sections (not a Section-Course join mismatch, which the FK guarantees can't happen); real proof against the live DB found no leak across all 33 pairs.
 - [Phase 6]: [Phase 06-03]: gsd tdd-red-evidence is Node-TAP-specific and cannot classify pytest output (always zero_tests_discovered); workflow.tdd_mode is false for this project so the automated gate isn't enforced -- RED/GREEN was verified directly via pytest's own per-test evidence instead.
+- [Phase 07]: The REQ-PERF-01 gate is loopback HTTP p95 (request + body + JSON validation) with the API on hosted Supabase. Direct route timing is a diagnostic only.
+- [Phase 07]: No search index added. At ~4k rows the slow page was a join strategy (a nested loop over a materialized latest-seat window), fixed by key-first paging. seat_snapshots(section_id, observed_at DESC, id DESC) is the candidate index if snapshot history grows.
+- [Phase 07]: Whole-term rebuild takes refreshed_at from one transaction-time now() (equal to per-row func.now() on PostgreSQL) so ORM updates batch.

@@ -132,7 +132,7 @@ def test_sql_search_executes_one_count_and_one_page_query(
     selects = [
         statement
         for statement in statements
-        if statement.lstrip().upper().startswith("SELECT")
+        if statement.lstrip().upper().startswith(("SELECT", "WITH"))
     ]
     assert len(selects) == 2
     assert all("section_rankings" in statement for statement in selects)
@@ -205,6 +205,112 @@ def test_sql_search_treats_sql_metacharacters_as_literal_filter_text(
     assert response.status_code == 200
     assert response.json()["items"] == []
     assert response.json()["total"] == 0
+
+
+def _record_selects(
+    client: TestClient,
+    session_factory: sessionmaker[Session],
+    params: dict[str, str | bool],
+) -> list[str]:
+    engine = session_factory.kw["bind"]
+    assert isinstance(engine, Engine)
+    statements: list[str] = []
+
+    def record_statement(
+        _connection: object,
+        _cursor: object,
+        statement: str,
+        _parameters: object,
+        _context: object,
+        _executemany: bool,
+    ) -> None:
+        statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", record_statement)
+    try:
+        response = client.get("/api/v1/rankings/search", params={"term": "202701", **params})
+    finally:
+        event.remove(engine, "before_cursor_execute", record_statement)
+    assert response.status_code == 200
+    return [s for s in statements if s.lstrip().upper().startswith(("SELECT", "WITH"))]
+
+
+@pytest.mark.parametrize(
+    ("params", "count_reads_seats"),
+    [
+        ({"sort": "easiness_desc"}, False),
+        ({"sort": "seats_desc"}, False),
+        ({"sort": "course", "seats_open": True}, True),
+    ],
+)
+def test_sql_search_count_reads_seat_snapshots_only_when_seats_filter_it(
+    sql_search_client: TestClient,
+    sql_search_session_factory: sessionmaker[Session],
+    params: dict[str, str | bool],
+    count_reads_seats: bool,
+) -> None:
+    count_sql, page_sql = _record_selects(sql_search_client, sql_search_session_factory, params)
+
+    assert ("seat_snapshots" in count_sql) is count_reads_seats
+    assert "seat_snapshots" in page_sql
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"sort": "seats_desc"},
+        {"sort": "seats_desc", "seats_open": True},
+        {"sort": "easiness_desc", "seats_open": True},
+        {"sort": "withdrawal_asc"},
+    ],
+)
+def test_sql_search_pages_concatenate_to_the_unpaged_order(
+    sql_search_client: TestClient,
+    params: dict[str, str | bool],
+) -> None:
+    full = sql_search_client.get(
+        "/api/v1/rankings/search", params={"term": "202701", **params}
+    ).json()
+    paged: list[tuple[object, object]] = []
+    for offset in range(0, full["total"] + 2, 2):
+        page = sql_search_client.get(
+            "/api/v1/rankings/search",
+            params={"term": "202701", "limit": 2, "offset": offset, **params},
+        ).json()
+        assert page["total"] == full["total"]
+        paged.extend((item["crn"], item["seats_remaining"]) for item in page["items"])
+
+    assert paged == [(item["crn"], item["seats_remaining"]) for item in full["items"]]
+
+
+def test_sql_search_breaks_equal_snapshot_times_by_highest_snapshot_id(
+    sql_search_client: TestClient,
+    sql_search_session_factory: sessionmaker[Session],
+) -> None:
+    with sql_search_session_factory() as session:
+        section_id = session.query(Section.id).filter(Section.crn == "10001").scalar()
+        session.add(
+            SeatSnapshot(
+                section_id=section_id,
+                observed_at=NOW,
+                capacity=30,
+                enrollment=27,
+                seats_remaining=3,
+                wait_seats_available=0,
+            )
+        )
+        session.commit()
+
+    response = sql_search_client.get(
+        "/api/v1/rankings/search",
+        params={"term": "202701", "sort": "seats_desc"},
+    )
+
+    assert response.status_code == 200
+    items = response.json()["items"]
+    by_crn = {item["crn"]: item for item in items}
+    assert by_crn["10001"]["seats_remaining"] == 3
+    assert [item["crn"] for item in items] == ["20001", "10001", "10002", "40001", "30001"]
 
 
 def _seed_sql_search_data(session: Session) -> None:
