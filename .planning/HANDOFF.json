@@ -65,6 +65,6 @@
     "?? .planning/state.json",
     "?? phase1_report.md"
   ],
-  "next_action": "After the grade-import work reports completion, refresh the hosted 202701 grade and ranking inventory; require own-course score_source and effective_n > 0 for every current section, source provenance for every represented course, and zero quality errors. Then rerun /gsd-plan-phase 8 and its independent checker before /gsd-execute-phase 8.",
+  "next_action": "Apply PROJECT.md D-21 (source range exhausted; exceptions honestly labeled) to the live 202701 inventory, then rerun /gsd-plan-phase 8 and its checker before /gsd-execute-phase 8.",
   "context_notes": "Four Phase 8 PLAN.md drafts, RESEARCH.md, PATTERNS.md and VALIDATION.md were created but not finalized. The checker found the literal MVP-1 grade goal unreachable on the dated baseline; its separate research-heading issue was resolved. No Phase 8 execution, live DB query or grade import occurred in this session. The external Codex grade-import loop has no local async-job manifest. Preserve unrelated untracked files."
 }
