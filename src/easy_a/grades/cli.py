@@ -29,11 +29,11 @@ def main(argv: list[str] | None = None) -> int:
                 source=args.source,
             )
         except (GradeWorkbookSchemaError, GradeWorkbookValidationError) as exc:
-            session.commit()
+            session.rollback()
             print(f"Grade ingest failed: {exc}")
             return 1
         except Exception:
-            session.commit()
+            session.rollback()
             raise
         session.commit()
 

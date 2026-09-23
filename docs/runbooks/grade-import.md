@@ -26,6 +26,29 @@ uv run python scripts/refresh_data.py `
 
 The importer is idempotent for the same `(term, CRN, source)`: a repeated export updates the existing row when its contents differ and does not double-count it. Preserve the command result and the corresponding successful `ingest_runs` identifier as provenance.
 
+### College or department exports with historical courses outside the current catalog
+
+A complete college export can include courses absent from the current Tampa catalog. For the
+Spring 2027 coverage run, use the filtered importer so the entire workbook is validated first,
+then only exact course keys represented by current Tampa sections are written. Read the expected
+row and grade totals from the InfoCenter report independently of the XLSX. Omit `--write` for a
+dry run; add it only after checking the reported selection count.
+
+```powershell
+uv run python scripts/ingest_college_grades.py `
+  --term <HISTORICAL_BANNER_TERM> `
+  --file <PATH_TO_APPROVED_XLSX> `
+  --expected-rows <INFOCENTER_SECTION_ROW_COUNT> `
+  --expected-total-grades <INFOCENTER_TOTAL_GRADES> `
+  --write
+```
+
+The command rejects row/grade-total mismatches, duplicate CRNs, non-Tampa rows, and invalid grade
+counts before writing. Record the InfoCenter report ID and `ingest_run_id` in an aggregate ledger;
+the source XLSX SHA-256 is stored on the grade rows. A capped report must be partitioned into
+uncapped exports and the partition union checked for duplicate CRNs and against the capped preview
+before importing. Rebuild the current-term cache once after all historical imports.
+
 ## 2. Rebuild the live rankings cache separately
 
 The historical import only rebuilds the cache for the historical term passed above. Rebuild the live Spring 2027 cache in a separate invocation:
