@@ -261,7 +261,8 @@ rather than being marked complete.
 **Goal**: all ~3,782 USF Tampa Spring 2027 (`202701`) sections ingested and **searchable against
 hosted Supabase**, each with **historical grade distributions imported** and **easiness computed
 from that real data** (not the `effective_n = 0` fallback), with search **p95 < ~1.5s**. RMP
-instructor links = MVP 2.
+instructor links = MVP 2. "Every section" is judged by PROJECT.md D-21: source range exhausted,
+remaining source-limited sections honestly labeled as fallbacks.
 
 **Where we start**: 132 sections / 10 courses / **0 grade rows** on Supabase; the full Tampa
 universe is ~1,402 courses / ~3,782 sections (see `.planning/STATE.md`).
