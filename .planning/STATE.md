@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 current_plan: 3
 status: complete
-stopped_at: Phase 07 complete (3/3 plans); REQ-PERF-01 met; next is Phase 08 (MVP1-P5)
-last_updated: "2026-09-22T19:56:18.305Z"
-state_head: 1d2eabe34720e82dc40b481b4ec1551c3cd5bc0e
+stopped_at: Grade import complete (Spring 2025-Spring 2026); Phase 08 gate to be amended, then re-plan
+last_updated: "2026-09-23T22:00:00Z"
+state_head: 4e4b944bca22b8dc1189a5efe2f7f5f59849a164
 progress:
   total_phases: 10
   completed_phases: 6
@@ -14,7 +14,7 @@ progress:
 last_activity: 2026-09-23
 current_phase_name: MVP1-P4 full-scale cache and search performance
 current_phase: 7
-last_activity_desc: Phase 07 executed; hosted loopback HTTP search p95 309.91 ms at 3,783 sections
+last_activity_desc: Grade import finished; 3,422 of 3,783 sections match own-course history (3,122 with effective_n>0); Phase 08 draft plans merged
 ---
 
 # Project State
@@ -27,9 +27,9 @@ lives in `ARCHIVE.md`.
 
 **Repo / git**
 
-- `origin/main` = `bba84b27f70889b9494e98d2c144c19a7f9cabca` (verified by fetch on
-  2026-09-23). Phase 07 work branch: `codex/phase7-plan`, descended from that tip, not yet
-  pushed or merged.
+- `origin/main` = `4e4b944bca22b8dc1189a5efe2f7f5f59849a164` (verified by fetch on
+  2026-09-23; Phase 07 merged via PR #25). Grade import + Phase 08 drafts are on the PR branch
+  `codex/college-grade-import` descended from that tip.
 
 **Database (hosted Supabase — the only live DB now; the old local beta DB is history in `ARCHIVE.md`)**
 
@@ -38,13 +38,17 @@ lives in `ARCHIVE.md`.
   2026-09-22; the 1,402-entry target list is not the represented-course count.) (Was 132 sections / 10 courses
   before Phase 06.)
 
-- **179 `GradeDistribution` rows, unchanged — only the 10 pilot courses carry sourced Fall-2024
-  history** (132 sections, `score_source=course`). Live cache split (Phase 07 baseline,
-  2026-09-22): 132 sections / 10 courses `course`; 563 / 104 `subject` (same-subject pilot history
-  used as a subject-level fallback — NOT that course's own outcomes); 3,088 / 1,287 `global`
-  (honest `effective_n=0`, D-20).
-  Scaling grade coverage to the rest of Tampa is a separate future effort (bounded per-course SGDIS
-  imports, mirroring Phase 05), not MVP1-P3 scope.
+- **6,887 `GradeDistribution` rows** in hosted Supabase as of 2026-09-23: 6,708 newly imported
+  from Spring 2025, Summer 2025, Fall 2025, and Spring 2026 for Muma, Engineering, and Arts and
+  Sciences, plus 179 pre-existing Fall 2024 pilot rows. Summer 2026 returned no rows for all three
+  colleges. The user set **Spring 2025 as the oldest term for new coverage work**; the old pilot
+  rows remain. See `grade-coverage-import-2026-09-23.md` for the term and department ledger.
+- Of 3,783 Spring 2027 Tampa sections, **2,571 sections / 793 courses** match their own course's
+  historical grade rows; **1,212 sections / 608 courses** lack an own-course match. The rebuilt
+  cache has 2,362 sections / 767 courses with own-course source and `effective_n > 0`, 402
+  subject-fallback sections, and 810 global-fallback sections. Quality: **0 errors**, 1,566
+  low-confidence warnings, 810 no-history info findings. Do not describe subject/global fallback
+  as that course's own grade distribution.
 
 - `config/course_targets.toml` reconciled during Phase 06-01: now the full git-tracked 1,402-course
   Tampa list (was 5), generated reproducibly from `courses.csv` via `scripts/generate_tampa_targets.py`.
@@ -84,10 +88,17 @@ The fixes were one DB engine per API process, key-first search paging with page-
 hydration, and whole-term batching of grade, instructor, GenEd and syllabus reads for the cache
 rebuild and quality pass. No scoring, API-contract or schema change; Alembic head is still 0003.
 
-**Do next:**
+**Grade coverage (live, 2026-09-23, after cache rebuild):** 8,662 grade rows (Spring 2025-Spring 2026
+plus 179 Fall 2024 pilot). Spring 2027 Tampa: 3,783 sections. `score_source=course` 3,422 (3,122
+with effective_n>0; the 300 with 0 are x4900-series independent-study/internship courses whose
+history has no letter-grade weight, so they show the prior); `subject` fallback 311; `global` 50.
+The 361 unmatched sections are source-limited (InfoCenter omits <5-student courses). Quality: 0
+errors. See `.planning/grade-coverage-import-2026-09-23.md`.
 
-1. Push `codex/phase7-plan` and open a PR to `main` (not done yet).
-2. **Phase 08 (MVP1-P5)**: end-to-end MVP-1 verification. Plan it with `/gsd-plan-phase 8`.
+**Do next:** Phase 08 draft plans still gate on "zero subject/global fallbacks", which the source
+cannot satisfy. Decision needed: amend the gate to "allowed source range exhausted, remaining
+sections honestly labeled, no invented data", then rerun `/gsd-plan-phase 8` and its checker
+before `/gsd-execute-phase 8`. Read `.planning/HANDOFF.json` and the Phase 08 `.continue-here.md`.
 
 ## History
 
@@ -110,11 +121,9 @@ are in `.planning/ARCHIVE.md`. They describe the earlier local beta DB and are n
 
 ## Still open
 
-- **Grade-history coverage for the new courses (separate future effort)** — Phase 06 ingested the
-  full section universe; the ~1,391 newly added courses have no course-level history: 104 use the subject-level
-  fallback and 1,287 the honest `effective_n=0` / `score_source=global` state (live count
-  2026-09-22). Giving them sourced history is a bounded per-course SGDIS
-  import effort (mirroring Phase 05), NOT part of MVP1-P3, and not yet scheduled.
+- **Grade-history coverage for the remaining courses** — 1,212 Spring 2027 Tampa sections / 608
+  courses still lack their own course's historical rows after the three-college import. Other
+  colleges have not yet been processed in this coverage run. See the dated import ledger.
 
 - **Blank grade-cell / suppression semantics (OQ-04)** — the upstream meaning of a blank InfoCenter
   cell is still genuinely unknown. MVP1-P1 (04-02, 2026-09-21) made the parser fail closed on any
@@ -136,10 +145,12 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Phase 07 (MVP1-P4) complete. REQ-PERF-01 was proven against live hosted Supabase.
-**Resume file:** None
+**Stopped at:** Three-college grade import complete for all available terms from Spring 2025
+through Summer 2026, with Spring 2025 set as the oldest term for new work. Spring 2027 cache
+rebuilt and quality checked. Remaining coverage is in other Tampa colleges.
+**Resume file:** `grade-coverage-import-2026-09-23.md`
 
-Last session: 2026-09-23. Phase 07 execution ran across three sessions. Codex (Windows clone)
+Earlier session: 2026-09-23. Phase 07 execution ran across three sessions. Codex (Windows clone)
 completed the 07-01 benchmarks and baseline. A Claude Code WSL session fetched that branch,
 committed the measurement script and 07-02 grade batching, then ended mid-measurement. A third
 session resumed from the commits and the untracked perf report, batched the per-section rebuild

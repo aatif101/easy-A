@@ -1,0 +1,70 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-09-23T18:15:36.984Z",
+  "phase": "8",
+  "phase_name": "MVP1-P5 — End-to-end MVP-1 verification",
+  "phase_dir": ".planning/phases/08-mvp1-p5-end-to-end-mvp-1-verification",
+  "plan": null,
+  "task": null,
+  "total_tasks": 0,
+  "status": "paused",
+  "completed_tasks": [],
+  "remaining_tasks": [
+    {
+      "id": 1,
+      "name": "Finish sourced historical grade coverage for every represented Spring 2027 Tampa course using bounded, resumable imports",
+      "status": "external_in_progress"
+    },
+    {
+      "id": 2,
+      "name": "Rebuild 202701 rankings and verify every section has own-course sourced history and effective_n > 0",
+      "status": "not_started"
+    },
+    {
+      "id": 3,
+      "name": "Re-run the Phase 8 plan checker, resolve the goal blocker, finalize plans, then execute Phase 8",
+      "status": "not_started"
+    }
+  ],
+  "blockers": [
+    {
+      "description": "Phase 8's goal requires MVP 1 to be demonstrably met, but the latest dated snapshot has own-course history for only 132 of 3,783 sections across 10 of 1,401 represented courses.",
+      "type": "external",
+      "workaround": "Complete approved historical grade sourcing/import and verify live coverage; do not count subject/global fallbacks as course history."
+    },
+    {
+      "description": "The Phase 8 plan checker reported a requirement_coverage blocker; the four plans remain drafts and Phase 8 is not ready to execute.",
+      "type": "technical",
+      "workaround": "After grade coverage is verified, revise the plans against fresh evidence and rerun the independent checker."
+    }
+  ],
+  "async_jobs": [],
+  "human_actions_pending": [
+    {
+      "action": "Continue authenticated USF InfoCenter grade sourcing in bounded batches of up to 20 uncovered courses and save each successful course import to the live Supabase grade_distributions table.",
+      "context": "The user is handling this with Codex in the authorized browser; no job manifest or completion evidence is available in this workspace yet.",
+      "blocking": true
+    }
+  ],
+  "decisions": [
+    {
+      "decision": "Complete sourced own-course grade coverage before Phase 8 execution.",
+      "rationale": "PROJECT.md defines MVP 1 as historical grades behind every section's easiness score; Phase 8 must prove that goal.",
+      "phase": "8"
+    },
+    {
+      "decision": "Import one exact-course report at a time, commit each successful import to Supabase, and rebuild the 202701 ranking cache after each bounded batch.",
+      "rationale": "The course is the unit of historical evidence; one course may back several current sections, and per-course imports make progress resumable.",
+      "phase": "8"
+    }
+  ],
+  "uncommitted_files": [
+    "?? .planning/config.json",
+    "?? .planning/milestone.lock",
+    "?? .planning/research/",
+    "?? .planning/state.json",
+    "?? phase1_report.md"
+  ],
+  "next_action": "After the grade-import work reports completion, refresh the hosted 202701 grade and ranking inventory; require own-course score_source and effective_n > 0 for every current section, source provenance for every represented course, and zero quality errors. Then rerun /gsd-plan-phase 8 and its independent checker before /gsd-execute-phase 8.",
+  "context_notes": "Four Phase 8 PLAN.md drafts, RESEARCH.md, PATTERNS.md and VALIDATION.md were created but not finalized. The checker found the literal MVP-1 grade goal unreachable on the dated baseline; its separate research-heading issue was resolved. No Phase 8 execution, live DB query or grade import occurred in this session. The external Codex grade-import loop has no local async-job manifest. Preserve unrelated untracked files."
+}
