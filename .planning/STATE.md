@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 current_plan: 3
 status: complete
-stopped_at: Spring 2025 through Spring 2026 grade imports for Muma, Engineering, and Arts and Sciences complete; next is remaining Tampa college coverage
-last_updated: "2026-09-23T21:15:50Z"
+stopped_at: Grade import complete (Spring 2025-Spring 2026); Phase 08 gate to be amended, then re-plan
+last_updated: "2026-09-23T22:00:00Z"
 state_head: 4e4b944bca22b8dc1189a5efe2f7f5f59849a164
 progress:
   total_phases: 10
@@ -14,7 +14,7 @@ progress:
 last_activity: 2026-09-23
 current_phase_name: MVP1-P4 full-scale cache and search performance
 current_phase: 7
-last_activity_desc: Imported 6,708 sourced grade rows to hosted Supabase and rebuilt Spring 2027 cache; 2,571 of 3,783 sections now match own-course history
+last_activity_desc: Grade import finished; 3,422 of 3,783 sections match own-course history (3,122 with effective_n>0); Phase 08 draft plans merged
 ---
 
 # Project State
@@ -28,7 +28,8 @@ lives in `ARCHIVE.md`.
 **Repo / git**
 
 - `origin/main` = `4e4b944bca22b8dc1189a5efe2f7f5f59849a164` (verified by fetch on
-  2026-09-23). Current work branch: `codex/college-grade-import`, descended from that tip.
+  2026-09-23; Phase 07 merged via PR #25). Grade import + Phase 08 drafts are on the PR branch
+  `codex/college-grade-import` descended from that tip.
 
 **Database (hosted Supabase — the only live DB now; the old local beta DB is history in `ARCHIVE.md`)**
 
@@ -87,13 +88,17 @@ The fixes were one DB engine per API process, key-first search paging with page-
 hydration, and whole-term batching of grade, instructor, GenEd and syllabus reads for the cache
 rebuild and quality pass. No scoring, API-contract or schema change; Alembic head is still 0003.
 
-**Do next:**
+**Grade coverage (live, 2026-09-23, after cache rebuild):** 8,662 grade rows (Spring 2025-Spring 2026
+plus 179 Fall 2024 pilot). Spring 2027 Tampa: 3,783 sections. `score_source=course` 3,422 (3,122
+with effective_n>0; the 300 with 0 are x4900-series independent-study/internship courses whose
+history has no letter-grade weight, so they show the prior); `subject` fallback 311; `global` 50.
+The 361 unmatched sections are source-limited (InfoCenter omits <5-student courses). Quality: 0
+errors. See `.planning/grade-coverage-import-2026-09-23.md`.
 
-1. Continue grade coverage for the remaining Tampa colleges, using only Spring 2025 or newer
-   available grade terms. The current `sections` table has no college/department field, so the
-   1,212 unmatched sections cannot yet be assigned a reliable department count from the DB alone.
-2. Verify and commit the college-grade importer and rollback fix on `codex/college-grade-import`.
-3. **Phase 08 (MVP1-P5)**: end-to-end MVP-1 verification after grade coverage expands.
+**Do next:** Phase 08 draft plans still gate on "zero subject/global fallbacks", which the source
+cannot satisfy. Decision needed: amend the gate to "allowed source range exhausted, remaining
+sections honestly labeled, no invented data", then rerun `/gsd-plan-phase 8` and its checker
+before `/gsd-execute-phase 8`. Read `.planning/HANDOFF.json` and the Phase 08 `.continue-here.md`.
 
 ## History
 
