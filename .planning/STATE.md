@@ -95,10 +95,10 @@ history has no letter-grade weight, so they show the prior); `subject` fallback 
 The 361 unmatched sections are source-limited (InfoCenter omits <5-student courses). Quality: 0
 errors. See `.planning/grade-coverage-import-2026-09-23.md`.
 
-**Do next:** Phase 08 draft plans still gate on "zero subject/global fallbacks", which the source
-cannot satisfy. Decision needed: amend the gate to "allowed source range exhausted, remaining
-sections honestly labeled, no invented data", then rerun `/gsd-plan-phase 8` and its checker
-before `/gsd-execute-phase 8`. Read `.planning/HANDOFF.json` and the Phase 08 `.continue-here.md`.
+**Do next:** Phase 08 gate amended by PROJECT.md D-21 (source range exhausted; source-limited
+exceptions honestly labeled; fallbacks never count as course history). Rerun `/gsd-plan-phase 8` and
+its checker against the live inventory before `/gsd-execute-phase 8`. Also decide UI wording for the
+300 x4900-series `course`/`effective_n = 0` sections. Read `.planning/HANDOFF.json` and the Phase 08 `.continue-here.md`.
 
 ## History
 
