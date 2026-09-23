@@ -2,8 +2,8 @@
 gsd_state_version: 1.0
 current_plan: 3
 status: complete
-stopped_at: Phase 07 complete (3/3 plans); REQ-PERF-01 met; next is Phase 08 (MVP1-P5)
-last_updated: "2026-09-22T19:56:18.305Z"
+stopped_at: Phase 08 planning paused at grade-coverage gate; see HANDOFF.json
+last_updated: "2026-09-23T18:15:36.984Z"
 state_head: 1d2eabe34720e82dc40b481b4ec1551c3cd5bc0e
 progress:
   total_phases: 10
@@ -14,7 +14,7 @@ progress:
 last_activity: 2026-09-23
 current_phase_name: MVP1-P4 full-scale cache and search performance
 current_phase: 7
-last_activity_desc: Phase 07 executed; hosted loopback HTTP search p95 309.91 ms at 3,783 sections
+last_activity_desc: Phase 08 draft plans created; checker blocked finalization until own-course historical grades cover every current section
 ---
 
 # Project State
@@ -27,9 +27,9 @@ lives in `ARCHIVE.md`.
 
 **Repo / git**
 
-- `origin/main` = `bba84b27f70889b9494e98d2c144c19a7f9cabca` (verified by fetch on
-  2026-09-23). Phase 07 work branch: `codex/phase7-plan`, descended from that tip, not yet
-  pushed or merged.
+- `origin/main` = `4e4b944bca22b8dc1189a5efe2f7f5f59849a164` (verified by fetch on
+  2026-09-23; Phase 07 merged via PR #25). Current worktree branch `codex/phase7-plan` was
+  fast-forwarded to that tip before Phase 08 planning. Phase 08 drafts are a paused WIP checkpoint.
 
 **Database (hosted Supabase — the only live DB now; the old local beta DB is history in `ARCHIVE.md`)**
 
@@ -84,10 +84,16 @@ The fixes were one DB engine per API process, key-first search paging with page-
 hydration, and whole-term batching of grade, instructor, GenEd and syllabus reads for the cache
 rebuild and quality pass. No scoring, API-contract or schema change; Alembic head is still 0003.
 
-**Do next:**
-
-1. Push `codex/phase7-plan` and open a PR to `main` (not done yet).
-2. **Phase 08 (MVP1-P5)**: end-to-end MVP-1 verification. Plan it with `/gsd-plan-phase 8`.
+**Checkpoint / do next:** Phase 08 has four draft plans, but its independent plan checker blocked
+finalization: the literal MVP-1 goal requires sourced own-course historical grades behind every
+current section, while the last dated live snapshot has only 132 of 3,783 such sections. The user
+is sourcing approved grade distributions through an authenticated Codex browser workflow in
+bounded batches of up to 20 uncovered courses, saving each successful import to hosted Supabase.
+This work has not been verified by this session. Read `.planning/HANDOFF.json` and
+`.planning/phases/08-mvp1-p5-end-to-end-mvp-1-verification/.continue-here.md` before resuming.
+When imports finish, remeasure live grade and ranking coverage, then rerun `/gsd-plan-phase 8`
+and its checker before `/gsd-execute-phase 8`. Do not mark Phase 8 or MVP 1 complete from the
+dated baseline.
 
 ## History
 
