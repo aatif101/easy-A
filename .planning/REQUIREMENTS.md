@@ -195,7 +195,13 @@ Kept for traceability. Verified present in code at `62fb2f1`.
 
 ## MVP 1 — performance
 
-- [◐] **REQ-PERF-01** (MVP-1 blocking): Ranking search is fast at full Tampa coverage.
+- [x] **REQ-PERF-01** (MVP-1 blocking): Ranking search is fast at full Tampa coverage.
+  *Evidence (Phase 07, 2026-09-23)*: loopback HTTP `GET /api/v1/rankings/search` over hosted
+  Supabase (transaction pooler) at **3,783 stored sections**: p50 217 ms, **p95 309.91 ms**, max
+  334 ms. 50 measured calls after 5 warmups, deterministic mix of sorts and filters. Baseline was
+  1,202 ms p95. Cache parity is byte-for-byte; scoring and API contract are unchanged. Deployed and
+  browser latency are not measured. See
+  `.planning/phases/07-mvp1-p4-full-scale-cache-build-search-performance-p95-1-5s/07-PERF-REPORT.md`.
   *Context*: Phase 3.5 delivered the SQL rewrite that removed the per-section N+1 (which measured
   ~600s at 132 sections over Supabase). Measured **~2.40s p95** at a 3,782-section synthetic fixture
   over Supabase — still above target. The rewrite kept cached rankings byte-for-byte identical to
@@ -253,7 +259,7 @@ Not committed. Not required for the hosted beta.
 | Historical grade coverage for future all-Tampa expansion | Current 10-course pilot is fully course-backed; newly added Phase 6 courses still require the same sourced-data or explicit-fallback treatment | REQ-GRADES-01 / MVP1-P3 |
 | Grade→course attribution broken | **Fixed in MVP1-P1 (04-01, 2026-09-21)** — `resolve_course_id()` now resolves and persists `course_id` on insert/update, with an atomic preflight and null-row repair | Closed |
 | No "all Tampa" ingest path; suffix-course guard | ingestion is target-driven; USF's CHM 2045 query also returns CHM 2045L (33 base courses affected) | REQ-COVERAGE-03 / MVP1-P3 |
-| Search p95 above target at full scale | ~2.40s p95 at a 3,782-section synthetic fixture over Supabase | REQ-PERF-01 / MVP1-P4 |
+| ~~Search p95 above target at full scale~~ **Resolved 2026-09-23** | loopback HTTP p95 309.91 ms at 3,783 live sections on hosted Supabase (the 2.40 s figure was a synthetic fixture) | REQ-PERF-01 / Phase 07 |
 | Blank grade-cell / suppression semantics unresolved | **Fail-closed rejection added in MVP1-P1 (04-02, 2026-09-21)** — blank canonical counts are now rejected rather than coerced to zero; the underlying real-export semantics (OQ-04) are still unresolved | Needs a real/sample InfoCenter export |
 | Deployment host and domain not supplied | — | After MVP 1 (hosted beta) |
 
