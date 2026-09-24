@@ -26,10 +26,10 @@ is re-queried in this phase.
 
 | Gate | Status | Evidence command | UTC time | Denominator | Reason |
 |---|---|---|---|---|---|
-| REQ-COVERAGE-03 validator (suffix-exact + reconciliation) | PASS | `uv run python scripts/validate_tampa_ingest.py --term 202701 --targets config/course_targets.toml` | 2026-09-24T18:31:32Z–18:34:10Z | 3,783 sections / 1,402-entry target list | `PASS suffix-exact`, `PASS reconciliation` printed; stored/coverage/rankings counts agree; every stored course is a configured target |
+| REQ-COVERAGE-03 validator (suffix-exact + reconciliation) | PASS | `uv run python scripts/validate_tampa_ingest.py --term 202701 --targets config/course_targets.toml` | 2026-09-24T18:31:32Z–18:34:10Z | 3,783 sections / 1,402-entry target list | `PASS suffix-exact`, `PASS reconciliation` printed; stored/coverage/rankings counts agree; every stored course is a configured target. Re-confirmed (08-05) 2026-09-24T19:24:21Z: same three PASS lines against the documented (raise condition unchanged) suffix guard — see "## Gap closure re-verification (08-05)" |
 | REQ-COVERAGE-03 API identity | PASS | `uv run python scripts/verify_rankings_pages.py --term 202701 --http-base-url http://127.0.0.1:8000` | 2026-09-24T18:36:21Z | 3,783 stored sections | `verdict: PASS`; stored_count=cache_count=api_total=3,783; 19 pages; 0 missing/extra/duplicate/non-Tampa; `api_score_source_split` matches the inventory's per-score_source split exactly |
-| REQ-GRADES-01 D-21 inventory | PASS | `uv run python scripts/inventory_tampa_grades.py --term 202701 --exceptions-md .planning/phases/08-mvp1-p5-end-to-end-mvp-1-verification/08-D21-EXCEPTIONS.md` | 2026-09-24T18:29:52Z | 3,783 sections | `verdicts.integrity`=PASS, `verdicts.d21_grade_coverage`=PASS; 3,122 evidence-backed, 661 listed exceptions |
-| REQ-GRADES-01 validator honest-coverage | PASS | `uv run python scripts/validate_tampa_ingest.py --term 202701 --targets config/course_targets.toml` | 2026-09-24T18:31:32Z–18:34:10Z | 3,422 `course`-sourced cache rows | `PASS honest-coverage (verified non-letter-grade exceptions: 300)`; 300 == inventory's `exception_non_letter_grade` (300) exactly |
+| REQ-GRADES-01 D-21 inventory | PASS | `uv run python scripts/inventory_tampa_grades.py --term 202701 --exceptions-md .planning/phases/08-mvp1-p5-end-to-end-mvp-1-verification/08-D21-EXCEPTIONS.md` | 2026-09-24T18:29:52Z | 3,783 sections | `verdicts.integrity`=PASS, `verdicts.d21_grade_coverage`=PASS; 3,122 evidence-backed, 661 listed exceptions. Re-confirmed at 2026-09-24T19:21:44Z against the 08-05 fixed gate (every reported integrity counter — including `rows_at_or_after_term` — now gates both verdicts; `stale_cache` derived from scoring-window rows only): `verdicts.integrity`=PASS, `verdicts.d21_grade_coverage`=PASS, 3,122 / 361 / 300, all five integrity counters 0/false — see "## Gap closure re-verification (08-05)" |
+| REQ-GRADES-01 validator honest-coverage | PASS | `uv run python scripts/validate_tampa_ingest.py --term 202701 --targets config/course_targets.toml` | 2026-09-24T18:31:32Z–18:34:10Z | 3,422 `course`-sourced cache rows | `PASS honest-coverage (verified non-letter-grade exceptions: 300)`; 300 == inventory's `exception_non_letter_grade` (300) exactly. Re-confirmed (08-05) 2026-09-24T19:24:21Z: same 300 count, still equal to the fixed inventory's `exception_non_letter_grade` |
 | REQ-GRADES-01 evidence wording | PASS | `npm --prefix web test` (08-03 `RankingEvidence.test.tsx`, 8 tests) | 2026-09-24T18:39:45Z | 8 component tests across 4 evidence scopes × 2 layouts | All 8 pass (part of 86/86 frontend suite). Browser-viewport observation NOT MEASURED (no Chromium in this environment; logged in `.planning/WINDOWS.md` entry 8) |
 | Grade provenance by term | PASS | see "## Provenance by term" | 2026-09-24T18:29:52Z | 5 historical terms, 8,662 rows | Live per-term counts equal the ledger's "Final result" table and 05-IMPORT-RECORD.md exactly, 0 deltas |
 | Quality (202701) | PASS | `uv run python scripts/check_data_quality.py --term 202701 --json` | 2026-09-24T18:36:29Z–18:36:33Z | 3,783 sections | 0 errors, 1,058 warnings (`low_confidence_ranking`), 50 info (`no_historical_analytics`) — reproduces the ledger's final quality baseline exactly |
@@ -278,6 +278,140 @@ type-annotation cleanup in test files, not a production-code, scoring, cache, AP
 issue, and not a REQ-COVERAGE-03 / REQ-GRADES-01 / REQ-PERF-01 blocker (their gate scripts remain
 mypy-clean and every gate above is PASS).
 
+## Gap closure re-verification (08-05)
+
+Read-only re-verification of the 08-05 gap-closure fixes (CR-01, WR-01, WR-02) against hosted
+Supabase, term `202701`. No cache rebuild, grade import, refresh, cleanup or exception-list
+regeneration ran at any point; `08-D21-EXCEPTIONS.md` was not regenerated.
+
+| Field | Value |
+|---|---|
+| UTC window | 2026-09-24T19:21:35Z – 2026-09-24T19:24:21Z |
+| `git rev-parse HEAD` (plan start, before Task 3) | `0dc05aa1130bb5fee2ee6d7dcf341ed7eccc126c` |
+| Branch | `codex/phase8-replan` |
+| `origin/main` (fetched, D-10) | `c063c27727f9cb87bb55da7b8f2ea76175abab67` (unchanged since 08-04) |
+
+### What changed
+
+- **CR-01 (fixed, closes the Phase 8 verification gap):** `Inventory.to_dict` now derives
+  `verdicts.integrity` / `verdicts.d21_grade_coverage` from the same mapping it emits under
+  `"integrity"`, so `rows_at_or_after_term` (and any future reported counter) can never print
+  PASS while nonzero. Proven by a CLI end-to-end regression test and an invariant test that
+  dirties every reported integrity key and asserts FAIL.
+- **WR-01 (fixed):** `stale_cache` now compares the cache refresh time against a new
+  evidence-window maximum (`evidence_grade_ingested_at_max`, rows with `term_code < before_term`
+  only -- the same filter the scoring queries in `src/easy_a/analytics/queries.py` use), not the
+  maximum over every fetched row. An out-of-window ingest can no longer trip it; an in-window one
+  (including the 202408 pilot, outside `D21_WINDOW_TERMS` but inside the scoring evidence window)
+  still does.
+- **WR-02 (kept and documented):** `assert_suffix_exact_ingest`'s raise condition, queries and
+  loop are byte-for-byte unchanged from HEAD `a1f6d45`. Only the docstring, one comment and the
+  `AssertionError` message changed, naming both possibilities ("leaked into" the base course, or
+  "not offered in term" the validated term) instead of asserting only the leak. Scoping the
+  suffix-course lookup to courses with sections in the validated term (the reviewer's first
+  suggestion) would make the zero-section branch unreachable and silently delete the Phase 06
+  L-variant leak guard -- the ambiguous state fails closed and is now named honestly, not
+  narrowed.
+- **IN-01 (deferred):** `_environment_label` stays duplicated across
+  `scripts/inventory_tampa_grades.py`, `scripts/verify_rankings_pages.py` and
+  `scripts/benchmark_rankings_search.py`. Deduping needs a new cross-script import convention or
+  a shared `easy_a` module; `scripts/benchmark_rankings_search.py`'s unchanged state (confirmed
+  below) is cited as REQ-PERF-01 evidence.
+- **IN-02 (deferred):** `web/src/utils/rankings.ts`'s fractional-`effective_n` rounding is
+  unchanged. It is a pre-existing, cosmetic edge case on a student-visible wording surface the
+  08-03 evidence-wording contract owns, and current data does not populate it.
+
+### Commands run
+
+```
+uv run python scripts/inventory_tampa_grades.py --term 202701
+uv run python scripts/validate_tampa_ingest.py --term 202701 --targets config/course_targets.toml
+uv run pytest -q
+uv run ruff check scripts/inventory_tampa_grades.py scripts/validate_tampa_ingest.py \
+  tests/refresh/test_inventory_tampa_grades.py tests/refresh/test_validate_tampa_ingest.py
+uv run mypy scripts/inventory_tampa_grades.py scripts/validate_tampa_ingest.py \
+  tests/refresh/test_inventory_tampa_grades.py tests/refresh/test_validate_tampa_ingest.py
+git fetch origin main
+git diff --quiet origin/main -- src/easy_a/analytics src/easy_a/rankings src/easy_a/api \
+  src/easy_a/models migrations web/src/types web/src/api
+git diff --quiet a1f6d45 -- \
+  .planning/phases/08-mvp1-p5-end-to-end-mvp-1-verification/08-D21-EXCEPTIONS.md \
+  scripts/verify_rankings_pages.py scripts/benchmark_rankings_search.py web/src
+test -z "$(git ls-files -- '*.xlsx' '*.xls' '*.csv')"
+```
+
+### Observed live values
+
+Inventory run (`--term 202701`, no `--exceptions-md`), observed 2026-09-24T19:21:44Z:
+
+| Field | 08-05 observed | 08-04 recorded | Delta |
+|---|---|---|---|
+| `environment` | Supabase | Supabase | none |
+| `section_count` | 3,783 | 3,783 | none |
+| `represented_course_count` | 1,401 | 1,401 | none |
+| `cache_row_count` | 3,783 | 3,783 | none |
+| `cache_refreshed_at_max` | 2026-09-23T21:51:28.116181+00:00 | 2026-09-23T21:51:28.116181+00:00 | none |
+| `grade_row_count` | 8,662 | 8,662 | none |
+| `grade_ingested_at_max` | 2026-09-23T21:36:34.907224+00:00 | 2026-09-23T21:36:34.907224+00:00 | none |
+| `evidence_grade_ingested_at_max` (new field, WR-01) | 2026-09-23T21:36:34.907224+00:00 | n/a -- field added in 08-05 | equal to `grade_ingested_at_max`: every stored grade row precedes 202701 |
+| `unattributed_grade_rows` | 0 | 0 | none |
+| `bucket_sum_mismatch_rows` | 0 | 0 | none |
+| `rows_at_or_after_term` | 0 | 0 | none |
+| `stale_cache` | false | false | none |
+| `non_tampa_section_count` | 0 | 0 | none |
+| `sections_by_state.evidence_backed` | 3,122 | 3,122 | none |
+| `sections_by_state.exception_no_rows` | 361 | 361 | none |
+| `sections_by_state.exception_non_letter_grade` | 300 | 300 | none |
+| `verdicts.integrity` | PASS | PASS | none |
+| `verdicts.d21_grade_coverage` | PASS | PASS | none |
+
+Validator run, observed window 2026-09-24T19:24:21Z:
+
+| Line | 08-05 observed | 08-04 recorded |
+|---|---|---|
+| suffix-exact | `PASS suffix-exact` | `PASS suffix-exact` |
+| reconciliation | `PASS reconciliation` | `PASS reconciliation` |
+| honest-coverage | `PASS honest-coverage (verified non-letter-grade exceptions: 300)` | `PASS honest-coverage (verified non-letter-grade exceptions: 300)` |
+
+300 (validator honest-coverage) equals 300 (inventory's `exception_non_letter_grade`) exactly, as
+required by the plan's `key_links` contract.
+
+### Test / lint / type results
+
+| Check | Result |
+|---|---|
+| Scoped (5 named 08-05 regression tests across both files) | 5 passed |
+| Scoped (two touched test files, full) | 42 passed (34 baseline + 8 new) |
+| Full Python suite | 374 passed, 3 skipped (366 + 8 new; 0 regressions) |
+| `ruff check` (4 touched files) | All checks passed |
+| `mypy` (4 touched files) | Success: no issues found in 4 source files |
+| Repo-wide `ruff check .` | 2 errors (unchanged from 08-04) |
+| Repo-wide `mypy src migrations scripts tests` | 35 errors in 10 files (08-04: 36 in 11 -- this plan's Task 2 touched-file fix resolved the one `tests/refresh/test_inventory_tampa_grades.py` error, `inv.os` re-export; `tests/api/test_verify_rankings_pages.py`'s 5 errors are unchanged and out of this plan's scope; `.planning/WINDOWS.md` entry 9 stays open for that file) |
+
+### Invariance
+
+| Check | Result |
+|---|---|
+| `git fetch origin main` | `origin/main` = `c063c27727f9cb87bb55da7b8f2ea76175abab67`, unchanged since 08-04 |
+| D-02 diff vs `origin/main` (7 paths) | empty |
+| `08-D21-EXCEPTIONS.md`, `scripts/verify_rankings_pages.py`, `scripts/benchmark_rankings_search.py`, `web/src` vs `a1f6d45` | unchanged (also proves IN-01 and IN-02 were not applied) |
+| D-19 (no tracked spreadsheet/CSV) | empty |
+
+### Review-finding dispositions (08-REVIEW.md)
+
+| Finding | Disposition |
+|---|---|
+| CR-01 (critical) | Fixed, Task 1. Regression-tested end to end through `main()`; a nonzero `rows_at_or_after_term` (or any other reported integrity counter) now prints FAIL/FAIL and exits 1. |
+| WR-01 (`stale_cache` window) | Fixed, Task 2. Tested in both directions: an out-of-window ingest no longer trips it, an in-window one still does. |
+| WR-02 (suffix guard term-scoping) | Kept -- raise condition, queries and loop unchanged; docstring, comment and message now name the ambiguity honestly instead of narrowing the guard. Cross-term tests added. |
+| IN-01 (`_environment_label` duplication) | Deferred -- not trivial; needs a new cross-script import convention or a shared module; `scripts/benchmark_rankings_search.py` confirmed unchanged. |
+| IN-02 (fractional `effective_n` rounding) | Deferred -- pre-existing, cosmetic, in an edge case current data does not populate; `web/src` confirmed unchanged. |
+
+**No hosted data was written in this plan.** Every command above is read-only: the inventory and
+validator issue only `SELECT`s, no `--exceptions-md` flag was passed, and no refresh, import,
+cleanup or cache-rebuild script ran anywhere in this plan. `08-D21-EXCEPTIONS.md` was not
+regenerated and is byte-identical to HEAD `a1f6d45`.
+
 ## Verdicts
 
 **Phase 8 verdict: PASS**
@@ -305,6 +439,10 @@ D-20-honest fallback labeling.
 | REQ-COVERAGE-03 | PASS | validator (`PASS suffix-exact`, `PASS reconciliation`) + API identity scan (`verdict: PASS`, 3,783/3,783/3,783) |
 | REQ-GRADES-01 | PASS | D-21 inventory (`d21_grade_coverage`=PASS, 3,122 evidence-backed / 661 listed exceptions), validator honest-coverage (`PASS`, 300 verified non-letter-grade exceptions == inventory's 300), API score-source split == cache split exactly, 08-03 evidence-wording tests (8/8 pass) |
 | REQ-PERF-01 | PASS | p95 277.25 ms < 1,500 ms, 50 calls / 5 warmups, single-client loopback HTTP, hosted Supabase, full 3,783-section stored term |
+
+The REQ-GRADES-01 verdict now rests on the fixed D-21 inventory gate (CR-01 closed, WR-01 fixed),
+re-confirmed live against hosted Supabase in 08-05 -- see "## Gap closure re-verification
+(08-05)" above.
 
 **Every gate row in "## Gates" above is PASS.** `08-D21-EXCEPTIONS.md` is complete (661 rows,
 machine-generated, matching the inventory's exception count exactly) and no section is unlisted
