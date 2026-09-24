@@ -1,9 +1,10 @@
 ---
 phase: 08-mvp1-p5-end-to-end-mvp-1-verification
 verified: 2026-09-24T19:35:00Z
-status: human_needed
+status: passed
 score: 10/10 must-haves verified
 covered_files:
+
   - ".planning/REQUIREMENTS.md"
   - ".planning/ROADMAP.md"
   - ".planning/WINDOWS.md"
@@ -34,7 +35,8 @@ covered_files:
   - "web/src/components/RankingEvidence.test.tsx"
   - "web/src/components/RankingTable.tsx"
   - "web/src/utils/rankings.ts"
-covered_digest: "v1:sha256:726c4e1bf95ed746e98ac0da59a26fca203e834f0ef68244024262fc80190c8d"
+
+covered_digest: "v1:sha256:f8e1388e9ea3aea4f226c5071fb588282c5505c67d575b64f7c7c1d4c94a69a9"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
@@ -45,6 +47,7 @@ re_verification:
   gaps_remaining: []
   regressions: []
 human_verification:
+
   - test: "Open the rankings page in a real browser (desktop width and a mobile viewport) and visually inspect the evidence wording on a course row, a course/effective_n=0 row, a subject-fallback row and a global-fallback row, in both the table/card view and the expanded details panel."
     expected: "The wording matches describeEvidence()'s four scopes exactly as asserted by the 8 passing RankingEvidence.test.tsx jsdom tests, with no visual truncation, overlap, or layout regression in a real rendering engine."
     why_human: "No Chromium/Playwright is available in this execution environment (.planning/WINDOWS.md entry 8, open since 2026-09-24). jsdom component tests prove the exact text is produced, but cannot prove real-viewport layout/rendering correctness."
@@ -161,3 +164,10 @@ The only remaining item is the pre-existing, environment-limited browser-viewpor
 
 *Verified: 2026-09-24T19:35:00Z*
 *Verifier: Claude (gsd-verifier)*
+
+## Post-verification closeout note (2026-09-24T20:24:01Z)
+
+After this report was written, two covered documentation files changed during phase closeout; no code, test, or live-data change occurred:
+- `08-VALIDATION.md`: manual browser-display row updated NOT MEASURED → PASS from human UAT (`08-UAT.md` test 1, passed 2026-09-24); status → validated; validation audit appended (0 gaps).
+- `COVERAGE.md`: opt-out reason shortened to ≤200 chars to satisfy the api-coverage verify:pre gate (same meaning: no external API integrated).
+The human_verification item above is therefore resolved (UAT pass), and `status` is `passed`. `covered_digest` was recomputed with `gsd-tools query verification.fingerprint` over the unchanged `covered_files` list. Security (`08-SECURITY.md`, 23/23 closed) and UI review (`08-UI-REVIEW.md`, 19/24, advisory) were added afterward and are not covered files.

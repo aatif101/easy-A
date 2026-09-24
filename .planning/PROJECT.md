@@ -99,14 +99,14 @@ plausible-looking result.
   stored counts, rankings API and coverage endpoint verified at 77 Tampa / 0 other-campus
   sections on 2026-09-14. Delivered on PR #18 (since merged).
 
-### MVP 1 — historical grades + full Tampa coverage + performance
+### MVP 1 — historical grades + full Tampa coverage + performance — VERIFIED (Phase 8, 2026-09-24)
 
-- [ ] **REQ-GRADES-01** — Import historical grade distributions for the ingested Tampa courses and
+- [x] **REQ-GRADES-01** — ✓ Phase 8 (D-21: 3,122 evidence-backed sections, 661 listed exceptions). Import historical grade distributions for the ingested Tampa courses and
   compute easiness from that real data (generalized beyond the original AMH/PSY/BSC pilot).
   Requires the grade→course attribution fix (MVP1-P1); data sourcing is Codex-owned (MVP1-P2).
-- [ ] **REQ-COVERAGE-03** — Ingest all ~3,782 USF Tampa Spring 2027 sections (breadth), resolving
+- [x] **REQ-COVERAGE-03** — ✓ Phase 8 (3,783/3,783 sections searchable, 0 missing/duplicate/non-Tampa). Ingest all ~3,782 USF Tampa Spring 2027 sections (breadth), resolving
   the CHM 2045/2045L suffix-course guard (MVP1-P3).
-- [ ] **REQ-PERF-01** — Ranking search p95 < ~1.5s against Supabase at full ~3,782-section scale
+- [x] **REQ-PERF-01** — ✓ Phase 8 (loopback p95 277 ms on hosted Supabase). Ranking search p95 < ~1.5s against Supabase at full ~3,782-section scale
   (MVP1-P4). Phase 3.5 delivered the SQL rewrite; the full-scale target is the remaining gate.
 
 ### After MVP 1 — hosted beta
@@ -352,8 +352,9 @@ Treat it as input, never as an approved requirement.
 | Preserve the existing scoring model | The current model works and is the validated baseline for the beta. Replacing it is a large change with no approval behind it. | Applied 2026-09-08 |
 | Keep evidence-backed observations, drop the requirements built on top of them | Findings like the silent fixture fallback and the SQLite/PostgreSQL gap are real and verified; the product requirements the handoff derived from them were not confirmed. | Applied 2026-09-08 |
 | Record Sprint 5 complete against merged code rather than against the PR description | Each delivered item was verified present in the tree at `62fb2f1` before its requirement was ticked; the test baseline was re-measured rather than quoted. | Applied 2026-09-08 |
+| Verify MVP-1 grade coverage under D-21 rather than "zero fallbacks" | InfoCenter cannot supply history for <5-student, new, or non-letter-grade courses; demanding zero fallbacks was unreachable and would pressure fabrication. | Applied 2026-09-24 — Phase 8 PASS; exceptions committed as `08-D21-EXCEPTIONS.md` |
+| Label `course`/`effective_n = 0` rows as "No letter-grade history — score is a prior" | Showing "Course-level history · 0 grades" implied evidence that does not exist (D-20). Presentation-only (D-02). | Applied 2026-09-24 (08-03), UAT passed |
 | Demote the handoff docs to low-precedence archival inputs in the ingest manifest | Leaving `gsd-core-mvp-prompt.md` as a precedence-0 ADR meant any future `/gsd-ingest-docs` run could re-promote alerts, RMP, a scoring rewrite and campus-wide scope over current planning. | Applied 2026-09-08 |
 
 ---
-*Last updated: 2026-09-20 — reframed around the MVP-1 milestone (full Tampa breadth + grades +
-performance); dated beta-DB history moved to `.planning/ARCHIVE.md`; D-18 breadth deferral superseded.*
+*Last updated: 2026-09-24 after Phase 8 — MVP-1 verified end to end under D-21 (REQ-GRADES-01, REQ-COVERAGE-03, REQ-PERF-01 met); next: hosted beta (Phase 9).*

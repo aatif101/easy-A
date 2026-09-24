@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_plan: 4
-status: ready_to_execute
-stopped_at: Completed 08-05-PLAN.md — gap closure (CR-01 fixed, WR-01 fixed, WR-02 documented), live re-verification PASS against hosted Supabase
-last_updated: "2026-09-24T19:28:54.170Z"
-state_head: 2af00c134f62bfeace10a965ad772a25d00cbd04
+current_plan: Not started
+status: ready_to_plan
+stopped_at: Phase 08 complete, ready to plan Phase 9
+last_updated: "2026-09-24T20:24:06.801Z"
+state_head: 7db0ddb3dea293295f31b2bceceab52439d74181
 progress:
   total_phases: 10
-  completed_phases: 6
+  completed_phases: 7
   total_plans: 20
   completed_plans: 20
-  percent: 60
+  percent: 70
 last_activity: 2026-09-24
-current_phase: 8
-current_phase_name: MVP1-P5 — End-to-end MVP-1 verification
+current_phase: 9
+current_phase_name: Hosted Beta — Deployment, CI, Observability
 last_activity_desc: Phase 08 (MVP1-P5) complete (5/5 plans) — 08-05 gap closure fixed CR-01 (D-21 integrity gate) and WR-01 (stale_cache window), documented WR-02, and re-confirmed Phase 8 / MVP-1 (D-21) verdicts PASS live against hosted Supabase (2026-09-24)
 ---
 
@@ -74,8 +74,8 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: 4
-Total Plans in Phase: 4
+Current Plan: Not started
+Total Plans in Phase: 0 (Phase 9 not yet planned)
 
 ## Next action
 
@@ -118,16 +118,19 @@ counters clean); no hosted data was written. Full suite after 08-05: **374 passe
 Python, 86 passed frontend.** See `08-05-SUMMARY.md` and `08-VERIFICATION-REPORT.md`'s "## Gap
 closure re-verification (08-05)" section.
 
-One open item carried forward: the browser-viewport visual inspection remains NOT MEASURED (no
-Chromium/Playwright in this environment — `.planning/WINDOWS.md` entry 8); `.planning/WINDOWS.md`
-entry 9 logs a minor repo-wide mypy test-file delta, now 35/10 (down from 36/11 at 08-04 — 08-05's
+**Phase 08 closeout (2026-09-24):** the browser-viewport check passed human UAT (`08-UAT.md`,
+`.planning/WINDOWS.md` entry 8 now fixed); Nyquist validation compliant (`08-VALIDATION.md`);
+security 23/23 threats closed (`08-SECURITY.md`); UI audit 19/24 advisory (`08-UI-REVIEW.md` — top
+fixes: widen the 160px desktop evidence note, replace `text-[11px]`, consolidate amber tokens);
+`08-VERIFICATION.md` status passed; phase marked complete. PR #29 (`codex/phase8-replan`) is open.
+`.planning/WINDOWS.md` entry 9 logs a minor repo-wide mypy test-file delta, now 35/10 (down from 36/11 at 08-04 — 08-05's
 Task 2 fixed the `test_inventory_tampa_grades.py` portion; `tests/api/test_verify_rankings_pages.py`
 stays open, out of 08-05's scope, not a gate blocker).
 
-**Do next:** MVP 1 is verified end to end, and the one blocking verification gap (CR-01) found in
-code review is closed. Next natural step is `/gsd-ship` or a milestone-close workflow (Phase 9 —
-Hosted Beta — is the next roadmap phase, after MVP 1). A human should confirm the NOT MEASURED
-browser-viewport observation is acceptable before treating MVP-1 as ready to ship.
+**Do next:** MVP 1 is verified end to end and Phase 08 is complete. Merge PR #29, then either
+close the MVP-1 milestone (`/gsd-audit-milestone`, `/gsd-complete-milestone`) or start Phase 9 —
+Hosted Beta (deployment, CI, observability) with `/gsd-discuss-phase 9` / `/gsd-plan-phase 9`.
+Deployment host and domain are still not supplied.
 
 ## History
 
@@ -178,7 +181,7 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Completed 08-05-PLAN.md — gap closure (CR-01 fixed, WR-01 fixed, WR-02 documented), live re-verification PASS against hosted Supabase
+**Stopped at:** Phase 08 complete, ready to plan Phase 9
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
 **Resume file:** None
 
