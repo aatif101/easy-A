@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_plan: 0
+current_plan: 2
 status: ready_to_execute
-stopped_at: Phase 08 plans revised to D-21 and checker-passed; ready to execute
-last_updated: "2026-09-23T22:43:41.027Z"
-state_head: c063c27727f9cb87bb55da7b8f2ea76175abab67
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-09-23T23:59:48.895Z"
+state_head: bd2518642b36b6a0a9cc554b3c393934398a5b62
 progress:
   total_phases: 10
   completed_phases: 6
   total_plans: 19
-  completed_plans: 15
-  percent: 79
+  completed_plans: 16
+  percent: 60
 last_activity: 2026-09-23
-current_phase_name: mvp1-p5-end-to-end-mvp-1-verification
 current_phase: 8
+current_phase_name: MVP1-P5 — End-to-end MVP-1 verification
 last_activity_desc: Phase 08 re-planned against live D-21 inventory (3,122 evidence-backed / 661 exceptions); checker passed
 ---
 
@@ -74,7 +74,7 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: 0 (Phase 08 ready to execute)
+Current Plan: 2
 Total Plans in Phase: 4
 
 ## Next action
@@ -142,9 +142,9 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** 2026-09-23 — Phase 08 re-planned to D-21 and checker-passed; not yet executed.
+**Stopped at:** Completed 08-01-PLAN.md
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
-**Resume file:** none — run `/gsd-execute-phase 8`.
+**Resume file:** None
 
 Earlier session: 2026-09-23. Phase 07 execution ran across three sessions. Codex (Windows clone)
 completed the 07-01 benchmarks and baseline. A Claude Code WSL session fetched that branch,
@@ -152,7 +152,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-09-22. Phase 06 executed end-to-end: tracer (CHM) → full ingestion (212 subjects
+Last session: 2026-09-23T23:59:48.852Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
@@ -177,6 +177,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 | Phase 07 P01 | split sessions | 2 tasks | 4 files |
 | Phase 07 P02 | ~1h | 2 tasks | 10 files |
 | Phase 07 P03 | ~45min | 2 tasks | 5 files |
+| Phase 08 P01 | 55min | 2 tasks | 2 files |
 
 ## Decisions
 
@@ -194,3 +195,5 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 - [Phase 07]: The REQ-PERF-01 gate is loopback HTTP p95 (request + body + JSON validation) with the API on hosted Supabase. Direct route timing is a diagnostic only.
 - [Phase 07]: No search index added. At ~4k rows the slow page was a join strategy (a nested loop over a materialized latest-seat window), fixed by key-first paging. seat_snapshots(section_id, observed_at DESC, id DESC) is the candidate index if snapshot history grows.
 - [Phase 07]: Whole-term rebuild takes refreshed_at from one transaction-time now() (equal to per-row func.now() on PostgreSQL) so ORM updates batch.
+- [Phase 8]: [Phase 08-01]: Implemented scripts/verify_rankings_pages.py as one complete bounded-walk/identity-reconciliation algorithm in Task 1 rather than incrementally; all 16 Task 1+2 tests (including every boundary/ordering/empty-term case) passed with zero additional production-code changes in Task 2.
+- [Phase 8]: [Phase 08-01]: Live 202701 scan against hosted Supabase returned PASS -- 3,783/3,783 sections reconciled exactly, api_score_source_split matches STATE.md's D-21 inventory (course 3,422/300 effective_n=0, subject 311, global 50).
