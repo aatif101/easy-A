@@ -1,15 +1,15 @@
 ---
 gsd_state_version: "1.0"
-current_plan: 2
+current_plan: 3
 status: ready_to_execute
-stopped_at: Completed 08-01-PLAN.md
-last_updated: "2026-09-23T23:59:48.895Z"
-state_head: bd2518642b36b6a0a9cc554b3c393934398a5b62
+stopped_at: Completed 08-02-PLAN.md
+last_updated: "2026-09-24T17:30:46.225Z"
+state_head: c306e3da723be0d87cb8b009ee2c258c078203ed
 progress:
   total_phases: 10
   completed_phases: 6
   total_plans: 19
-  completed_plans: 16
+  completed_plans: 17
   percent: 60
 last_activity: 2026-09-23
 current_phase: 8
@@ -74,7 +74,7 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 4
 
 ## Next action
@@ -142,7 +142,7 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Completed 08-01-PLAN.md
+**Stopped at:** Completed 08-02-PLAN.md
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
 **Resume file:** None
 
@@ -152,7 +152,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-09-23T23:59:48.852Z
+Last session: 2026-09-24T17:30:46.160Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
@@ -178,6 +178,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 | Phase 07 P02 | ~1h | 2 tasks | 10 files |
 | Phase 07 P03 | ~45min | 2 tasks | 5 files |
 | Phase 08 P01 | 55min | 2 tasks | 2 files |
+| Phase 08 P08-02 | ~35min | 3 tasks | 4 files |
 
 ## Decisions
 
@@ -197,3 +198,5 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 - [Phase 07]: Whole-term rebuild takes refreshed_at from one transaction-time now() (equal to per-row func.now() on PostgreSQL) so ORM updates batch.
 - [Phase 8]: [Phase 08-01]: Implemented scripts/verify_rankings_pages.py as one complete bounded-walk/identity-reconciliation algorithm in Task 1 rather than incrementally; all 16 Task 1+2 tests (including every boundary/ordering/empty-term case) passed with zero additional production-code changes in Task 2.
 - [Phase 8]: [Phase 08-01]: Live 202701 scan against hosted Supabase returned PASS -- 3,783/3,783 sections reconciled exactly, api_score_source_split matches STATE.md's D-21 inventory (course 3,422/300 effective_n=0, subject 311, global 50).
+- [Phase 8]: [Phase 08-02]: evidence_backed requires both attributed letter-grade weight and cached-total reconciliation against a cache built by the real refresh_section_rankings path (not a numeric score alone); assert_honest_coverage's exception is scoped to score_source=course, effective_n=0, with stored A-F sum 0 and total_grades sum > 0 for the exact course key -- every other zero-sample claim still fails (D-20, D-21).
+- [Phase 8]: [Phase 08-02]: Live 202701 run against hosted Supabase returned PASS/PASS -- 3,122 evidence-backed, 661 listed exceptions (361 no_rows + 300 non_letter_grade); validator's verified non-letter-grade exception count (300) equals the inventory's exception_non_letter_grade count exactly.
