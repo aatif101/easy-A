@@ -1,1 +1,1 @@
-No external API integration: Phase 8 only reads hosted Supabase through the existing SQLAlchemy session and calls Easy-A's own read-only GET /api/v1/rankings/search over loopback HTTP; no third-party API, SDK or service is integrated.
+No external API integration: Phase 8 only reads hosted Supabase via SQLAlchemy and calls Easy-A's own GET /api/v1/rankings/search over loopback; no third-party API.

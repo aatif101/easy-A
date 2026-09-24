@@ -449,7 +449,7 @@ Supabase; whole-term cache rebuild 4.77 s; quality pass 2.45 s. Evidence: `07-PE
 **Grade-coverage gate**: PROJECT.md D-21 — every section is evidence-backed or a listed
 source-limited exception; fallbacks never count as course history; no grade sourcing in this phase.
 
-**Plans:** 5/5 plans executed (tracer-first; Wave 1 ×3 parallel → Wave 2; gap closure 08-05 complete — CR-01 fixed, WR-01 fixed, WR-02 documented, live re-verification PASS)
+**Plans:** 5/5 plans complete
 
 Plans:
 **Wave 1**
@@ -549,7 +549,7 @@ rewrite is planned or approved.
 | 5 — MVP1-P2 grade sourcing + import | Complete | 100% |
 | 6 — MVP1-P3 all-Tampa ingestion | ✓ Complete | 100% |
 | 7 — MVP1-P4 full-scale perf (p95 < 1.5s) | ✓ Complete | 100% |
-| 8 — MVP1-P5 MVP-1 verification | ✓ Complete | 100% |
+| 8 — MVP1-P5 MVP-1 verification | Complete    | 100% |
 | 9 — Hosted beta | ○ After MVP 1 | 0% |
 
 ---

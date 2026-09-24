@@ -1,7 +1,7 @@
 ---
 phase: "08"
 slug: "mvp1-p5-end-to-end-mvp-1-verification"
-status: complete
+status: validated
 nyquist_compliant: true
 wave_0_complete: true
 created: "2026-09-23"
@@ -59,7 +59,7 @@ passed / 3 skipped Python, 86 passed frontend).
 
 | Behavior | Why manual | Instructions | Status |
 |---|---|---|---|
-| Browser display at desktop and mobile sizes | Existing component tests cannot prove layout | Inspect representative course, `course`/`effective_n = 0`, subject and global rows; record screenshots or observations, or NOT MEASURED, without claiming a deployed-host latency. | **NOT MEASURED** — no Chromium/Playwright in this environment (08-03, reconfirmed 08-04). Logged to `.planning/WINDOWS.md` entry 8. The 8 `RankingEvidence.test.tsx` tests render both layouts in jsdom and assert the exact wording strings as a partial substitute. |
+| Browser display at desktop and mobile sizes | Existing component tests cannot prove layout | Inspect representative course, `course`/`effective_n = 0`, subject and global rows; record screenshots or observations, or NOT MEASURED, without claiming a deployed-host latency. | **PASS** — human UAT 2026-09-24 (`08-UAT.md` test 1): user confirmed wording matches `describeEvidence()`'s four scopes at desktop and mobile. (Earlier NOT MEASURED in-environment, WINDOWS.md entry 8.) |
 | Hosted Supabase evidence | Credentials and service availability are environment-specific | Run existing live commands, record UTC time, denominators, and explicit PASS/FAIL/NOT MEASURED verdicts. | **PASS** — all live gates ran against hosted Supabase 2026-09-24; see `08-VERIFICATION-REPORT.md` "## Gates" for the full table with UTC times and denominators. |
 
 ## Validation Sign-Off
@@ -70,3 +70,12 @@ passed / 3 skipped Python, 86 passed frontend).
 - [x] `nyquist_compliant: true` only after required tests and live gates pass. — Set true above; every gate in `08-VERIFICATION-REPORT.md` "## Gates" is PASS, full Python and frontend suites are green, PostgreSQL integration honestly reported as skipped (not passed).
 
 **Approval:** Phase 8 and MVP-1 (D-21) verdicts are both PASS per `08-VERIFICATION-REPORT.md`, dated 2026-09-24.
+
+## Validation Audit 2026-09-24
+| Metric | Count |
+|--------|-------|
+| Gaps found | 0 |
+| Resolved | 0 |
+| Escalated | 0 |
+
+All requirement behaviors are COVERED by green automated tests or live gates; the one manual-only item (browser display) passed human UAT.
