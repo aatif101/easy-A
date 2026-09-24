@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 import scripts.validate_tampa_ingest as v
-from easy_a.models import Course, Section
+from easy_a.models import Course, GradeDistribution, Section
 from easy_a.rankings.cache import SectionRankingCache
 from easy_a.refresh.targets import CourseTarget, load_targets
 from tests.api.test_rankings_search_sql import _historical_analytics, _provenance
@@ -31,9 +31,11 @@ def _add_course(session: Session, subject: str, number: str, course_id: int) -> 
     return course
 
 
-def _add_section(session: Session, *, course_id: int, crn: str, campus: str = "Tampa") -> Section:
+def _add_section(
+    session: Session, *, course_id: int, crn: str, campus: str = "Tampa", term_id: int = 1
+) -> Section:
     section = Section(
-        term_id=1,
+        term_id=term_id,
         crn=crn,
         course_id=course_id,
         section_number="001",
@@ -142,6 +144,42 @@ def test_assert_suffix_exact_ingest_raises_on_leaked_suffix_section(db_session: 
         v.assert_suffix_exact_ingest(db_session, TERM, [PAIR])
 
 
+def test_assert_suffix_exact_ingest_fails_closed_when_suffix_offered_only_in_another_term(
+    db_session: Session,
+) -> None:
+    """CHM 2045L exists in the catalog and has a section, but only in 202605
+    (term_id=3), not in the 202701 (term_id=1) being validated. Stored data cannot
+    tell a leak from "not offered this term", so this must fail closed (WR-02)."""
+    base = _add_course(db_session, "CHM", "2045", course_id=1001)
+    suffix = _add_course(db_session, "CHM", "2045L", course_id=1002)
+    _add_section(db_session, course_id=base.id, crn="30001", term_id=1)
+    _add_section(db_session, course_id=suffix.id, crn="30003", term_id=3)
+    db_session.commit()
+
+    with pytest.raises(AssertionError) as excinfo:
+        v.assert_suffix_exact_ingest(db_session, TERM, [PAIR])
+    message = str(excinfo.value)
+    assert "2045L" in message
+    assert TERM in message
+    assert "leaked into" in message
+    assert "not offered in term" in message
+
+
+def test_assert_suffix_exact_ingest_passes_for_the_term_the_suffix_is_offered_in(
+    db_session: Session,
+) -> None:
+    """The same catalog/section layout as the fails-closed test above, but validated
+    against 202605 (term_id=3) -- the term CHM 2045L actually has a section in --
+    must not raise, because the section-count check stays term-scoped."""
+    base = _add_course(db_session, "CHM", "2045", course_id=1001)
+    suffix = _add_course(db_session, "CHM", "2045L", course_id=1002)
+    _add_section(db_session, course_id=base.id, crn="30001", term_id=1)
+    _add_section(db_session, course_id=suffix.id, crn="30003", term_id=3)
+    db_session.commit()
+
+    v.assert_suffix_exact_ingest(db_session, "202605", [PAIR])
+
+
 # --- assert_coverage_reconciled -----------------------------------------------------
 
 
@@ -167,7 +205,7 @@ def test_assert_coverage_reconciled_raises_on_untargeted_course(db_session: Sess
 
 def test_assert_honest_coverage_passes_on_honest_dataset(db_session: Session) -> None:
     _seed_honest_dataset(db_session)
-    v.assert_honest_coverage(db_session, TERM)
+    assert v.assert_honest_coverage(db_session, TERM) == 0
 
 
 def test_assert_honest_coverage_raises_on_fabricated_course_backed_row(db_session: Session) -> None:
@@ -178,4 +216,107 @@ def test_assert_honest_coverage_raises_on_fabricated_course_backed_row(db_sessio
     row.score_source = "course"
     db_session.commit()
     with pytest.raises(AssertionError, match="30002"):
+        v.assert_honest_coverage(db_session, TERM)
+
+
+# --- assert_honest_coverage: D-21 non-letter-grade exception -----------------------
+
+
+def _add_grade(
+    session: Session,
+    *,
+    term_id: int,
+    crn: str,
+    course_id: int,
+    a: int = 0,
+    b: int = 0,
+    c: int = 0,
+    d: int = 0,
+    f: int = 0,
+    s: int = 0,
+    u: int = 0,
+    w: int = 0,
+    source: str = "synthetic",
+) -> GradeDistribution:
+    completed = a + b + c + d + f
+    total = completed + s + u + w
+    distribution = GradeDistribution(
+        term_id=term_id,
+        crn=crn,
+        course_id=course_id,
+        section_number_raw="001",
+        section_suffix_raw=None,
+        campus_raw="Tampa",
+        a_count=a,
+        b_count=b,
+        c_count=c,
+        d_count=d,
+        f_count=f,
+        i_count=0,
+        s_count=s,
+        u_count=u,
+        w_count=w,
+        other_count=0,
+        total_grades=total,
+        source=source,
+        source_hash=f"{source}-hash",
+    )
+    session.add(distribution)
+    session.flush()
+    return distribution
+
+
+def test_assert_honest_coverage_accepts_verified_non_letter_grade_exception(
+    db_session: Session,
+) -> None:
+    course = _add_course(db_session, "AAA", "4900", course_id=2001)
+    section = _add_section(db_session, course_id=course.id, crn="40001")
+    _add_ranking(db_session, section=section, course=course, score_source="course", effective_n=0.0)
+    _add_grade(db_session, term_id=2, crn="70001", course_id=course.id, s=5, u=1)
+    db_session.commit()
+
+    assert v.assert_honest_coverage(db_session, TERM) == 1
+
+
+def test_assert_honest_coverage_raises_when_course_key_has_letter_grades(
+    db_session: Session,
+) -> None:
+    course = _add_course(db_session, "AAA", "4901", course_id=2002)
+    section = _add_section(db_session, course_id=course.id, crn="40002")
+    _add_ranking(db_session, section=section, course=course, score_source="course", effective_n=0.0)
+    _add_grade(db_session, term_id=2, crn="70002", course_id=course.id, a=5, s=1)
+    db_session.commit()
+
+    with pytest.raises(AssertionError, match="40002"):
+        v.assert_honest_coverage(db_session, TERM)
+
+
+def test_assert_honest_coverage_raises_on_subject_zero(db_session: Session) -> None:
+    course = _add_course(db_session, "AAA", "4902", course_id=2003)
+    section = _add_section(db_session, course_id=course.id, crn="40003")
+    _add_ranking(
+        db_session, section=section, course=course, score_source="subject", effective_n=0.0
+    )
+    db_session.commit()
+
+    with pytest.raises(AssertionError, match="40003"):
+        v.assert_honest_coverage(db_session, TERM)
+
+
+def test_assert_honest_coverage_raises_on_instructor_course_zero_even_with_non_letter_history(
+    db_session: Session,
+) -> None:
+    course = _add_course(db_session, "AAA", "4903", course_id=2004)
+    section = _add_section(db_session, course_id=course.id, crn="40004")
+    _add_ranking(
+        db_session,
+        section=section,
+        course=course,
+        score_source="instructor_course",
+        effective_n=0.0,
+    )
+    _add_grade(db_session, term_id=2, crn="70004", course_id=course.id, s=5, u=1)
+    db_session.commit()
+
+    with pytest.raises(AssertionError, match="40004"):
         v.assert_honest_coverage(db_session, TERM)

@@ -86,6 +86,80 @@ export const scoreSourceLabel = (source: SectionRanking["score_source"]): string
   return labels[source];
 };
 
+/**
+ * Evidence scope for a ranking's easiness score, distinguishing genuine
+ * course-level history from the fallbacks/priors that must never be
+ * presented as course-level history (D-20, D-21).
+ */
+export type EvidenceScope =
+  | "course_history"
+  | "no_letter_grade_history"
+  | "subject_fallback"
+  | "no_course_evidence";
+
+export interface EvidenceDescription {
+  scope: EvidenceScope;
+  sourceLabel: string;
+  sampleLabel: string;
+  note: string | null;
+  detailSummary: string | null;
+}
+
+type EvidenceInput = Pick<SectionRanking, "score_source" | "effective_n" | "subject">;
+
+/**
+ * Describes what actually backs a ranking's displayed easiness estimate, so
+ * every student-visible surface (desktop row, mobile card, expanded details)
+ * states the true evidence scope instead of implying course-level history
+ * where none exists (D-20, D-21). Unrecognized score_source values fail
+ * closed to the no-course-evidence wording.
+ */
+export const describeEvidence = (ranking: EvidenceInput): EvidenceDescription => {
+  const { score_source, effective_n, subject } = ranking;
+  const roundedN = Math.round(effective_n);
+
+  if (score_source === "course" || score_source === "instructor_course") {
+    if (effective_n > 0) {
+      return {
+        scope: "course_history",
+        sourceLabel: scoreSourceLabel(score_source),
+        sampleLabel: `${roundedN} grades`,
+        note: null,
+        detailSummary: null,
+      };
+    }
+    return {
+      scope: "no_letter_grade_history",
+      sourceLabel: "No letter-grade history (pass/fail or independent study)",
+      sampleLabel: "No letter grades",
+      note: "No letter-grade history (pass/fail or independent study) — score is a prior",
+      detailSummary:
+        "This course's recorded history has no letter grades, so the score is a prior, not this course's grade outcome.",
+    };
+  }
+
+  if (score_source === "subject" && effective_n > 0) {
+    return {
+      scope: "subject_fallback",
+      sourceLabel: scoreSourceLabel("subject"),
+      sampleLabel: `${roundedN} subject-level grades`,
+      note: `No course history — score uses ${subject} subject-level history`,
+      detailSummary: `This course has no own grade history; the score uses ${subject} subject-level history, not this course's grade distribution.`,
+    };
+  }
+
+  // global, subject with effective_n <= 0, and any unrecognized score_source
+  // all fail closed to the no-course-evidence wording (D-20).
+  return {
+    scope: "no_course_evidence",
+    sourceLabel: "Global prior — no course evidence",
+    sampleLabel: "No course grades",
+    note: "No historical grades for this course — score is a global prior",
+    detailSummary:
+      "No historical grade data exists for this course; the score is a global prior, not this course's outcome.",
+  };
+};
+
 export const instructorLabel = (ranking: SectionRanking): string => {
   const instructor = ranking.instructor?.trim();
   if (instructor) return instructor;

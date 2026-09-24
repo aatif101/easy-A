@@ -446,6 +446,26 @@ Supabase; whole-term cache rebuild 4.77 s; quality pass 2.45 s. Evidence: `07-PE
 
 **Requirements**: REQ-COVERAGE-03, REQ-GRADES-01, REQ-PERF-01
 
+**Grade-coverage gate**: PROJECT.md D-21 — every section is evidence-backed or a listed
+source-limited exception; fallbacks never count as course history; no grade sourcing in this phase.
+
+**Plans:** 5/5 plans executed (tracer-first; Wave 1 ×3 parallel → Wave 2; gap closure 08-05 complete — CR-01 fixed, WR-01 fixed, WR-02 documented, live re-verification PASS)
+
+Plans:
+**Wave 1**
+
+- [x] 08-01-PLAN.md — Tracer: read-only full-page API identity scan (every stored term+CRN exactly once)
+- [x] 08-02-PLAN.md — D-21 grade inventory with per-section exception list; validator accepts evidence-proven non-letter-grade exceptions
+- [x] 08-03-PLAN.md — Presentation-only evidence wording for course/effective_n=0, global and subject rows (desktop, mobile, details)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 08-04-PLAN.md — Dated hosted verification report, committed D-21 exception list, Phase 8 and MVP-1 verdicts
+
+**Gap closure** *(from 08-VERIFICATION.md / 08-REVIEW.md CR-01)*
+
+- [x] 08-05-PLAN.md — Every reported D-21 integrity counter gates the verdict (CR-01), stale_cache from scoring-window rows (WR-01), suffix guard kept fail-closed and documented (WR-02), read-only live re-verification recorded in the report
+
 ---
 
 ## Phase 9: Hosted Beta — Deployment, CI, Observability
@@ -529,7 +549,7 @@ rewrite is planned or approved.
 | 5 — MVP1-P2 grade sourcing + import | Complete | 100% |
 | 6 — MVP1-P3 all-Tampa ingestion | ✓ Complete | 100% |
 | 7 — MVP1-P4 full-scale perf (p95 < 1.5s) | ✓ Complete | 100% |
-| 8 — MVP1-P5 MVP-1 verification | ○ MVP 1 | 0% |
+| 8 — MVP1-P5 MVP-1 verification | ✓ Complete | 100% |
 | 9 — Hosted beta | ○ After MVP 1 | 0% |
 
 ---
@@ -545,9 +565,9 @@ rewrite is planned or approved.
 | REQ-TEST-01 | Sprint 5 | ◐ Partial — PostgreSQL integration exists, skips without config |
 | REQ-COVERAGE-02 | 1 | ✓ Complete — search performance carved out to REQ-PERF-01 |
 | REQ-DATA-02 | 2 | ✓ Complete (PR #18 merged) |
-| REQ-COVERAGE-03 | 6 | ✓ Complete — live 3,783-section reconciliation and quality validation |
-| REQ-GRADES-01 | 4–5 | ✓ Complete for current 10-course coverage; Phase 6 must extend the same contract to newly ingested courses |
-| REQ-PERF-01 | 7 | ✓ Complete — loopback HTTP p95 309.91 ms at 3,783 sections on hosted Supabase (2026-09-23) |
+| REQ-COVERAGE-03 | 6, 8 | ✓ Complete — live 3,783/3,783/3,783 identity reconciliation, 0 missing/extra/duplicate/non-Tampa (2026-09-24, Phase 8 verification) |
+| REQ-GRADES-01 | 4–5, 8 | ✓ Complete under D-21 — 3,122 evidence-backed sections, 661 listed source-limited exceptions, honest fallback labeling verified end to end (2026-09-24, Phase 8 verification) |
+| REQ-PERF-01 | 7, 8 | ✓ Complete — loopback HTTP p95 277.25 ms at 3,783 sections on hosted Supabase, re-confirmed in Phase 8 end-to-end verification (2026-09-24) |
 | REQ-OPS-01 | 9 | ○ After MVP 1 |
 
 Backlog requirements (`REQ-ALERT-*`, `REQ-RMP-01`) are deliberately unmapped — they belong to
