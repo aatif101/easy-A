@@ -7,6 +7,15 @@ reconciled raw total) or is a listed source-limited exception (no rows, or a
 course whose stored history has zero letter-grade weight). Every other outcome is
 a named integrity failure -- states are never absorbed or hidden.
 
+Every counter reported under the JSON output's "integrity" key gates both
+``verdicts.integrity`` and ``verdicts.d21_grade_coverage`` (and therefore the exit
+code): a reported integrity anomaly can never print PASS (D-06, D-07, D-21). This
+includes ``rows_at_or_after_term`` -- GradeDistribution rows stamped at or after the
+inventoried term, which should be impossible for a term whose grade history has not
+happened yet. The gate assumes the inventoried term is that upcoming, not-yet-scored
+term; running it against a past term that already has later grade rows will report
+integrity FAIL by design, not a bug.
+
 Read-only: on PostgreSQL the whole inventory is read inside one
 ``SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY`` transaction (matching
 the pattern in ``scripts/benchmark_rankings_search.py`` / ``verify_rankings_pages.py``),
@@ -199,13 +208,23 @@ class Inventory:
             for state, count in sections_by_state.items()
             if state in {failure.value for failure in FAILURE_STATES}
         )
-        integrity_ok = (
-            self.unattributed_grade_rows == 0
-            and self.bucket_sum_mismatch_rows == 0
-            and not self.stale_cache
-            and self.non_tampa_section_count == 0
-            and failure_section_count == 0
-        )
+        # Every key reported under "integrity" below is built from this same mapping
+        # and gates both verdicts -- a reported integrity counter can never be silently
+        # absorbed into a PASS (D-06, D-07, D-21; closes CR-01). rows_at_or_after_term
+        # counts GradeDistribution rows stamped at or after the inventoried term: under
+        # D-21's evidence window that should never happen for a not-yet-scored term, so
+        # any nonzero value is itself a named integrity failure, not merely informational.
+        # This gate assumes the inventoried term has no grade history of its own yet
+        # (the upcoming term being scored); run it against a past term that already has
+        # later grade rows and it will report integrity FAIL by design.
+        integrity = {
+            "unattributed_grade_rows": self.unattributed_grade_rows,
+            "bucket_sum_mismatch_rows": self.bucket_sum_mismatch_rows,
+            "rows_at_or_after_term": self.rows_at_or_after_term,
+            "stale_cache": self.stale_cache,
+            "non_tampa_section_count": self.non_tampa_section_count,
+        }
+        integrity_ok = failure_section_count == 0 and not any(integrity.values())
         verdict = "PASS" if integrity_ok else "FAIL"
 
         return {
@@ -239,13 +258,7 @@ class Inventory:
             "window": self.window,
             "sections_by_state": sections_by_state,
             "courses_by_state": courses_by_state,
-            "integrity": {
-                "unattributed_grade_rows": self.unattributed_grade_rows,
-                "bucket_sum_mismatch_rows": self.bucket_sum_mismatch_rows,
-                "rows_at_or_after_term": self.rows_at_or_after_term,
-                "stale_cache": self.stale_cache,
-                "non_tampa_section_count": self.non_tampa_section_count,
-            },
+            "integrity": integrity,
             "evidence_backed_sections": evidence_backed_sections,
             "exception_sections_by_reason": dict(sorted(exception_sections_by_reason.items())),
             "exceptions": exceptions,

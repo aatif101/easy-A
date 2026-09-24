@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import dataclasses
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
-from sqlalchemy import event
+from sqlalchemy import event, update
 from sqlalchemy.orm import Session
 
 import scripts.inventory_tampa_grades as inv
@@ -14,6 +15,10 @@ from easy_a.rankings.cache import refresh_section_rankings
 
 TERM = "202701"
 NOW = datetime(2026, 9, 22, 12, tzinfo=UTC)
+# A representative "last cache refresh" instant used to pin both
+# SectionRankingCache.refreshed_at and GradeDistribution.ingested_at in tests that
+# need to control the stale_cache / rows_at_or_after_term interaction deterministically.
+T0 = datetime(2026, 9, 23, 21, 51, tzinfo=UTC)
 
 
 def _add_course(session: Session, *, course_id: int, subject: str, number: str) -> Course:
@@ -63,9 +68,13 @@ def _add_grade(
     u: int = 0,
     w: int = 0,
     source: str = "synthetic",
+    ingested_at: datetime | None = None,
 ) -> GradeDistribution:
     completed = a + b + c + d + f
     total = completed + s + u + w
+    optional_kwargs: dict[str, object] = {}
+    if ingested_at is not None:
+        optional_kwargs["ingested_at"] = ingested_at
     distribution = GradeDistribution(
         term_id=term_id,
         crn=crn,
@@ -86,10 +95,21 @@ def _add_grade(
         total_grades=total,
         source=source,
         source_hash=f"{source}-hash",
+        **optional_kwargs,
     )
     session.add(distribution)
     session.flush()
     return distribution
+
+
+def _pin_timestamps(session: Session, *, refreshed_at: datetime, ingested_at: datetime) -> None:
+    """Bulk-pin every SectionRankingCache.refreshed_at and every existing
+    GradeDistribution.ingested_at to fixed instants, so a test can control the
+    stale_cache / rows_at_or_after_term interaction deterministically instead of
+    relying on server_default now() ordering."""
+    session.execute(update(SectionRankingCache).values(refreshed_at=refreshed_at))
+    session.execute(update(GradeDistribution).values(ingested_at=ingested_at))
+    session.commit()
 
 
 def _seed_evidence_backed_and_exception_no_rows(session: Session) -> None:
@@ -391,8 +411,8 @@ def test_no_rows_reason_note_identical_across_every_no_rows_exception() -> None:
     assert subject_result.reason_note == global_result.reason_note == inv.NO_ROWS_REASON_NOTE
 
 
-def _make_inventory(sections: tuple[inv.SectionState, ...]) -> inv.Inventory:
-    return inv.Inventory(
+def _make_inventory(sections: tuple[inv.SectionState, ...], **overrides: object) -> inv.Inventory:
+    inventory = inv.Inventory(
         term=TERM,
         observed_at_utc="2026-09-24T00:00:00+00:00",
         environment="SQLite",
@@ -411,6 +431,9 @@ def _make_inventory(sections: tuple[inv.SectionState, ...]) -> inv.Inventory:
         rows_at_or_after_term=0,
         stale_cache=False,
     )
+    if overrides:
+        inventory = dataclasses.replace(inventory, **overrides)
+    return inventory
 
 
 def test_d21_grade_coverage_pass_when_only_evidence_backed_and_exceptions() -> None:
@@ -464,6 +487,101 @@ def test_d21_grade_coverage_fails_when_any_failure_state_present() -> None:
     output = inventory.to_dict()
 
     assert output["verdicts"] == {"integrity": "FAIL", "d21_grade_coverage": "FAIL"}
+
+
+# --- Task 1: rows_at_or_after_term must gate the verdict (CR-01) -------------------
+
+
+def _clean_three_state_sections() -> tuple[inv.SectionState, inv.SectionState, inv.SectionState]:
+    evidence_backed = inv.classify_section(
+        crn="30001",
+        subject="ABC",
+        course_number="1000",
+        cache_row=_stub_cache_row(score_source="course", effective_n=50.0, total_grade_count=100),
+        key_evidence=_key_evidence(row_count=2, af_sum=50, total_sum=100),
+    )
+    exception_no_rows = inv.classify_section(
+        crn="30002",
+        subject="ABC",
+        course_number="2000",
+        cache_row=_stub_cache_row(score_source="subject", effective_n=50.0, total_grade_count=None),
+        key_evidence=_key_evidence(),
+    )
+    exception_non_letter = inv.classify_section(
+        crn="30003",
+        subject="ABC",
+        course_number="4901",
+        cache_row=_stub_cache_row(score_source="course", effective_n=0, total_grade_count=20),
+        key_evidence=_key_evidence(row_count=1, af_sum=0, total_sum=20),
+    )
+    return evidence_backed, exception_no_rows, exception_non_letter
+
+
+@pytest.mark.parametrize(("value", "expected"), [(0, "PASS"), (3, "FAIL")])
+def test_rows_at_or_after_term_gates_integrity_verdict(value: int, expected: str) -> None:
+    sections = _clean_three_state_sections()
+    inventory = _make_inventory(sections, rows_at_or_after_term=value)
+    output = inventory.to_dict()
+
+    assert output["integrity"]["rows_at_or_after_term"] == value
+    assert output["verdicts"] == {"integrity": expected, "d21_grade_coverage": expected}
+
+
+def test_every_reported_integrity_counter_gates_the_verdict() -> None:
+    sections = _clean_three_state_sections()
+    clean = _make_inventory(sections)
+    clean_output = clean.to_dict()
+    assert clean_output["verdicts"] == {"integrity": "PASS", "d21_grade_coverage": "PASS"}
+
+    integrity_field_names = {f.name for f in dataclasses.fields(inv.Inventory)}
+    for key, value in clean_output["integrity"].items():
+        assert key in integrity_field_names, key
+        dirty = True if isinstance(value, bool) else 1
+        dirty_inventory = dataclasses.replace(clean, **{key: dirty})
+        dirty_output = dirty_inventory.to_dict()
+        assert dirty_output["verdicts"] == {
+            "integrity": "FAIL",
+            "d21_grade_coverage": "FAIL",
+        }, f"reported integrity counter {key!r} did not gate the verdict"
+
+
+def test_main_exits_nonzero_when_grade_row_at_or_after_term_exists(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A single GradeDistribution row stamped at the inventoried term (202701) travels
+    from the database through collect_inventory, to_dict and main() to FAIL/FAIL, exit
+    1 -- proving rows_at_or_after_term alone (not stale_cache or any other counter)
+    drives the failure (CR-01)."""
+    _seed_evidence_backed_and_exception_no_rows(db_session)
+    _pin_timestamps(db_session, refreshed_at=T0, ingested_at=T0 - timedelta(hours=1))
+    _add_grade(
+        db_session,
+        term_id=1,
+        crn="80003",
+        course_id=10,
+        a=1,
+        source="synthetic-at-term",
+        ingested_at=datetime(2020, 1, 1, tzinfo=UTC),
+    )
+    db_session.commit()
+
+    engine = db_session.get_bind()
+    monkeypatch.setattr(inv, "get_engine", lambda: engine)
+    monkeypatch.setattr(engine, "dispose", lambda: None)
+
+    exit_code = inv.main(["--term", TERM])
+    assert exit_code == 1
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+
+    assert payload["integrity"]["rows_at_or_after_term"] == 1
+    assert payload["integrity"]["stale_cache"] is False
+    assert payload["integrity"]["unattributed_grade_rows"] == 0
+    assert payload["integrity"]["bucket_sum_mismatch_rows"] == 0
+    assert payload["integrity"]["non_tampa_section_count"] == 0
+    assert set(payload["sections_by_state"].keys()) == {"evidence_backed", "exception_no_rows"}
+    assert payload["verdicts"] == {"integrity": "FAIL", "d21_grade_coverage": "FAIL"}
 
 
 def test_term_batch_statement_count_does_not_grow_with_represented_courses(
