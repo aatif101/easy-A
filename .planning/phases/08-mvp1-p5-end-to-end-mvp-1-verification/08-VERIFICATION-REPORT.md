@@ -27,13 +27,13 @@ is re-queried in this phase.
 | Gate | Status | Evidence command | UTC time | Denominator | Reason |
 |---|---|---|---|---|---|
 | REQ-COVERAGE-03 validator (suffix-exact + reconciliation) | PASS | `uv run python scripts/validate_tampa_ingest.py --term 202701 --targets config/course_targets.toml` | 2026-09-24T18:31:32Z–18:34:10Z | 3,783 sections / 1,402-entry target list | `PASS suffix-exact`, `PASS reconciliation` printed; stored/coverage/rankings counts agree; every stored course is a configured target |
-| REQ-COVERAGE-03 API identity | pending Task 2 | `uv run python scripts/verify_rankings_pages.py --term 202701 --http-base-url http://127.0.0.1:8000` | — | 3,783 stored sections | — |
+| REQ-COVERAGE-03 API identity | PASS | `uv run python scripts/verify_rankings_pages.py --term 202701 --http-base-url http://127.0.0.1:8000` | 2026-09-24T18:36:21Z | 3,783 stored sections | `verdict: PASS`; stored_count=cache_count=api_total=3,783; 19 pages; 0 missing/extra/duplicate/non-Tampa; `api_score_source_split` matches the inventory's per-score_source split exactly |
 | REQ-GRADES-01 D-21 inventory | PASS | `uv run python scripts/inventory_tampa_grades.py --term 202701 --exceptions-md .planning/phases/08-mvp1-p5-end-to-end-mvp-1-verification/08-D21-EXCEPTIONS.md` | 2026-09-24T18:29:52Z | 3,783 sections | `verdicts.integrity`=PASS, `verdicts.d21_grade_coverage`=PASS; 3,122 evidence-backed, 661 listed exceptions |
 | REQ-GRADES-01 validator honest-coverage | PASS | `uv run python scripts/validate_tampa_ingest.py --term 202701 --targets config/course_targets.toml` | 2026-09-24T18:31:32Z–18:34:10Z | 3,422 `course`-sourced cache rows | `PASS honest-coverage (verified non-letter-grade exceptions: 300)`; 300 == inventory's `exception_non_letter_grade` (300) exactly |
 | REQ-GRADES-01 evidence wording | pending Task 3 | `npm --prefix web test` (08-03 `RankingEvidence.test.tsx`, 8 tests) | — | 8 component tests across 4 evidence scopes × 2 layouts | 08-03-SUMMARY.md already recorded all 8 passing; Task 3 reconfirms in the full regression run. Browser-viewport observation NOT MEASURED (no Chromium in this environment; logged in `.planning/WINDOWS.md` entry 8) |
 | Grade provenance by term | PASS | see "## Provenance by term" | 2026-09-24T18:29:52Z | 5 historical terms, 8,662 rows | Live per-term counts equal the ledger's "Final result" table and 05-IMPORT-RECORD.md exactly, 0 deltas |
-| Quality (202701) | pending Task 2 | `uv run python scripts/check_data_quality.py --term 202701 --json` | — | 3,783 sections | — |
-| REQ-PERF-01 p95 | pending Task 2 | `uv run python scripts/benchmark_rankings_search.py --live --http-base-url http://127.0.0.1:8000 --term 202701 --iterations 50` | — | 50 calls, 5 warmups, single client | — |
+| Quality (202701) | PASS | `uv run python scripts/check_data_quality.py --term 202701 --json` | 2026-09-24T18:36:29Z–18:36:33Z | 3,783 sections | 0 errors, 1,058 warnings (`low_confidence_ranking`), 50 info (`no_historical_analytics`) — reproduces the ledger's final quality baseline exactly |
+| REQ-PERF-01 p95 | PASS | `uv run python scripts/benchmark_rankings_search.py --live --http-base-url http://127.0.0.1:8000 --term 202701 --iterations 50` | 2026-09-24T18:36:44Z–18:36:59Z | 50 calls, 5 warmups, single client | p50 220.15 ms, p95 277.25 ms, max 340.29 ms, dataset 3,783 sections, loopback HTTP over hosted Supabase (transaction pooler). p95 < 1,500 ms |
 | D-02 invariance | pending Task 3 | `git fetch origin main && git diff --quiet origin/main -- src/easy_a/analytics src/easy_a/rankings src/easy_a/api src/easy_a/models migrations web/src/types web/src/api` | — | 7 paths | — |
 | D-19 hygiene | pending Task 3 | `test -z "$(git ls-files -- '*.xlsx' '*.xls' '*.csv')"` | — | repo-tracked files | — |
 
@@ -108,6 +108,97 @@ not a pass condition):** the live 2026-09-24 read reproduces the baseline exactl
 / 1,401 courses; 3,122 evidence-backed; 661 exceptions = 361 no_rows + 300 non_letter_grade;
 grade rows by term 202408 179 / 202501 2,096 / 202505 465 / 202508 2,887 / 202601 3,035 (8,662).
 Zero deltas from the baseline.
+
+## Identity, quality and performance (Task 2)
+
+All three commands below ran against a local `uvicorn easy_a.api.app:app --host 127.0.0.1 --port
+8000 --no-access-log` process using the same `DATABASE_URL` (hosted Supabase) as Task 1's
+inventory run. The server was confirmed ready with a 200 from
+`GET /api/v1/rankings/search?term=202701&limit=1` on the first attempt, and was stopped
+immediately after the benchmark completed (verified: no stray `uvicorn` process remained).
+
+### REQ-COVERAGE-03 API identity
+
+`scripts/verify_rankings_pages.py --term 202701 --http-base-url http://127.0.0.1:8000`, observed
+2026-09-24T18:36:21.918589+00:00:
+
+| Field | Value |
+|---|---|
+| verdict | PASS |
+| stored_count / cache_count / api_total | 3,783 / 3,783 / 3,783 |
+| pages_fetched | 19 (page_size 200) |
+| missing_count / extra_count / duplicate_count | 0 / 0 / 0 |
+| non_tampa_count / order_violations | 0 / 0 |
+
+`api_score_source_split` (from the live page walk) vs. the Task 1 inventory's per-score_source
+section counts:
+
+| score_source | API split (count / effective_n=0) | Inventory (evidence_backed + non_letter_grade / no_rows) | Match |
+|---|---|---|---|
+| course | 3,422 / 300 | 3,122 evidence_backed + 300 exception_non_letter_grade = 3,422 total, 300 at effective_n=0 | Exact |
+| subject | 311 / 0 | 311 of the 361 `exception_no_rows` sections | Exact |
+| global | 50 / 50 | 50 of the 361 `exception_no_rows` sections (311 subject + 50 global = 361) | Exact |
+
+No difference between the API's exposed score-source split and the inventory's cached-state
+split — the API is exposing the same evidence state the inventory classified, confirming
+REQ-GRADES-01's cross-check.
+
+### Quality (202701)
+
+`scripts/check_data_quality.py --term 202701 --json`, run 2026-09-24T18:36:29Z–18:36:33Z:
+
+| Field | Value |
+|---|---|
+| section_count | 3,783 |
+| error_count | 0 |
+| warning_count | 1,058 (`low_confidence_ranking`: 1,058) |
+| info_count | 50 (`no_historical_analytics`: 50) |
+
+This reproduces the dated import ledger's final quality baseline exactly (0 errors, 1,058
+low-confidence warnings, 50 no-history info items). **Scope note:** `_check_grades` in
+`src/easy_a/quality/checks.py` filters `GradeDistribution.term_id == term.id` — it inspects only
+grade rows stamped with the *current* term (202701), which has none (all historical grade rows
+carry a historical term). It therefore cannot see `unattributed_grade_row` or
+`grade_total_mismatch` findings for the historical 202408/202501/202505/202508/202601 rows this
+report's D-21 gate depends on. That is why the D-21 inventory's own integrity counters
+(`unattributed_grade_rows`=0, `bucket_sum_mismatch_rows`=0 — see "## D-21 grade coverage") are the
+authoritative check for historical-row integrity, not this term-scoped quality pass.
+
+### REQ-PERF-01 p95
+
+`scripts/benchmark_rankings_search.py --live --http-base-url http://127.0.0.1:8000 --term 202701
+--iterations 50`, run 2026-09-24T18:36:44Z–18:36:59Z (5 warmups, 50 measured calls, single
+client, loopback HTTP over hosted Supabase transaction pooler):
+
+| Metric | Value |
+|---|---|
+| Dataset size | 3,783 sections (stored term) |
+| Iterations | 50 |
+| p50 | 220.15 ms |
+| p95 | **277.25 ms** |
+| max | 340.29 ms |
+
+**REQ-PERF-01 gate: p95 = 277.25 ms < 1,500 ms. PASS.** The run was not interrupted; all 50
+calls completed. **Concurrent-user, deployed-host and browser latency: NOT MEASURED** — this
+gate is single-client, serial, loopback HTTP only.
+
+### Before/after snapshot comparison
+
+Re-ran `scripts/inventory_tampa_grades.py --term 202701` (no `--exceptions-md`) after Task 2's
+gates and the server shutdown, observed 2026-09-24T18:37:14Z. Compared against Task 1's snapshot
+(observed 2026-09-24T18:29:52Z):
+
+| Snapshot field | Task 1 | Task 2 (after) | Changed? |
+|---|---|---|---|
+| section_count | 3,783 | 3,783 | No |
+| cache_row_count | 3,783 | 3,783 | No |
+| cache_refreshed_at_max | 2026-09-23T21:51:28.116181+00:00 | 2026-09-23T21:51:28.116181+00:00 | No |
+| grade_row_count | 8,662 | 8,662 | No |
+| grade_ingested_at_max | 2026-09-23T21:36:34.907224+00:00 | 2026-09-23T21:36:34.907224+00:00 | No |
+
+**No change.** The snapshot held across all live gates in this report — none needed to be
+repeated or marked NOT MEASURED for drift. No hosted data was mutated, no cache rebuild or
+import ran at any point in this phase.
 
 ## Regression and invariance
 
