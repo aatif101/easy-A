@@ -1,8 +1,8 @@
 import type { SectionRanking } from "../types/rankings";
 import {
+  describeEvidence,
   formatPercent,
   instructorLabel,
-  scoreSourceLabel,
   seatSourceLabel,
   signalLabel,
   signalSourceLabel,
@@ -12,6 +12,7 @@ import { ConfidenceBadge, SeatBadge } from "./Badges";
 export function RankingDetails({ ranking, id }: { ranking: SectionRanking; id: string }) {
   const signalSource = signalSourceLabel(ranking);
   const historicalSignals = ranking.signal_provenance.freshness === "historical";
+  const evidence = describeEvidence(ranking);
 
   return (
     <section id={id} aria-label={`Details for ${ranking.subject} ${ranking.course_number} CRN ${ranking.crn}`} className="detail-panel">
@@ -31,9 +32,9 @@ export function RankingDetails({ ranking, id }: { ranking: SectionRanking; id: s
       <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-5 md:grid-cols-4">
         <div><dt>Easiness</dt><dd>{ranking.easiness_score.toFixed(1)} / 10</dd></div>
         <div><dt>W rate</dt><dd>{formatPercent(ranking.smoothed_withdrawal_rate)}</dd></div>
-        <div><dt>Effective sample</dt><dd>{Math.round(ranking.effective_n)} grades</dd></div>
-        <div><dt>Confidence</dt><dd><ConfidenceBadge value={ranking.confidence_label} />{ranking.confidence_label === "low" ? <span className="mt-1 block text-xs font-semibold text-amber-900">Based on limited historical data.</span> : null}</dd></div>
-        <div><dt>Score source</dt><dd>{scoreSourceLabel(ranking.score_source)}</dd></div>
+        <div><dt>Effective sample</dt><dd>{evidence.sampleLabel}</dd></div>
+        <div><dt>Confidence</dt><dd><ConfidenceBadge value={ranking.confidence_label} />{ranking.confidence_label === "low" && evidence.scope === "course_history" ? <span className="mt-1 block text-xs font-semibold text-amber-900">Based on limited historical data.</span> : null}</dd></div>
+        <div><dt>Score source</dt><dd>{evidence.sourceLabel}</dd></div>
       </dl>
       <section className="mt-5 rounded-md border border-rule p-3" aria-label="Seat observation details">
         <SeatBadge ranking={ranking} />
@@ -86,7 +87,9 @@ export function RankingDetails({ ranking, id }: { ranking: SectionRanking; id: s
           ) : (
             <p className="mt-3 text-sm text-stone-500">Unavailable</p>
           )}
-          <p className="mt-5 text-xs leading-relaxed text-stone-500">Historical analytics cover {ranking.historical_analytics.term_count} term{ranking.historical_analytics.term_count === 1 ? "" : "s"} and {ranking.historical_analytics.section_count} section{ranking.historical_analytics.section_count === 1 ? "" : "s"}. Scores are historical estimates, not guarantees.</p>
+          <p className="mt-5 text-xs leading-relaxed text-stone-500">
+            {evidence.detailSummary ?? `Historical analytics cover ${ranking.historical_analytics.term_count} term${ranking.historical_analytics.term_count === 1 ? "" : "s"} and ${ranking.historical_analytics.section_count} section${ranking.historical_analytics.section_count === 1 ? "" : "s"}. Scores are historical estimates, not guarantees.`}
+          </p>
         </div>
       </div>
     </section>
