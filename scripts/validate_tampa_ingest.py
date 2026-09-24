@@ -51,7 +51,21 @@ def assert_suffix_exact_ingest(
 ) -> None:
     """Every stored section for a base course belongs to the base course only; the
     suffix (L-variant) course owns its own stored sections. Raises AssertionError
-    naming the offending course on any leak."""
+    naming the offending course on any leak.
+
+    The suffix Course existence lookup below is catalog-scoped: Course rows carry no
+    term_id (src/easy_a/models/core.py), so a course either exists in the catalog or
+    it doesn't -- there is no per-term Course row to filter on. The section-count
+    check immediately after it, by contrast, is term-scoped, because Section rows do
+    carry a term. The schedule response that would otherwise disambiguate ("is this
+    course offered this term?") is not persisted anywhere, so stored data has no
+    other term-scoped signal to consult. Narrowing the existence lookup to only
+    courses that already own sections in the validated term would make the
+    zero-section branch below unreachable, silently deleting the Phase 06 L-variant
+    leak guard -- so it stays catalog-wide on purpose. A catalog suffix course that
+    owns 0 sections in the validated term is therefore genuinely ambiguous between a
+    leak into the base course and the suffix course not being offered that term, and
+    this function fails closed on that ambiguity rather than guessing (D-06, D-07)."""
     normalized_term = normalize_banner_term_code(term)
     for subject, base_number, suffix_number in pairs:
         for number in (base_number, suffix_number):
@@ -81,6 +95,10 @@ def assert_suffix_exact_ingest(
                     f"{resolved_number!r}, not the expected {number!r}."
                 )
 
+        # Intentionally catalog-wide: Course rows carry no term (src/easy_a/models/core.py),
+        # so this lookup cannot be scoped to the validated term the way the section-count
+        # query below is. See the docstring above for why narrowing this to
+        # term-having courses would silently disable the leak guard.
         suffix_course_id = session.scalar(
             select(Course.id).where(Course.subject == subject, Course.number == suffix_number)
         )
@@ -95,8 +113,11 @@ def assert_suffix_exact_ingest(
         if not suffix_section_count:
             raise AssertionError(
                 f"{subject} {suffix_number}: suffix course is ingested but owns 0 stored "
-                f"sections for term {normalized_term} -- its sections were likely "
-                f"mis-attributed to (leaked into) {subject} {base_number}."
+                f"sections for term {normalized_term}. Stored data cannot distinguish "
+                f"between two possibilities: its sections leaked into {subject} "
+                f"{base_number}, or {subject} {suffix_number} is simply not offered in "
+                f"term {normalized_term} -- confirm against the USF schedule for that "
+                "term before treating this as a leak."
             )
 
 

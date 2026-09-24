@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import pytest
-from sqlalchemy import event, update
+from sqlalchemy import event, select, update
 from sqlalchemy.orm import Session
 
 import scripts.inventory_tampa_grades as inv
@@ -229,7 +231,7 @@ def test_write_atomic_leaves_target_absent_on_simulated_failure(
     def failing_replace(*args: object, **kwargs: object) -> None:
         raise OSError("simulated failure")
 
-    monkeypatch.setattr(inv.os, "replace", failing_replace)
+    monkeypatch.setattr(os, "replace", failing_replace)
     with pytest.raises(OSError, match="simulated failure"):
         inv.write_atomic(target, "content")
     assert not target.exists()
@@ -411,7 +413,7 @@ def test_no_rows_reason_note_identical_across_every_no_rows_exception() -> None:
     assert subject_result.reason_note == global_result.reason_note == inv.NO_ROWS_REASON_NOTE
 
 
-def _make_inventory(sections: tuple[inv.SectionState, ...], **overrides: object) -> inv.Inventory:
+def _make_inventory(sections: tuple[inv.SectionState, ...], **overrides: Any) -> inv.Inventory:
     inventory = inv.Inventory(
         term=TERM,
         observed_at_utc="2026-09-24T00:00:00+00:00",
@@ -423,6 +425,7 @@ def _make_inventory(sections: tuple[inv.SectionState, ...], **overrides: object)
         cache_refreshed_at_max=None,
         grade_row_count=0,
         grade_ingested_at_max=None,
+        evidence_grade_ingested_at_max=None,
         non_tampa_section_count=0,
         grade_rows_by_term=(),
         window={"window_terms": {}, "checked_empty_terms": {}, "outside_window_rows": 0},
@@ -536,8 +539,9 @@ def test_every_reported_integrity_counter_gates_the_verdict() -> None:
     integrity_field_names = {f.name for f in dataclasses.fields(inv.Inventory)}
     for key, value in clean_output["integrity"].items():
         assert key in integrity_field_names, key
-        dirty = True if isinstance(value, bool) else 1
-        dirty_inventory = dataclasses.replace(clean, **{key: dirty})
+        dirty: Any = True if isinstance(value, bool) else 1
+        overrides: dict[str, Any] = {key: dirty}
+        dirty_inventory = dataclasses.replace(clean, **overrides)
         dirty_output = dirty_inventory.to_dict()
         assert dirty_output["verdicts"] == {
             "integrity": "FAIL",
@@ -582,6 +586,65 @@ def test_main_exits_nonzero_when_grade_row_at_or_after_term_exists(
     assert payload["integrity"]["non_tampa_section_count"] == 0
     assert set(payload["sections_by_state"].keys()) == {"evidence_backed", "exception_no_rows"}
     assert payload["verdicts"] == {"integrity": "FAIL", "d21_grade_coverage": "FAIL"}
+
+
+# --- Task 2: stale_cache from scoring-window rows only (WR-01) --------------------
+
+
+def test_stale_cache_ignores_out_of_window_grade_ingest(db_session: Session) -> None:
+    """A grade row stamped at or after the inventoried term never feeds a cached
+    score (it never passes the term_code < before_term filter), so ingesting one
+    after the cache refresh must not be able to trip stale_cache on its own."""
+    _seed_evidence_backed_and_exception_no_rows(db_session)
+    _pin_timestamps(db_session, refreshed_at=T0, ingested_at=T0 - timedelta(hours=1))
+    _add_grade(
+        db_session,
+        term_id=1,
+        crn="80003",
+        course_id=10,
+        a=1,
+        source="synthetic-at-term",
+        ingested_at=T0 + timedelta(hours=1),
+    )
+    db_session.commit()
+
+    inventory = inv.collect_inventory(db_session, TERM)
+    output = inventory.to_dict()
+
+    assert output["integrity"]["stale_cache"] is False
+    assert output["integrity"]["rows_at_or_after_term"] == 1
+    assert output["verdicts"] == {"integrity": "FAIL", "d21_grade_coverage": "FAIL"}
+
+    # SQLite drops tzinfo on round-trip -- compare timezone-naively.
+    snapshot = output["snapshot"]
+    expected_overall = (T0 + timedelta(hours=1)).replace(tzinfo=None)
+    expected_evidence = (T0 - timedelta(hours=1)).replace(tzinfo=None)
+    assert (
+        datetime.fromisoformat(snapshot["grade_ingested_at_max"]).replace(tzinfo=None)
+        == expected_overall
+    )
+    assert (
+        datetime.fromisoformat(snapshot["evidence_grade_ingested_at_max"]).replace(tzinfo=None)
+        == expected_evidence
+    )
+
+
+def test_stale_cache_trips_on_newer_in_window_grade_ingest(db_session: Session) -> None:
+    """202408 is outside the D-21 reporting window (D21_WINDOW_TERMS) but inside the
+    scoring evidence window (term_code < before_term), so it must still count."""
+    _seed_evidence_backed_and_exception_no_rows(db_session)
+    _pin_timestamps(db_session, refreshed_at=T0, ingested_at=T0 - timedelta(hours=1))
+    row = db_session.scalar(select(GradeDistribution).where(GradeDistribution.crn == "80001"))
+    assert row is not None
+    row.ingested_at = T0 + timedelta(hours=1)
+    db_session.commit()
+
+    inventory = inv.collect_inventory(db_session, TERM)
+    output = inventory.to_dict()
+
+    assert output["integrity"]["stale_cache"] is True
+    assert output["integrity"]["rows_at_or_after_term"] == 0
+    assert output["verdicts"] == {"integrity": "FAIL", "d21_grade_coverage": "FAIL"}
 
 
 def test_term_batch_statement_count_does_not_grow_with_represented_courses(

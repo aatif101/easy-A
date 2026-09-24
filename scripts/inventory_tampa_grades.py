@@ -165,6 +165,7 @@ class Inventory:
     cache_refreshed_at_max: str | None
     grade_row_count: int
     grade_ingested_at_max: str | None
+    evidence_grade_ingested_at_max: str | None
     non_tampa_section_count: int
     grade_rows_by_term: tuple[TermGradeStats, ...]
     window: dict[str, Any]
@@ -240,6 +241,7 @@ class Inventory:
                 "cache_refreshed_at_max": self.cache_refreshed_at_max,
                 "grade_row_count": self.grade_row_count,
                 "grade_ingested_at_max": self.grade_ingested_at_max,
+                "evidence_grade_ingested_at_max": self.evidence_grade_ingested_at_max,
                 "non_tampa_section_count": self.non_tampa_section_count,
             },
             "grade_rows_by_term": [
@@ -475,12 +477,21 @@ def _aggregate_grade_rows(
     int,
     datetime | None,
     int,
+    datetime | None,
 ]:
     """Roll up every fetched GradeDistribution row (one statement, no term filter)
     into per-course-key evidence, per-term reporting and the D-21 window counts.
 
     Returns (key_evidence, grade_rows_by_term, window, unattributed_grade_rows,
-    bucket_sum_mismatch_rows, overall_ingested_at_max, rows_at_or_after_term).
+    bucket_sum_mismatch_rows, overall_ingested_at_max, rows_at_or_after_term,
+    evidence_ingested_at_max). ``overall_ingested_at_max`` is the newest
+    ingested_at over every fetched row, including rows at or after ``before_term``
+    (unrelated to any cached score). ``evidence_ingested_at_max`` is the newest
+    ingested_at over only the rows that pass the same ``term_code < before_term``
+    filter src/easy_a/analytics/queries.py applies when building the cached
+    scores -- i.e. the rows that actually feed ``key_evidence`` -- so it deliberately
+    includes historical terms outside the D21_WINDOW_TERMS reporting window (e.g.
+    the 202408 pilot) because those rows do feed the cache.
     """
     key_totals: dict[tuple[str, str], dict[str, Any]] = defaultdict(
         lambda: {"row_count": 0, "af_sum": 0, "total_sum": 0, "term_codes": set(), "sources": set()}
@@ -503,6 +514,7 @@ def _aggregate_grade_rows(
     bucket_sum_mismatch_rows = 0
     rows_at_or_after_term = 0
     overall_ingested_at_max: datetime | None = None
+    evidence_ingested_at_max: datetime | None = None
 
     for (
         a_count,
@@ -537,6 +549,9 @@ def _aggregate_grade_rows(
         if term_code >= before_term:
             rows_at_or_after_term += 1
             continue
+
+        if evidence_ingested_at_max is None or ingested_at > evidence_ingested_at_max:
+            evidence_ingested_at_max = ingested_at
 
         if course_id is not None and subject is not None and number is not None:
             key = (subject, number)
@@ -609,6 +624,7 @@ def _aggregate_grade_rows(
         bucket_sum_mismatch_rows,
         overall_ingested_at_max,
         rows_at_or_after_term,
+        evidence_ingested_at_max,
     )
 
 
@@ -632,6 +648,7 @@ def collect_inventory(session: Session, term: str | int) -> Inventory:
         bucket_sum_mismatch_rows,
         grade_ingested_at_max_dt,
         rows_at_or_after_term,
+        evidence_ingested_at_max_dt,
     ) = _aggregate_grade_rows(grade_rows, before_term=normalized_term)
 
     sections: list[SectionState] = []
@@ -657,10 +674,16 @@ def collect_inventory(session: Session, term: str | int) -> Inventory:
     cache_refreshed_at_min_dt = min(cache_refreshed_ats) if cache_refreshed_ats else None
     cache_refreshed_at_max_dt = max(cache_refreshed_ats) if cache_refreshed_ats else None
 
+    # stale_cache answers "has the evidence used by the cache changed since the cache
+    # was last refreshed?" -- so it compares against evidence_ingested_at_max_dt (rows
+    # that actually feed key_evidence), not grade_ingested_at_max_dt (every fetched
+    # row, including any stamped at or after the inventoried term, which never feeds
+    # a cached score and would otherwise cause both false positives and false
+    # negatives here) (WR-01).
     stale_cache = bool(
         cache_refreshed_at_max_dt is not None
-        and grade_ingested_at_max_dt is not None
-        and cache_refreshed_at_max_dt < grade_ingested_at_max_dt
+        and evidence_ingested_at_max_dt is not None
+        and cache_refreshed_at_max_dt < evidence_ingested_at_max_dt
     )
 
     engine = bind if isinstance(bind, Engine) else None
@@ -682,6 +705,9 @@ def collect_inventory(session: Session, term: str | int) -> Inventory:
         grade_row_count=len(grade_rows),
         grade_ingested_at_max=(
             grade_ingested_at_max_dt.isoformat() if grade_ingested_at_max_dt else None
+        ),
+        evidence_grade_ingested_at_max=(
+            evidence_ingested_at_max_dt.isoformat() if evidence_ingested_at_max_dt else None
         ),
         non_tampa_section_count=non_tampa_count,
         grade_rows_by_term=grade_rows_by_term,

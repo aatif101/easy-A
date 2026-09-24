@@ -31,9 +31,11 @@ def _add_course(session: Session, subject: str, number: str, course_id: int) -> 
     return course
 
 
-def _add_section(session: Session, *, course_id: int, crn: str, campus: str = "Tampa") -> Section:
+def _add_section(
+    session: Session, *, course_id: int, crn: str, campus: str = "Tampa", term_id: int = 1
+) -> Section:
     section = Section(
-        term_id=1,
+        term_id=term_id,
         crn=crn,
         course_id=course_id,
         section_number="001",
@@ -140,6 +142,42 @@ def test_assert_suffix_exact_ingest_raises_on_leaked_suffix_section(db_session: 
     db_session.commit()
     with pytest.raises(AssertionError, match="2045L"):
         v.assert_suffix_exact_ingest(db_session, TERM, [PAIR])
+
+
+def test_assert_suffix_exact_ingest_fails_closed_when_suffix_offered_only_in_another_term(
+    db_session: Session,
+) -> None:
+    """CHM 2045L exists in the catalog and has a section, but only in 202605
+    (term_id=3), not in the 202701 (term_id=1) being validated. Stored data cannot
+    tell a leak from "not offered this term", so this must fail closed (WR-02)."""
+    base = _add_course(db_session, "CHM", "2045", course_id=1001)
+    suffix = _add_course(db_session, "CHM", "2045L", course_id=1002)
+    _add_section(db_session, course_id=base.id, crn="30001", term_id=1)
+    _add_section(db_session, course_id=suffix.id, crn="30003", term_id=3)
+    db_session.commit()
+
+    with pytest.raises(AssertionError) as excinfo:
+        v.assert_suffix_exact_ingest(db_session, TERM, [PAIR])
+    message = str(excinfo.value)
+    assert "2045L" in message
+    assert TERM in message
+    assert "leaked into" in message
+    assert "not offered in term" in message
+
+
+def test_assert_suffix_exact_ingest_passes_for_the_term_the_suffix_is_offered_in(
+    db_session: Session,
+) -> None:
+    """The same catalog/section layout as the fails-closed test above, but validated
+    against 202605 (term_id=3) -- the term CHM 2045L actually has a section in --
+    must not raise, because the section-count check stays term-scoped."""
+    base = _add_course(db_session, "CHM", "2045", course_id=1001)
+    suffix = _add_course(db_session, "CHM", "2045L", course_id=1002)
+    _add_section(db_session, course_id=base.id, crn="30001", term_id=1)
+    _add_section(db_session, course_id=suffix.id, crn="30003", term_id=3)
+    db_session.commit()
+
+    v.assert_suffix_exact_ingest(db_session, "202605", [PAIR])
 
 
 # --- assert_coverage_reconciled -----------------------------------------------------
