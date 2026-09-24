@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 7
+open_count: 8
 waived_count: 0
 fixed_count: 0
-total_count: 7
-last_updated: 2026-09-20T22:57:39.281Z
+total_count: 8
+last_updated: 2026-09-24T18:26:16.640Z
 ---
 
 # Broken Windows Ledger
@@ -22,6 +22,7 @@ last_updated: 2026-09-20T22:57:39.281Z
 | 5 | 03.5 | deviation | src/easy_a/refresh/coverage.py |  | Filtered the HTML ingestion payload because ingest_schedule_html reparses its input | open |  | 2026-09-20T18:06:22.328Z |  |
 | 6 | 03.5 | deviation | tests/refresh/test_targets.py |  | Updated legacy cross-course rejection expectation for D-10 exact-course filtering | open |  | 2026-09-20T18:06:22.514Z |  |
 | 7 | 03.5 | unmet-truth | scripts/benchmark_rankings_search.py |  | Rankings-search p95 ~2.40s at 3782-section synthetic scale exceeds the ~1.5s target (REQ-PERF-01 acceptance criterion 2). Accepted deviation: deferred to a post-pilot tuning pass (index/query tuning); pilot scale ~132 sections not user-facing-blocked. Measured 2026-09-20. | open |  | 2026-09-20T22:57:39.281Z |  |
+| 8 | 08 | unrun-verify | web/src/components/RankingTable.tsx |  | 08-03 Task 2 manual desktop/mobile browser inspection of course, course/effective_n=0, subject and global rows not run — no browser/Playwright available in this environment; the 8 RankingEvidence.test.tsx component tests render both layouts (jsdom) and assert the exact same strings | open |  | 2026-09-24T18:26:16.640Z |  |
 
 ````json
 [
@@ -113,6 +114,19 @@ last_updated: 2026-09-20T22:57:39.281Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-09-20T22:57:39.281Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 8,
+    "kind": "unrun-verify",
+    "phase": "08",
+    "file": "web/src/components/RankingTable.tsx",
+    "line": null,
+    "description": "08-03 Task 2 manual desktop/mobile browser inspection of course, course/effective_n=0, subject and global rows not run — no browser/Playwright available in this environment; the 8 RankingEvidence.test.tsx component tests render both layouts (jsdom) and assert the exact same strings",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-09-24T18:26:16.640Z",
     "resolved_at": null,
     "milestone": null
   }

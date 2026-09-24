@@ -1,15 +1,15 @@
 ---
 gsd_state_version: "1.0"
-current_plan: 3
+current_plan: 4
 status: ready_to_execute
-stopped_at: Completed 08-02-PLAN.md
-last_updated: "2026-09-24T17:30:46.225Z"
-state_head: c306e3da723be0d87cb8b009ee2c258c078203ed
+stopped_at: Completed 08-03-PLAN.md
+last_updated: "2026-09-24T18:27:37.975Z"
+state_head: ec4245f4399b9c6fc426f8bb94ccb1df7db85b75
 progress:
   total_phases: 10
   completed_phases: 6
   total_plans: 19
-  completed_plans: 17
+  completed_plans: 18
   percent: 60
 last_activity: 2026-09-23
 current_phase: 8
@@ -74,7 +74,7 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: 3
+Current Plan: 4
 Total Plans in Phase: 4
 
 ## Next action
@@ -142,7 +142,7 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Completed 08-02-PLAN.md
+**Stopped at:** Completed 08-03-PLAN.md
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
 **Resume file:** None
 
@@ -152,7 +152,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-09-24T17:30:46.160Z
+Last session: 2026-09-24T18:27:37.899Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
@@ -179,6 +179,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 | Phase 07 P03 | ~45min | 2 tasks | 5 files |
 | Phase 08 P01 | 55min | 2 tasks | 2 files |
 | Phase 08 P08-02 | ~35min | 3 tasks | 4 files |
+| Phase 08 P03 | 53min | 2 tasks | 4 files |
 
 ## Decisions
 
@@ -200,3 +201,5 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 - [Phase 8]: [Phase 08-01]: Live 202701 scan against hosted Supabase returned PASS -- 3,783/3,783 sections reconciled exactly, api_score_source_split matches STATE.md's D-21 inventory (course 3,422/300 effective_n=0, subject 311, global 50).
 - [Phase 8]: [Phase 08-02]: evidence_backed requires both attributed letter-grade weight and cached-total reconciliation against a cache built by the real refresh_section_rankings path (not a numeric score alone); assert_honest_coverage's exception is scoped to score_source=course, effective_n=0, with stored A-F sum 0 and total_grades sum > 0 for the exact course key -- every other zero-sample claim still fails (D-20, D-21).
 - [Phase 8]: [Phase 08-02]: Live 202701 run against hosted Supabase returned PASS/PASS -- 3,122 evidence-backed, 661 listed exceptions (361 no_rows + 300 non_letter_grade); validator's verified non-letter-grade exception count (300) equals the inventory's exception_non_letter_grade count exactly.
+- [Phase 8]: [Phase 08-03]: Implemented describeEvidence()'s full rule set (course_history, no_letter_grade_history, subject_fallback, no_course_evidence) in Task 1's single commit rather than splitting production code across Task 1/Task 2, since the four scopes form one exhaustive rule table; Task 2's tests pass immediately against that implementation (documented in SUMMARY, no tdd_mode gate violation since workflow.tdd_mode=false).
+- [Phase 8]: [Phase 08-03]: Restricted the pre-existing low-confidence 'Based on limited historical data.' InfoTip/paragraph to the course_history evidence scope only, so a fallback/no-evidence row that also has confidence_label=low never shows both the fallback note and a string implying it has limited-but-real course data.
