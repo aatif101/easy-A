@@ -280,9 +280,28 @@ def classify_section(
 ) -> SectionState:
     """Classify one section under D-21.
 
-    Interim (Task 1): only the evidence_backed and exception_no_rows paths (plus
-    the trivial missing_cache_row path) are fully implemented; every other
-    combination maps to unclassified until Task 2 completes the decision tree.
+    evidence_backed: score_source course/instructor_course, effective_n > 0, key
+    has attributed rows with A-F sum > 0, and the cached total_grade_count
+    reconciles (course: exactly equal to the key's persisted total_grades sum;
+    instructor_course: a positive subset of it, i.e. in (0, key sum]).
+
+    exception_non_letter_grade: score_source course, effective_n == 0, key rows
+    exist with A-F sum == 0 and total_grades sum > 0 (a non-letter-grade course,
+    e.g. S/U or pass/fail), and the cached total reconciles to the key sum.
+
+    exception_no_rows: score_source subject (effective_n > 0, subject-level) or
+    global (effective_n == 0), and the key has no attributed rows at all.
+
+    Everything else is a named integrity failure: unbacked_course_claim (a
+    course/instructor_course claim with no attributed rows at all, regardless of
+    effective_n), raw_total_mismatch (rows exist and reconciliation fails),
+    history_not_used (a subject/global fallback used despite the key itself
+    having attributed rows, at the effective_n>0 fallback threshold),
+    global_nonzero_effective_n (a global row claiming effective_n > 0, which
+    D-20 forbids), or unclassified (an unknown score_source, a subject row with
+    effective_n <= 0 -- D-21 defines no subject-level non-letter-grade
+    exception -- or any other combination this decision tree does not name;
+    never silently absorbed into evidence_backed or an exception).
     """
     row_count = key_evidence.row_count
     total_grades_sum = key_evidence.total_sum
@@ -333,23 +352,60 @@ def classify_section(
     if score_source not in _VALID_SCORE_SOURCES:
         return make(EvidenceState.unclassified)
 
-    if score_source in _COURSE_BACKED_SOURCES:
-        if (
-            effective_n is not None
-            and effective_n > 0
-            and key_evidence.has_rows
-            and key_evidence.af_sum > 0
-            and cached_total == key_evidence.total_sum
-        ):
-            return make(EvidenceState.evidence_backed)
+    if effective_n is None:
         return make(EvidenceState.unclassified)
 
-    # subject or global
-    if effective_n is not None and effective_n > 0 and not key_evidence.has_rows:
+    if score_source in _COURSE_BACKED_SOURCES:
+        if not key_evidence.has_rows:
+            # A course/instructor_course claim with no attributed rows backing it
+            # at all -- unbacked regardless of what effective_n happens to say.
+            return make(EvidenceState.unbacked_course_claim)
+
+        if effective_n > 0:
+            if key_evidence.af_sum <= 0:
+                # Mathematically unreachable given effective_n = min(effective_grade_n,
+                # effective_withdrawal_n) -- a zero A-F sum forces effective_grade_n = 0,
+                # hence effective_n = 0. Documented rather than silently trusted if a
+                # stale/inconsistent cache ever produces it.
+                return make(EvidenceState.unclassified)
+            if score_source == ScoreSource.course.value:
+                matches = cached_total == key_evidence.total_sum
+            else:  # instructor_course: a positive subset of the key's own total
+                matches = cached_total is not None and 0 < cached_total <= key_evidence.total_sum
+            if matches:
+                return make(EvidenceState.evidence_backed)
+            return make(EvidenceState.raw_total_mismatch)
+
+        # effective_n == 0, rows exist.
+        is_non_letter_grade_claim = (
+            score_source == ScoreSource.course.value
+            and key_evidence.af_sum == 0
+            and key_evidence.total_sum > 0
+        )
+        if is_non_letter_grade_claim:
+            matches = cached_total == key_evidence.total_sum
+            if matches:
+                return make(
+                    EvidenceState.exception_non_letter_grade,
+                    reason_category="non_letter_grade",
+                )
+            return make(EvidenceState.raw_total_mismatch)
+        return make(EvidenceState.unclassified)
+
+    if score_source == ScoreSource.subject.value:
+        if effective_n <= 0:
+            # D-21 defines no subject-level non-letter-grade exception.
+            return make(EvidenceState.unclassified)
+        if key_evidence.has_rows:
+            return make(EvidenceState.history_not_used)
         return make(EvidenceState.exception_no_rows, reason_category="no_rows")
-    if score_source == ScoreSource.global_.value and effective_n == 0 and not key_evidence.has_rows:
-        return make(EvidenceState.exception_no_rows, reason_category="no_rows")
-    return make(EvidenceState.unclassified)
+
+    # global
+    if effective_n > 0:
+        return make(EvidenceState.global_nonzero_effective_n)
+    if key_evidence.has_rows:
+        return make(EvidenceState.history_not_used)
+    return make(EvidenceState.exception_no_rows, reason_category="no_rows")
 
 
 def _fetch_sections(session: Session, term: str) -> list[Any]:
