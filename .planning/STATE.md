@@ -2,19 +2,19 @@
 gsd_state_version: "1.0"
 current_plan: 4
 status: ready_to_execute
-stopped_at: Completed 08-03-PLAN.md
-last_updated: "2026-09-24T18:27:37.975Z"
-state_head: ec4245f4399b9c6fc426f8bb94ccb1df7db85b75
+stopped_at: Completed 08-04-PLAN.md — Phase 8 verdict PASS, MVP-1 verdict (D-21) PASS
+last_updated: "2026-09-24T18:44:16.606Z"
+state_head: a31110546d0e46553ecc286cec3ef1232f3a9844
 progress:
   total_phases: 10
   completed_phases: 6
   total_plans: 19
-  completed_plans: 18
+  completed_plans: 19
   percent: 60
-last_activity: 2026-09-23
+last_activity: 2026-09-24
 current_phase: 8
 current_phase_name: MVP1-P5 — End-to-end MVP-1 verification
-last_activity_desc: Phase 08 re-planned against live D-21 inventory (3,122 evidence-backed / 661 exceptions); checker passed
+last_activity_desc: Phase 08 (MVP1-P5) complete — 08-04 verification report PASS on all gates; Phase 8 and MVP-1 (D-21) verdicts both PASS against hosted Supabase (2026-09-24)
 ---
 
 # Project State
@@ -92,10 +92,25 @@ history has no letter-grade weight, so they show the prior); `subject` fallback 
 The 361 unmatched sections are source-limited (InfoCenter omits <5-student courses). Quality: 0
 errors. See `.planning/grade-coverage-import-2026-09-23.md`.
 
-**Do next:** `/gsd-execute-phase 8`. Phase 08 plans (08-01..08-04, 2 waves) were revised to encode
-D-21 against the live inventory and passed the independent plan checker (0 blockers, 0 warnings) on
-2026-09-23. UI decision (user, 2026-09-23): `course`/`effective_n = 0` rows show "No letter-grade
-history (pass/fail or independent study) — score is a prior" — presentation-only, in 08-03.
+**Phase 08 (MVP1-P5) is complete (4/4 plans).** `08-04-SUMMARY.md` and
+`.planning/phases/08-mvp1-p5-end-to-end-mvp-1-verification/08-VERIFICATION-REPORT.md` record a
+dated, live hosted-Supabase run (2026-09-24) with **Phase 8 verdict: PASS** and **MVP-1 verdict
+(D-21): PASS**. All ten Gates-table rows PASS: REQ-COVERAGE-03 (validator + API identity scan,
+3,783/3,783/3,783, 0 missing/extra/duplicate/non-Tampa), REQ-GRADES-01 (D-21 inventory 3,122
+evidence-backed / 661 listed exceptions, validator honest-coverage 300 == inventory's 300, API
+score-source split matches the cache split exactly, 08-03 evidence wording 8/8 tests), REQ-PERF-01
+(p95 277.25 ms < 1,500 ms, 50 calls / 5 warmups, single-client loopback HTTP), D-02 invariance
+(empty diff vs `origin/main`), D-19 hygiene, and grade provenance (0 deltas vs the dated ledger).
+The committed `08-D21-EXCEPTIONS.md` (661 rows, machine-generated) is the honest, complete D-21
+end state; no repair action or new grade sourcing was proposed. Full suite: 366 passed / 3 skipped
+Python, 86 passed frontend. One open item carried forward: the browser-viewport visual inspection
+remains NOT MEASURED (no Chromium/Playwright in this environment — `.planning/WINDOWS.md` entry
+8); `.planning/WINDOWS.md` entry 9 logs a minor repo-wide mypy test-file delta (36/11 vs. the
+30/9 baseline, entirely in 08-01/08-02 test files, out of 08-04's scope, not a gate blocker).
+
+**Do next:** MVP 1 is verified end to end. Next natural step is `/gsd-ship` or a milestone-close
+workflow (Phase 9 — Hosted Beta — is the next roadmap phase, after MVP 1). A human should confirm
+the NOT MEASURED browser-viewport observation is acceptable before treating MVP-1 as ready to ship.
 
 ## History
 
@@ -118,9 +133,13 @@ are in `.planning/ARCHIVE.md`. They describe the earlier local beta DB and are n
 
 ## Still open
 
-- **Grade-history coverage for the remaining courses** — 1,212 Spring 2027 Tampa sections / 608
-  courses still lack their own course's historical rows after the three-college import. Other
-  colleges have not yet been processed in this coverage run. See the dated import ledger.
+- ~~**Grade-history coverage for the remaining courses**~~ **RESOLVED under D-21 (locked
+  2026-09-23, verified in Phase 8, 2026-09-24)** — the 1,212-section gap from the three-college
+  import is now the D-21 honest end state: 661 listed source-limited exceptions (361 `no_rows` +
+  300 `non_letter_grade`) with correct subject/global fallback labeling, and 3,122 sections
+  evidence-backed. Coverage work is stopped by decision; no further grade sourcing is in scope.
+  See `.planning/grade-coverage-import-2026-09-23.md` and
+  `.planning/phases/08-mvp1-p5-end-to-end-mvp-1-verification/08-VERIFICATION-REPORT.md`.
 
 - **Blank grade-cell / suppression semantics (OQ-04)** — the upstream meaning of a blank InfoCenter
   cell is still genuinely unknown. MVP1-P1 (04-02, 2026-09-21) made the parser fail closed on any
@@ -142,7 +161,7 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Completed 08-03-PLAN.md
+**Stopped at:** Completed 08-04-PLAN.md — Phase 8 verdict PASS, MVP-1 verdict (D-21) PASS
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
 **Resume file:** None
 
@@ -152,7 +171,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-09-24T18:27:37.899Z
+Last session: 2026-09-24T18:44:16.541Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
@@ -180,6 +199,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 | Phase 08 P01 | 55min | 2 tasks | 2 files |
 | Phase 08 P08-02 | ~35min | 3 tasks | 4 files |
 | Phase 08 P03 | 53min | 2 tasks | 4 files |
+| Phase 08 P04 | 15min | 3 tasks | 4 files |
 
 ## Decisions
 
@@ -203,3 +223,5 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 - [Phase 8]: [Phase 08-02]: Live 202701 run against hosted Supabase returned PASS/PASS -- 3,122 evidence-backed, 661 listed exceptions (361 no_rows + 300 non_letter_grade); validator's verified non-letter-grade exception count (300) equals the inventory's exception_non_letter_grade count exactly.
 - [Phase 8]: [Phase 08-03]: Implemented describeEvidence()'s full rule set (course_history, no_letter_grade_history, subject_fallback, no_course_evidence) in Task 1's single commit rather than splitting production code across Task 1/Task 2, since the four scopes form one exhaustive rule table; Task 2's tests pass immediately against that implementation (documented in SUMMARY, no tdd_mode gate violation since workflow.tdd_mode=false).
 - [Phase 8]: [Phase 08-03]: Restricted the pre-existing low-confidence 'Based on limited historical data.' InfoTip/paragraph to the course_history evidence scope only, so a fallback/no-evidence row that also has confidence_label=low never shows both the fallback note and a string implying it has limited-but-real course data.
+- [Phase 8]: [Phase 08-04]: Reported the repo-wide mypy delta (30/9 -> 36/11 files) as measured, not re-quoted, after tracing it to two 08-01/08-02 test files outside 08-04's scope; logged to WINDOWS.md entry 9 rather than fixed, since this plan's own scoped mypy check (3 production gate scripts) is 0 issues.
+- [Phase 8]: [Phase 08-04]: Issued Phase 8 verdict PASS and MVP-1 verdict (D-21) PASS from one frozen hosted-Supabase snapshot (3,783 sections, verified unchanged across all live gates via a before/after five-field comparison): 3,122 evidence-backed, 661 listed D-21 exceptions treated as the honest end state (no repair action, no new grade sourcing), p95 277.25ms.
