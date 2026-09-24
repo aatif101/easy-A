@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 import scripts.validate_tampa_ingest as v
-from easy_a.models import Course, Section
+from easy_a.models import Course, GradeDistribution, Section
 from easy_a.rankings.cache import SectionRankingCache
 from easy_a.refresh.targets import CourseTarget, load_targets
 from tests.api.test_rankings_search_sql import _historical_analytics, _provenance
@@ -167,7 +167,7 @@ def test_assert_coverage_reconciled_raises_on_untargeted_course(db_session: Sess
 
 def test_assert_honest_coverage_passes_on_honest_dataset(db_session: Session) -> None:
     _seed_honest_dataset(db_session)
-    v.assert_honest_coverage(db_session, TERM)
+    assert v.assert_honest_coverage(db_session, TERM) == 0
 
 
 def test_assert_honest_coverage_raises_on_fabricated_course_backed_row(db_session: Session) -> None:
@@ -178,4 +178,107 @@ def test_assert_honest_coverage_raises_on_fabricated_course_backed_row(db_sessio
     row.score_source = "course"
     db_session.commit()
     with pytest.raises(AssertionError, match="30002"):
+        v.assert_honest_coverage(db_session, TERM)
+
+
+# --- assert_honest_coverage: D-21 non-letter-grade exception -----------------------
+
+
+def _add_grade(
+    session: Session,
+    *,
+    term_id: int,
+    crn: str,
+    course_id: int,
+    a: int = 0,
+    b: int = 0,
+    c: int = 0,
+    d: int = 0,
+    f: int = 0,
+    s: int = 0,
+    u: int = 0,
+    w: int = 0,
+    source: str = "synthetic",
+) -> GradeDistribution:
+    completed = a + b + c + d + f
+    total = completed + s + u + w
+    distribution = GradeDistribution(
+        term_id=term_id,
+        crn=crn,
+        course_id=course_id,
+        section_number_raw="001",
+        section_suffix_raw=None,
+        campus_raw="Tampa",
+        a_count=a,
+        b_count=b,
+        c_count=c,
+        d_count=d,
+        f_count=f,
+        i_count=0,
+        s_count=s,
+        u_count=u,
+        w_count=w,
+        other_count=0,
+        total_grades=total,
+        source=source,
+        source_hash=f"{source}-hash",
+    )
+    session.add(distribution)
+    session.flush()
+    return distribution
+
+
+def test_assert_honest_coverage_accepts_verified_non_letter_grade_exception(
+    db_session: Session,
+) -> None:
+    course = _add_course(db_session, "AAA", "4900", course_id=2001)
+    section = _add_section(db_session, course_id=course.id, crn="40001")
+    _add_ranking(db_session, section=section, course=course, score_source="course", effective_n=0.0)
+    _add_grade(db_session, term_id=2, crn="70001", course_id=course.id, s=5, u=1)
+    db_session.commit()
+
+    assert v.assert_honest_coverage(db_session, TERM) == 1
+
+
+def test_assert_honest_coverage_raises_when_course_key_has_letter_grades(
+    db_session: Session,
+) -> None:
+    course = _add_course(db_session, "AAA", "4901", course_id=2002)
+    section = _add_section(db_session, course_id=course.id, crn="40002")
+    _add_ranking(db_session, section=section, course=course, score_source="course", effective_n=0.0)
+    _add_grade(db_session, term_id=2, crn="70002", course_id=course.id, a=5, s=1)
+    db_session.commit()
+
+    with pytest.raises(AssertionError, match="40002"):
+        v.assert_honest_coverage(db_session, TERM)
+
+
+def test_assert_honest_coverage_raises_on_subject_zero(db_session: Session) -> None:
+    course = _add_course(db_session, "AAA", "4902", course_id=2003)
+    section = _add_section(db_session, course_id=course.id, crn="40003")
+    _add_ranking(
+        db_session, section=section, course=course, score_source="subject", effective_n=0.0
+    )
+    db_session.commit()
+
+    with pytest.raises(AssertionError, match="40003"):
+        v.assert_honest_coverage(db_session, TERM)
+
+
+def test_assert_honest_coverage_raises_on_instructor_course_zero_even_with_non_letter_history(
+    db_session: Session,
+) -> None:
+    course = _add_course(db_session, "AAA", "4903", course_id=2004)
+    section = _add_section(db_session, course_id=course.id, crn="40004")
+    _add_ranking(
+        db_session,
+        section=section,
+        course=course,
+        score_source="instructor_course",
+        effective_n=0.0,
+    )
+    _add_grade(db_session, term_id=2, crn="70004", course_id=course.id, s=5, u=1)
+    db_session.commit()
+
+    with pytest.raises(AssertionError, match="40004"):
         v.assert_honest_coverage(db_session, TERM)

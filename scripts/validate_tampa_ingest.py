@@ -3,15 +3,16 @@ from __future__ import annotations
 import argparse
 import re
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from pathlib import Path
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, tuple_
 from sqlalchemy.orm import Session
 
 from easy_a.analytics.confidence import ScoreSource
 from easy_a.common.terms import normalize_banner_term_code
 from easy_a.db import get_session_factory
-from easy_a.models import Course, Section, Term
+from easy_a.models import Course, GradeDistribution, Section, Term
 from easy_a.rankings.cache import SectionRankingCache
 from easy_a.refresh.coverage import coverage_metadata
 from easy_a.refresh.targets import CourseTarget, load_targets
@@ -142,21 +143,101 @@ def assert_coverage_reconciled(
         )
 
 
-def assert_honest_coverage(session: Session, term: str) -> None:
+@dataclass(frozen=True)
+class _CourseKeyGradeTotals:
+    row_count: int
+    af_sum: int
+    total_sum: int
+
+
+def _course_key_grade_totals(
+    session: Session, term: str, course_keys: Iterable[tuple[str, str]]
+) -> dict[tuple[str, str], _CourseKeyGradeTotals]:
+    """One grouped query: attributed (course_id is not null) GradeDistribution row
+    count, A-F sum and total_grades sum per (subject, number) course key, for
+    historical terms earlier than ``term``. Grouped the same way as `_course_ids`
+    in src/easy_a/analytics/queries.py (subject + number only, so every catalog
+    edition sharing that key is combined -- uq_courses_identity allows several)."""
+    keys = set(course_keys)
+    if not keys:
+        return {}
+    normalized_term = normalize_banner_term_code(term)
+    af_expr = (
+        GradeDistribution.a_count
+        + GradeDistribution.b_count
+        + GradeDistribution.c_count
+        + GradeDistribution.d_count
+        + GradeDistribution.f_count
+    )
+    stmt = (
+        select(
+            Course.subject,
+            Course.number,
+            func.count(GradeDistribution.id),
+            func.sum(af_expr),
+            func.sum(GradeDistribution.total_grades),
+        )
+        .join(Course, GradeDistribution.course_id == Course.id)
+        .join(Term, GradeDistribution.term_id == Term.id)
+        .where(
+            Term.banner_code < normalized_term,
+            tuple_(Course.subject, Course.number).in_(keys),
+        )
+        .group_by(Course.subject, Course.number)
+    )
+    return {
+        (subject, number): _CourseKeyGradeTotals(
+            row_count=row_count,
+            af_sum=int(af_sum or 0),
+            total_sum=int(total_sum or 0),
+        )
+        for subject, number, row_count, af_sum, total_sum in session.execute(stmt).all()
+    }
+
+
+def assert_honest_coverage(session: Session, term: str) -> int:
     """Every section_rankings row with score_source in {course, instructor_course} has
-    effective_n > 0, and every effective_n == 0 row has score_source == global.
-    Raises AssertionError naming the offending CRN otherwise (D-20)."""
+    effective_n > 0, and every effective_n == 0 row has score_source == global --
+    except a D-21 listed exception: a score_source=course row with effective_n == 0
+    is accepted only when stored grade rows prove the course key's history has zero
+    A-F (letter-grade) weight and a nonzero total (a non-letter-grade course, e.g.
+    S/U or pass/fail). That acceptance is narrow and evidence-proven, never a
+    relaxation of D-20 -- every other zero-sample course-backed claim still raises.
+    These accepted sections remain listed exceptions, never own-course letter-grade
+    history (D-20, D-21). Raises AssertionError naming the offending CRN on any
+    other violation. Returns the number of verified non-letter-grade exceptions."""
     normalized_term = normalize_banner_term_code(term)
     rows = session.execute(
         select(
             SectionRankingCache.crn,
+            SectionRankingCache.subject,
+            SectionRankingCache.course_number,
             SectionRankingCache.score_source,
             SectionRankingCache.effective_n,
         ).where(SectionRankingCache.term == normalized_term)
     ).all()
 
     course_backed_sources = {ScoreSource.course.value, ScoreSource.instructor_course.value}
-    for crn, score_source, effective_n in rows:
+    zero_course_keys = {
+        (subject, course_number)
+        for _crn, subject, course_number, score_source, effective_n in rows
+        if score_source == ScoreSource.course.value and effective_n == 0
+    }
+    key_totals = _course_key_grade_totals(session, normalized_term, zero_course_keys)
+
+    verified_exceptions = 0
+    for crn, subject, course_number, score_source, effective_n in rows:
+        if score_source == ScoreSource.course.value and effective_n == 0:
+            totals = key_totals.get((subject, course_number))
+            if (
+                totals is not None
+                and totals.row_count > 0
+                and totals.af_sum == 0
+                and totals.total_sum > 0
+            ):
+                verified_exceptions += 1
+                continue
+
         if score_source in course_backed_sources and effective_n <= 0:
             raise AssertionError(
                 f"CRN {crn}: score_source={score_source!r} claims course-backed history "
@@ -169,6 +250,8 @@ def assert_honest_coverage(session: Session, term: str) -> None:
                 f"effective_n=0 row must be the explicit {ScoreSource.global_.value!r} "
                 "fallback (D-20)."
             )
+
+    return verified_exceptions
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -188,9 +271,10 @@ def main(argv: list[str] | None = None) -> int:
     pairs = derive_suffix_pairs(config.targets)
 
     checks: list[tuple[str, bool, str]] = []
+    verified_exceptions = 0
     session_factory = get_session_factory()
     with session_factory() as session:
-        checkers: list[tuple[str, Callable[[], None]]] = [
+        checkers: list[tuple[str, Callable[[], object]]] = [
             ("suffix-exact", lambda: assert_suffix_exact_ingest(session, args.term, pairs)),
             (
                 "reconciliation",
@@ -200,19 +284,23 @@ def main(argv: list[str] | None = None) -> int:
         ]
         for name, fn in checkers:
             try:
-                fn()
+                result = fn()
             except AssertionError as exc:
                 checks.append((name, False, str(exc)))
             else:
+                if name == "honest-coverage" and isinstance(result, int):
+                    verified_exceptions = result
                 checks.append((name, True, ""))
 
     exit_code = 0
     for name, passed, detail in checks:
-        if passed:
-            print(f"PASS {name}")
-        else:
+        if not passed:
             print(f"FAIL {name}: {detail}")
             exit_code = 1
+        elif name == "honest-coverage":
+            print(f"PASS {name} (verified non-letter-grade exceptions: {verified_exceptions})")
+        else:
+            print(f"PASS {name}")
     return exit_code
 
 
