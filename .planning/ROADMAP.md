@@ -449,7 +449,7 @@ Supabase; whole-term cache rebuild 4.77 s; quality pass 2.45 s. Evidence: `07-PE
 **Grade-coverage gate**: PROJECT.md D-21 — every section is evidence-backed or a listed
 source-limited exception; fallbacks never count as course history; no grade sourcing in this phase.
 
-**Plans:** 4/4 plans executed (tracer-first; Wave 1 ×3 parallel → Wave 2)
+**Plans:** 4/5 plans executed (tracer-first; Wave 1 ×3 parallel → Wave 2; gap closure 08-05 pending)
 
 Plans:
 **Wave 1**
@@ -461,6 +461,10 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 
 - [x] 08-04-PLAN.md — Dated hosted verification report, committed D-21 exception list, Phase 8 and MVP-1 verdicts
+
+**Gap closure** *(from 08-VERIFICATION.md / 08-REVIEW.md CR-01)*
+
+- [ ] 08-05-PLAN.md — Every reported D-21 integrity counter gates the verdict (CR-01), stale_cache from scoring-window rows (WR-01), suffix guard kept fail-closed and documented (WR-02), read-only live re-verification recorded in the report
 
 ---
 
