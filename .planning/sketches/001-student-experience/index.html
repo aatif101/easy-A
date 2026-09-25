@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Easy-A — student experience design review</title>
+<style>
+  *{box-sizing:border-box}body{margin:0;background:#e9eeeb;color:#182f26;font:15px/1.5 'Segoe UI',Arial,sans-serif}header{background:white;padding:20px 24px;border-bottom:1px solid #becbc2}h1{font-size:22px;margin:0}p{margin:6px 0 14px;color:#526259}nav,.tools{display:flex;gap:12px;flex-wrap:wrap;align-items:end}button,select,a{font:inherit}button,select{min-height:44px;border:1px solid #93a89b;padding:8px 12px;background:white;color:#182f26;border-radius:6px;cursor:pointer}button[aria-pressed=true]{background:#176348;color:white;border-color:#176348}button:hover{background:#edf5ef;color:#182f26}a{color:#176348;text-underline-offset:3px;display:inline-block;padding:10px 4px}label{display:block}label span{display:block;font-size:13px;margin-bottom:4px}.tools{margin-top:12px}main{padding:24px;overflow:auto}iframe{display:block;width:1440px;height:1000px;max-width:100%;margin:auto;border:1px solid #93a89b;background:white;border-radius:8px}#description{margin-bottom:12px}#notes{margin:16px auto;max-width:1000px}:focus-visible{outline:3px solid #176348;outline-offset:3px}@media(max-width:600px){header{padding:16px}main{padding:12px}nav{gap:8px}nav button{flex:1}iframe{height:844px}}
+</style>
+</head>
+<body>
+<header><h1>Easy-A · design review</h1><p>Two working sketches with the same verified course sample. A is selected. Explore the complete student journey or compare the retained alternative.</p>
+<nav aria-label="Design alternatives"><button data-variant="guide" aria-pressed="true">A · Student guide ★ Selected</button><button data-variant="compact" aria-pressed="false">B · Compact comparison</button><a href="comparison.html">Before / after</a><a href="experience.html" id="direct" target="_blank" rel="noopener">Open full preview</a></nav>
+<div class="tools"><label><span>Screen</span><select id="viewport"><option value="desktop">Desktop · 1440 × 1000</option><option value="mobile">Phone · 390 × 844</option><option value="tablet">Tablet · 768 × 1024</option></select></label><label><span>Journey state</span><select id="state"><option value="discovery">Initial discovery</option><option value="search">Course search · MAC 1105</option><option value="grades">Expanded grades</option><option value="section">Selected section &amp; CRN</option><option value="limited">Limited history</option><option value="unavailable">Unavailable history</option><option value="empty">No matching results</option><option value="advanced">Direct search · 3000 level</option></select></label><button id="annotations" aria-pressed="false">Inspect spacing &amp; type</button><button id="reset">Restart this state</button></div>
+</header>
+<main><p id="description">A · Student guide — selected direction; spacious summaries and visible grade evidence.</p><iframe id="preview" title="Interactive Easy-A design preview" src="experience.html?variant=guide" allow="clipboard-write"></iframe><p id="notes">Preview only: eight selected courses, complete section lists, and dated stored data. Use the full preview for exact viewport measurements if this review window is narrower than the chosen screen.</p></main>
+<script>
+  let variant='guide',annotate=false;
+  const $=id=>document.getElementById(id);
+  function show(){const url=`experience.html?variant=${variant}&state=${$('state').value}${annotate?'&annotate=1':''}`;$('preview').src=url;$('direct').href=url;$('description').textContent=variant==='guide'?'A · Student guide — selected direction; spacious summaries and visible grade evidence.':'B · Compact comparison — tighter summaries with labeled grade distributions.';document.querySelectorAll('[data-variant]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.variant===variant)));}
+  document.querySelectorAll('[data-variant]').forEach(b=>b.addEventListener('click',()=>{variant=b.dataset.variant;show()}));
+  $('state').addEventListener('change',show);$('reset').addEventListener('click',show);
+  $('annotations').addEventListener('click',()=>{annotate=!annotate;$('annotations').setAttribute('aria-pressed',String(annotate));show()});
+  $('viewport').addEventListener('change',()=>{const [w,h]={desktop:[1440,1000],mobile:[390,844],tablet:[768,1024]}[$('viewport').value];$('preview').style.width=w+'px';$('preview').style.height=h+'px';});
+</script>
+</body></html>

@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Easy-A — explore Spring 2027 courses</title>
+  <link rel="stylesheet" href="../themes/default.css">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 1rem/1.5 var(--font-sans); color: var(--color-text); background: var(--color-surface); }
+    button, input, select, summary { font: inherit; }
+    button, select, summary, a { -webkit-tap-highlight-color: transparent; }
+    button, select, summary { cursor: pointer; }
+    button, input, select { min-height: 44px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: inherit; background: white; padding: 9px 13px; }
+    button, a, summary { transition: background-color 150ms ease, color 150ms ease; }
+    button:hover, summary:hover { background: var(--color-tint); }
+    button:active { background: var(--color-border); }
+    a { color: var(--color-primary); text-underline-offset: 4px; }
+    a:hover { color: var(--color-primary-hover); }
+    :focus-visible { outline: 3px solid var(--color-focus); outline-offset: 4px; }
+    [hidden] { display: none !important; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: clamp(1.75rem, 3vw, 2.375rem); line-height: 1.2; font-weight: 650; letter-spacing: -.035em; max-width: 680px; }
+    h2 { font-size: 1.375rem; line-height: 1.3; font-weight: 650; letter-spacing: -.015em; }
+    h3 { font-size: 1.125rem; }
+    .wrap { max-width: 1112px; padding-inline: 32px; margin: auto; }
+    .muted, .source { color: var(--color-text-muted); }
+    .small, .source { font-size: 0.875rem; }
+    .skip { position: absolute; top: -100px; left: 16px; z-index: 10; background: white; padding: 12px; }
+    .skip:focus { top: 10px; }
+    header { border-bottom: 1px solid var(--color-border); }
+    .masthead { min-height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+    .brand { font-size: 1.625rem; font-weight: 750; letter-spacing: -.05em; text-decoration: none; color: var(--color-primary); }
+    .brand-mark { display: inline-grid; place-items: center; width: 1.55em; height: 1.55em; background: var(--color-primary); color: white; margin-right: 9px; border-radius: 6px; font-size: 1.25rem; letter-spacing: -.06em; }
+    .location { font-size: 0.875rem; text-align: right; }
+    .location span { display: block; color: var(--color-text-muted); }
+    .intro { background: var(--color-bg); border-bottom: 1px solid var(--color-border); padding: 24px 0 16px; }
+    .intro > .wrap > p { margin-top: 10px; color: var(--color-text-muted); }
+    .entry { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 24px; margin-top: 24px; }
+    .entry > * { min-width: 0; }
+    label { display: block; }
+    .field-label { display: block; font-size: 0.9375rem; font-weight: 650; margin-bottom: 7px; }
+    .search-control { display: flex; gap: 8px; }
+    .search-control input { min-width: 0; flex: 1; }
+    input::placeholder { color: var(--color-text-muted); opacity: 1; }
+    .entry select { width: 100%; min-width: 0; }
+    .primary { color: white; background: var(--color-primary); border-color: var(--color-primary); font-weight: 600; }
+    .primary:hover { color: white; background: var(--color-primary-hover); }
+    .filters-line { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+    .chip { border-radius: 24px; background: var(--color-tint); border-color: #9eafa2; font-size: 0.875rem; padding: 7px 13px; }
+    .text-button { border-color: transparent; background: transparent; color: var(--color-primary); text-decoration: underline; text-underline-offset: 4px; padding-inline: 4px; }
+    .filters-panel { padding: 16px; border: 1px solid var(--color-border); border-radius: 8px; margin-top: 12px; background: white; }
+    .filters-grid { display: flex; flex-wrap: wrap; gap: 20px; }
+    .filters-panel p { margin-top: 12px; max-width: 76ch; }
+    .results { padding-top: 24px; padding-bottom: 48px; }
+    .results-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 20px; border-bottom: 1px solid var(--color-border); }
+    .results-heading h2 { font-size: 1.25rem; }
+    .results-heading p { margin-top: 5px; }
+    .sort-area { text-align: right; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .sort-area label { display: flex; align-items: center; gap: 8px; font-size: 0.875rem; }
+    .sort-area button { font-size: 0.875rem; min-height: 44px; }
+    #ranking-note { padding: 18px; background: var(--color-tint); border-radius: 8px; margin-top: 16px; max-width: 80ch; }
+    #ranking-note p + p { margin-top: 10px; }
+    .course { padding: 28px 0; border-bottom: 1px solid var(--color-border); }
+    .course-top { display: grid; grid-template-columns: minmax(0,1fr) 240px; column-gap: 40px; }
+    .identity { grid-column: 1; }
+    .code { color: var(--color-text-muted); font-size: 0.9375rem; margin-top: 5px; }
+    .outcome { grid-column: 2; grid-row: 1 / span 2; text-align: right; }
+    .percent { font-size: 1.875rem; line-height: 1.2; font-weight: 650; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
+    .percent span { font-size: 1rem; font-weight: 500; letter-spacing: 0; display: block; margin-top: 3px; }
+    .evidence { grid-column: 1; margin-top: 14px; }
+    .evidence > p + p { margin-top: 3px; }
+    .evidence .source { margin-top: 10px; }
+    .limited { display: inline-block; color: var(--color-warning); background: var(--color-warning-bg); font-size: 0.875rem; font-weight: 600; border-radius: 4px; padding: 3px 7px; margin-top: 8px; }
+    .unavailable { font-size: 1.0625rem; font-weight: 600; color: var(--color-text-muted); }
+    .course-details { margin-top: 18px; }
+    .course-details > summary { display: inline-flex; align-items: center; min-height: 44px; padding: 10px 15px; border: 1px solid var(--color-primary); border-radius: 6px; color: var(--color-primary); font-size: 0.9375rem; font-weight: 600; list-style: none; }
+    summary::-webkit-details-marker { display: none; }
+    .course-details > summary::after { content: '+'; margin-left: 24px; font-size: 1.25rem; line-height: 1; }
+    .course-details[open] > summary::after { content: '−'; }
+    .expanded { margin-top: 24px; padding: 24px; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 10px; }
+    .evidence-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 20px; }
+    .grade-table { width: 100%; border-collapse: collapse; font-size: 0.9375rem; font-variant-numeric: tabular-nums; }
+    .grade-table caption { text-align: left; color: var(--color-text-muted); font-size: 0.875rem; padding-bottom: 12px; }
+    .grade-table th { text-align: left; font-weight: 500; }
+    .grade-table td { padding: 6px 0 6px 10px; text-align: right; }
+    .grade-table tr { border-bottom: 1px solid var(--color-border); }
+    .grade-table .bar-cell { width: 50%; padding-inline: 12px; }
+    .bar { display: block; height: 9px; background: var(--color-primary); border-radius: 2px; }
+    .score-note { border-left: 2px solid var(--color-border); padding-left: 20px; }
+    .score-note p + p { margin-top: 12px; }
+    .score { font-size: 1.5rem; font-weight: 650; }
+    .other-grades { margin-top: 16px; font-size: 0.875rem; max-width: 75ch; }
+    .other-grades p + p { margin-top: 6px; }
+    .section-heading { border-top: 1px solid var(--color-border); margin-top: 28px; padding-top: 24px; }
+    .section-heading p { margin-top: 4px; }
+    fieldset { padding: 0; border: 0; min-width: 0; margin: 16px 0 0; }
+    legend { font-size: 0.875rem; color: var(--color-text-muted); margin-bottom: 8px; }
+    .section-choice { position: relative; padding: 16px; border: 1px solid var(--color-border); border-radius: 6px; background: white; margin-bottom: 10px; display: grid; grid-template-columns: 24px minmax(0,1fr); gap: 12px; cursor: pointer; }
+    .section-choice:has(input:checked) { border-color: var(--color-primary); box-shadow: inset 0 0 0 1px var(--color-primary); }
+    .section-choice input { width: 20px; height: 20px; min-height: 0; margin: 4px 0; accent-color: var(--color-primary); }
+    .section-info { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .section-info p + p { margin-top: 4px; }
+    .section-meta { margin-top: 10px; }
+    blockquote { margin: 6px 0 0; padding-left: 12px; border-left: 2px solid var(--color-border); font-size: 0.875rem; }
+    .chosen { padding: 16px; background: var(--color-tint); border-radius: 6px; }
+    .chosen p { margin: 4px 0 12px; }
+    .chosen button { margin-right: 12px; }
+    .strip { display: flex; gap: 2px; height: 12px; margin-top: 12px; border-radius: 3px; overflow: hidden; }
+    .strip > span { min-width: 0; }
+    .legend { display: flex; flex-wrap: wrap; column-gap: 12px; row-gap: 3px; font-size: 0.8125rem; margin-top: 6px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+    .compact-only { display: none; }
+    .compact .compact-only { display: block; }
+    .compact .course { padding: 20px 0; }
+    .compact .course-top { grid-template-columns: minmax(0,.85fr) minmax(0,1.15fr) 150px; column-gap: 28px; }
+    .compact .identity { grid-column: 1; grid-row: 1 / span 2; }
+    .compact .identity h2 { font-size: 1.1875rem; }
+    .compact .outcome { grid-column: 3; grid-row: 1; }
+    .compact .percent { font-size: 1.5625rem; }
+    .compact .percent span { font-size: 0.875rem; }
+    .compact .evidence { grid-column: 2; grid-row: 1 / span 2; margin: 0; font-size: 0.875rem; }
+    .compact .evidence .source { font-size: 0.8125rem; }
+    .compact .course-details { margin-top: 12px; }
+    .compact .course-details > summary { border-color: transparent; padding-left: 0; text-decoration: underline; text-underline-offset: 4px; }
+    .empty { text-align: center; padding: 48px 16px; }
+    .empty p { max-width: 48ch; margin: 12px auto 20px; }
+    footer { border-top: 1px solid var(--color-border); padding: 24px 0; font-size: 0.875rem; color: var(--color-text-muted); }
+    .annotation { position: fixed; bottom: 12px; left: 12px; max-width: calc(100% - 24px); background: #182f26; color: white; padding: 8px 12px; border-radius: 6px; z-index: 99; pointer-events: none; font-size: 0.8125rem; }
+    @media (max-width: 680px) {
+      .wrap { padding-inline: 20px; }
+      .masthead { min-height: 66px; }
+      .brand { font-size: 1.5rem; }
+      .brand-mark { width: 1.5em; height: 1.5em; font-size: 1.125rem; }
+      .location { font-size: 0.75rem; }
+      .intro { padding-top: 16px; padding-bottom: 8px; }
+      .intro > .wrap > p { font-size: 0.9375rem; }
+      .entry { grid-template-columns: minmax(0,1fr); gap: 12px; margin-top: 16px; }
+      .filters-line { gap: 8px; margin-top: 12px; }
+      .results { padding-top: 16px; }
+      .results-heading { flex-direction: column; gap: 8px; padding-bottom: 8px; }
+      .results-heading h2 { font-size: 1.125rem; }
+      .sort-area { text-align: left; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+      .sort-area select { font-size: 0.875rem; padding-inline: 8px; max-width: 185px; }
+      .sort-area button { font-size: 0.8125rem; }
+      .course, .compact .course { padding: 18px 0; }
+      .course-top, .compact .course-top { display: flex; flex-direction: column; gap: 0; }
+      .identity h2, .compact .identity h2 { font-size: 1.3125rem; }
+      .outcome { text-align: left; margin-top: 12px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+      .percent, .compact .percent { font-size: 1.5625rem; }
+      .percent span, .compact .percent span { font-size: 1rem; display: inline; margin-left: 6px; }
+      .limited { margin-top: 0; }
+      .evidence, .compact .evidence { margin-top: 10px; font-size: 0.9375rem; }
+      .course-details { margin-top: 14px; }
+      .expanded { padding: 16px; margin-inline: -4px; }
+      .evidence-columns { grid-template-columns: 1fr; gap: 24px; }
+      .grade-table .bar-cell { display: none; }
+      .section-info { grid-template-columns: 1fr; gap: 8px; }
+      .section-choice { padding: 12px; gap: 8px; }
+      .compact .evidence .source { font-size: 0.875rem; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; } }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#results">Skip to courses</a>
+  <header><div class="wrap masthead"><a class="brand" href="experience.html" aria-label="Easy-A home"><span class="brand-mark" aria-hidden="true">A</span>Easy-A</a><p class="location">USF Tampa<span>Spring 2027</span></p></div></header>
+  <main>
+    <section class="intro" aria-labelledby="headline"><div class="wrap">
+      <h1 id="headline">See the grades before<br>you choose a class.</h1>
+      <p>Past outcomes. Current section choices.</p>
+      <div class="entry">
+        <form id="search-form" role="search"><label for="query" class="field-label">Find a course</label><div class="search-control"><input type="search" id="query" placeholder="Name or course code" autocomplete="off"><button class="primary">Search</button></div></form>
+        <label><span class="field-label">Explore classes</span><select id="requirement"><option value="">GenEd requirement or elective</option><option value="all">Browse all electives</option></select></label>
+      </div>
+      <div class="filters-line"><button id="level-chip" class="chip" aria-pressed="true">1000–2000 level <span aria-hidden="true">×</span></button><button id="more-filters" class="text-button" aria-expanded="false" aria-controls="filters-panel">More filters</button><span id="search-scope" class="small muted" hidden>Searching all course levels</span></div>
+      <div id="filters-panel" class="filters-panel" hidden><div class="filters-grid"><label><span class="field-label">Course level</span><select id="level"><option value="lower">1000–2000 level</option><option value="all">All levels</option></select></label><label><span class="field-label">Class format</span><select id="format"><option value="">Any format</option></select></label></div><p class="small muted">Requirements shown are recorded in the catalog. Check prerequisites and your degree requirements with USF before registering.</p></div>
+    </div></section>
+    <section id="results" class="results wrap" tabindex="-1" aria-labelledby="results-title">
+      <div class="results-heading"><div><h2 id="results-title">Courses offered this spring</h2><p id="result-count" class="small muted" role="status" aria-live="polite"></p></div><div class="sort-area"><label for="sort">Sort <select id="sort"><option value="score">Easy-A score</option><option value="title">Course name</option><option value="history">Most grade history</option></select></label><button id="ranking-button" class="text-button" aria-expanded="false" aria-controls="ranking-note">How ranking works</button></div></div>
+      <div id="ranking-note" hidden><p><strong>The Easy-A score summarizes past grades and withdrawals.</strong> With less history, it moves toward a broader average to avoid overstating a small sample. A higher score means more favorable past outcomes.</p><p>Courses are sorted by this calculated score. The percentage on each course is the share of recorded A–F grades that were As; it is not the score or your chance of earning an A. See the score inside “See grades &amp; sections.” Courses without their own letter-grade history appear last in this design.</p></div>
+      <div id="course-list"></div>
+    </section>
+  </main>
+  <footer><div class="wrap">Historical outcomes describe past classes. They do not predict your grade.<br><span id="snapshot-note"></span></div></footer>
+  <output id="annotation" class="annotation" hidden></output>
+  <script src="snapshot.js"></script>
+  <script>
+    'use strict';
+    const qs = new URLSearchParams(location.search);
+    const variant = qs.get('variant') === 'compact' ? 'compact' : 'guide';
+    document.body.classList.toggle('compact', variant === 'compact');
+    document.querySelector('.brand').href = `experience.html?variant=${variant}`;
+    const data = window.SKETCH_DATA;
+    const $ = id => document.getElementById(id);
+    const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const num = n => Number(n).toLocaleString('en-US');
+    const percent = (n, d) => Math.round(n / d * 100);
+    const date = value => value ? new Date(value).toLocaleDateString('en-US', {month:'short', day:'numeric', year:'numeric', timeZone:'UTC'}) : 'Date unavailable';
+    const term = code => code ? ({'01':'Spring', '05':'Summer', '08':'Fall'}[code.slice(4)] + ' ' + code.slice(0,4)) : '';
+    const period = c => c.grades.first_term === c.grades.last_term ? term(c.grades.first_term) : `${term(c.grades.first_term)}–${term(c.grades.last_term)}`;
+    const key = c => c.code.replace(/\s/g, '-');
+    const selected = new Map();
+    const colors = ['#176348','#668d76','#a3b5a8','#c2cbbf','#e0e5df'];
+    const attributes = new Map(data.courses.flatMap(c => c.attributes.map(a => [a.code,a.label])));
+    for (const [code,label] of attributes) $('requirement').add(new Option(label, code));
+    const formats = new Map(data.courses.flatMap(c => c.sections.map(s => [s.modality.delivery_method,s.modality.delivery_label])));
+    for (const [code,label] of formats) if(code) $('format').add(new Option(label || code,code));
+    $('snapshot-note').textContent = `Design preview · ${data.courses.length} selected courses · stored data checked ${date(data.captured_at)}. Not a live registration service.`;
+
+    function strip(c) {
+      if (!c.letter_count) return '';
+      return `<div class="compact-only"><div class="strip" aria-hidden="true">${['a','b','c','d','f'].map((g,i)=>`<span style="width:${c.grades[g]/c.letter_count*100}%;background:${colors[i]}"></span>`).join('')}</div><div class="legend">${['a','b','c','d','f'].map(g=>`<span>${g.toUpperCase()} ${percent(c.grades[g],c.letter_count)}%</span>`).join('')}</div></div>`;
+    }
+    function sectionMarkup(c,s) {
+      const seats=s.seats;
+      const count=seats.seats_remaining;
+      const seatText=count === null ? 'Seat count unavailable' : `${num(count)} seats recorded${count < 0 ? ' (over capacity)' : ''}`;
+      const signals=[...new Set(s.signals.map(sig=>sig.evidence).filter(Boolean))];
+      return `<label class="section-choice"><input type="radio" name="section-${key(c)}" value="${esc(s.crn)}" ${selected.get(c.code)===s.crn?'checked':''}><span>
+        <span class="section-info"><span><strong>Section ${esc(s.section_number)} · CRN ${esc(s.crn)}</strong><p>${!s.instructor || s.instructor==='Staff' ? 'Instructor not yet named' : esc(s.instructor)}</p><p class="small muted">${esc(s.modality.delivery_label || 'Format unavailable')}</p></span><span><strong>${seatText}</strong><p class="small muted">${seats.observed_at ? `Observed ${date(seats.observed_at)} · ${seats.freshness==='fresh'?'check USF for current availability':'out of date'}`:'No seat observation available'}</p></span></span>
+        <span class="section-meta small muted" style="display:block">USF schedule · observed ${date(s.schedule_observed_at)}</span>
+        ${signals.length?`<span class="section-meta small" style="display:block">${s.signal_provenance.source==='schedule_section_note'?'Schedule note':'Recorded syllabus evidence'} · ${esc(term(s.signal_provenance.source_term))}</span>${signals.map(sig=>`<blockquote>${esc(sig)}</blockquote>`).join('')}`:'<span class="section-meta small muted" style="display:block">Syllabus information unavailable for this section.</span>'}
+      </span></label>`;
+    }
+    function expanded(c) {
+      const id=key(c), g=c.grades, n=c.letter_count;
+      const currentSections=c.sections.filter(s=>!$('format').value || s.modality.delivery_method===$('format').value);
+      return `<div class="expanded" id="expanded-${id}"><h3>How students did in ${esc(c.code)}</h3>
+        ${n?`<p class="source">Course-wide history · ${num(g.section_count)} past sections · ${esc(period(c))}</p>
+        <div class="evidence-columns"><table class="grade-table"><caption>Recorded A–F grades (${num(n)} total)</caption><thead><tr><th scope="col">Grade</th><th scope="col" class="bar-cell"><span class="small">Share</span></th><th scope="col">Count</th><th scope="col">%</th></tr></thead><tbody>${['a','b','c','d','f'].map(b=>`<tr><th scope="row">${b.toUpperCase()}</th><td class="bar-cell"><span class="bar" style="width:${g[b]/n*100}%" aria-hidden="true"></span></td><td>${num(g[b])}</td><td>${percent(g[b],n)}%</td></tr>`).join('')}</tbody></table>
+        <div class="score-note"><p class="small">Calculated Easy-A score</p><p class="score">${c.score.toFixed(1)}<span class="small"> / 10</span></p><p class="small">Combines historical grades and withdrawals, with an adjustment toward a broader average when evidence is limited.</p><p class="small">${c.confidence==='low'?'Limited history':c.confidence==='medium'?'Moderate history':'Substantial history'} · ${num(n)} recorded A–F grades.</p><p class="small muted">This is course history, not a rating of the instructor teaching your section.</p></div></div>
+        <div class="other-grades"><p><strong>Withdrawals:</strong> ${num(g.w)} of ${num(g.total)} total recorded outcomes (${(g.w/g.total*100).toFixed(1)}%). Withdrawals are excluded from the A–F percentages above.</p><p class="muted">Other recorded outcomes: ${num(g.i)} incomplete, ${num(g.s)} satisfactory, ${num(g.u)} unsatisfactory, ${num(g.other)} other. These are also excluded from A–F percentages. Rounded percentages may not add to 100%.</p><p class="source">USF InfoCenter · ${esc(period(c))} · imported ${date(g.ingested_at)}</p></div>`:
+        '<p class="unavailable" style="margin-top:12px">Grade history unavailable</p><p class="small muted" style="margin-top:8px">No course-specific grade rows are available in this snapshot. This does not mean students earned zero As. A broader average cannot tell you how students did in this course.</p>'}
+        <div class="section-heading"><h3>${currentSections.length} ${currentSections.length===1?'section':'sections'} for Spring 2027</h3><p class="small muted">${$('format').value?'Showing the selected class format. ':''}Choose a section to keep its CRN in view.</p></div>
+        ${c.attributes.length?`<p class="small" style="margin-top:12px">Recorded requirements: ${c.attributes.map(a=>esc(a.label)).join('; ')}. USF catalog, 2026–2027. Check prerequisites and degree applicability with USF.</p>`:''}
+        <fieldset><legend>Section choices for ${esc(c.code)}</legend>${currentSections.map(s=>sectionMarkup(c,s)).join('')}</fieldset>
+        <div class="chosen" id="chosen-${id}" role="status" ${selected.has(c.code)?'':'hidden'}></div>
+      </div>`;
+    }
+    function card(c) {
+      const id=key(c), n=c.letter_count, g=c.grades;
+      const count=c.sections.filter(s=>!$('format').value || s.modality.delivery_method===$('format').value).length;
+      return `<article class="course" data-code="${esc(c.code)}" aria-labelledby="title-${id}"><div class="course-top"><div class="identity"><h2 id="title-${id}">${esc(c.title)}</h2><p class="code">${esc(c.code)}</p></div>
+        <div class="outcome">${n?`<p class="percent">${percent(g.a,n)}%<span>A grades</span></p>${c.confidence==='low'?'<span class="limited">Limited history</span>':''}`:'<p class="unavailable">Grade history unavailable</p>'}</div>
+        <div class="evidence">${n?`<p>${num(g.a)} of ${num(n)} recorded A–F grades were As.</p><p class="muted">Course history from ${num(g.section_count)} past ${g.section_count===1?'section':'sections'}.</p>${strip(c)}<p class="source">USF InfoCenter · ${esc(period(c))}</p>`:`<p>No course-specific grade rows in the imported history.</p><p class="source">USF InfoCenter imports · checked ${date(data.captured_at)}</p>`}</div></div>
+        <details class="course-details"><summary>See grades &amp; ${count} ${count===1?'section':'sections'}<span hidden> for ${esc(c.code)}</span></summary>${expanded(c)}</details></article>`;
+    }
+    function updateChosen(c) {
+      const crn=selected.get(c.code); if(!crn)return;
+      const box=$('chosen-'+key(c)); box.hidden=false;
+      box.innerHTML=`<strong>${esc(c.code)} · CRN ${esc(crn)}</strong><p class="small">Selected for reference. Use this CRN in USF registration, and confirm prerequisites and current seats there.</p><button type="button" data-copy="${esc(crn)}">Copy CRN</button><span class="small muted">This does not reserve a seat.</span>`;
+    }
+    function render() {
+      const query=$('query').value.trim().toLowerCase();
+      const normalized=query.replace(/\s/g,'');
+      const attr=$('requirement').value, format=$('format').value;
+      const lower=$('level').value==='lower' && !query;
+      $('level-chip').hidden=Boolean(query);
+      $('search-scope').hidden=!query;
+      $('level-chip').setAttribute('aria-pressed',String(lower));
+      $('level-chip').innerHTML=lower?'1000–2000 level <span aria-hidden="true">×</span>':'All course levels <span aria-hidden="true">⌄</span>';
+      let courses=data.courses.filter(c=>(!lower || c.level<3000) && (!query || c.title.toLowerCase().includes(query) || c.code.toLowerCase().replace(/\s/g,'').includes(normalized)) && (!attr || attr==='all' || c.attributes.some(a=>a.code===attr)) && (!format || c.sections.some(s=>s.modality.delivery_method===format)));
+      courses.sort((a,b)=>$('sort').value==='title'?a.title.localeCompare(b.title):$('sort').value==='history'?b.letter_count-a.letter_count:(b.score??-1)-(a.score??-1)||a.code.localeCompare(b.code));
+      $('results-title').textContent=query?'Course search results':'Courses offered this spring';
+      $('result-count').textContent=`${courses.length} ${courses.length===1?'course':'courses'} in this ${data.courses.length}-course design sample`;
+      $('course-list').innerHTML=courses.length?courses.map(card).join(''):`<div class="empty"><h2>No matching courses</h2><p>No matches in this ${data.courses.length}-course preview. Try MAC 1105 or College Algebra, or clear the filters to browse again.</p><button id="reset" class="primary">Clear search &amp; filters</button></div>`;
+      $('reset')?.addEventListener('click',reset);
+      for(const c of courses) updateChosen(c);
+    }
+    function reset() { $('query').value=''; $('requirement').value=''; $('format').value=''; $('level').value='lower'; render(); $('query').focus(); }
+    $('search-form').addEventListener('submit',e=>{e.preventDefault();render();$('results').focus();});
+    $('query').addEventListener('input',render);
+    for(const id of ['level','format','sort']) $(id).addEventListener('change',render);
+    $('requirement').addEventListener('change',()=>{$('query').value='';render();});
+    $('level-chip').addEventListener('click',()=>{$('level').value=$('level').value==='lower'?'all':'lower';render();});
+    for(const [button,panel] of [['more-filters','filters-panel'],['ranking-button','ranking-note']]) $(button).addEventListener('click',()=>{const show=$(panel).hidden;$(panel).hidden=!show;$(button).setAttribute('aria-expanded',String(show));});
+    $('course-list').addEventListener('change',e=>{if(e.target.type!=='radio')return;const code=e.target.closest('article').dataset.code; selected.set(code,e.target.value);updateChosen(data.courses.find(c=>c.code===code));});
+    $('course-list').addEventListener('click',async e=>{const button=e.target.closest('[data-copy]');if(!button)return;try{await navigator.clipboard.writeText(button.dataset.copy);button.textContent='CRN copied';}catch{button.textContent=`Select and copy CRN ${button.dataset.copy}`;}});
+    const states={search:'MAC 1105',grades:'MAC 1105',section:'MAC 1105',limited:'MVJ 1111',unavailable:'CAI 1000',empty:'NoSuchCourse',advanced:'THE 3111'};
+    const state=qs.get('state')||'discovery';
+    if(states[state])$('query').value=states[state];
+    render();
+    if(['grades','section'].includes(state))document.querySelector('.course-details').open=true;
+    if(state==='section'){const radio=document.querySelector('input[type="radio"]');radio.checked=true;radio.dispatchEvent(new Event('change',{bubbles:true}));}
+    if(qs.get('annotate')==='1')document.addEventListener('pointermove',e=>{const style=getComputedStyle(e.target);$('annotation').hidden=false;$('annotation').textContent=`${e.target.tagName.toLowerCase()} · ${style.fontSize} / ${style.lineHeight} · padding ${style.padding} · ${style.color}`;});
+  </script>
+</body>
+</html>

@@ -1,0 +1,264 @@
+{
+  "checked_at": "2026-09-25T20:04:33.803Z",
+  "renderings": [
+    {
+      "variant": "guide",
+      "device": "desktop",
+      "state": "discovery",
+      "width": 1440,
+      "height": 1000,
+      "first_course_y": 497.6875,
+      "screenshot": "guide-desktop.png"
+    },
+    {
+      "variant": "guide",
+      "device": "desktop",
+      "state": "search",
+      "width": 1440,
+      "height": 1000,
+      "first_course_y": 497.6875,
+      "screenshot": "guide-desktop-search.png"
+    },
+    {
+      "variant": "guide",
+      "device": "desktop",
+      "state": "grades",
+      "width": 1440,
+      "height": 1000,
+      "first_course_y": 497.6875,
+      "screenshot": "guide-desktop-grades.png"
+    },
+    {
+      "variant": "guide",
+      "device": "desktop",
+      "state": "section",
+      "width": 1440,
+      "height": 1000,
+      "first_course_y": 497.6875,
+      "screenshot": "guide-desktop-section.png"
+    },
+    {
+      "variant": "guide",
+      "device": "desktop",
+      "state": "limited",
+      "width": 1440,
+      "height": 1000,
+      "first_course_y": 497.6875,
+      "screenshot": "guide-desktop-limited.png"
+    },
+    {
+      "variant": "guide",
+      "device": "desktop",
+      "state": "unavailable",
+      "width": 1440,
+      "height": 1000,
+      "first_course_y": 497.6875,
+      "screenshot": "guide-desktop-unavailable.png"
+    },
+    {
+      "variant": "guide",
+      "device": "desktop",
+      "state": "empty",
+      "width": 1440,
+      "height": 1000,
+      "first_course_y": null,
+      "screenshot": "guide-desktop-empty.png"
+    },
+    {
+      "variant": "guide",
+      "device": "mobile",
+      "state": "discovery",
+      "width": 390,
+      "height": 844,
+      "first_course_y": 549.078125,
+      "screenshot": "guide-mobile.png"
+    },
+    {
+      "variant": "guide",
+      "device": "mobile",
+      "state": "search",
+      "width": 390,
+      "height": 844,
+      "first_course_y": 549.078125,
+      "screenshot": "guide-mobile-search.png"
+    },
+    {
+      "variant": "guide",
+      "device": "mobile",
+      "state": "grades",
+      "width": 390,
+      "height": 844,
+      "first_course_y": 549.078125,
+      "screenshot": "guide-mobile-grades.png"
+    },
+    {
+      "variant": "guide",
+      "device": "mobile",
+      "state": "section",
+      "width": 390,
+      "height": 844,
+      "first_course_y": 549.078125,
+      "screenshot": "guide-mobile-section.png"
+    },
+    {
+      "variant": "guide",
+      "device": "mobile",
+      "state": "limited",
+      "width": 390,
+      "height": 844,
+      "first_course_y": 549.078125,
+      "screenshot": "guide-mobile-limited.png"
+    },
+    {
+      "variant": "guide",
+      "device": "mobile",
+      "state": "unavailable",
+      "width": 390,
+      "height": 844,
+      "first_course_y": 549.078125,
+      "screenshot": "guide-mobile-unavailable.png"
+    },
+    {
+      "variant": "guide",
+      "device": "mobile",
+      "state": "empty",
+      "width": 390,
+      "height": 844,
+      "first_course_y": null,
+      "screenshot": "guide-mobile-empty.png"
+    },
+    {
+      "variant": "compact",
+      "device": "desktop",
+      "state": "discovery",
+      "width": 1440,
+      "height": 1000,
+      "first_course_y": 497.6875,
+      "screenshot": "compact-desktop.png"
+    },
+    {
+      "variant": "compact",
+      "device": "desktop",
+      "state": "search",
+      "width": 1440,
+      "height": 1000,
+      "first_course_y": 497.6875,
+      "screenshot": "compact-desktop-search.png"
+    },
+    {
+      "variant": "compact",
+      "device": "desktop",
+      "state": "grades",
+      "width": 1440,
+      "height": 1000,
+      "first_course_y": 497.6875,
+      "screenshot": "compact-desktop-grades.png"
+    },
+    {
+      "variant": "compact",
+      "device": "desktop",
+      "state": "section",
+      "width": 1440,
+      "height": 1000,
+      "first_course_y": 497.6875,
+      "screenshot": "compact-desktop-section.png"
+    },
+    {
+      "variant": "compact",
+      "device": "desktop",
+      "state": "limited",
+      "width": 1440,
+      "height": 1000,
+      "first_course_y": 497.6875,
+      "screenshot": "compact-desktop-limited.png"
+    },
+    {
+      "variant": "compact",
+      "device": "desktop",
+      "state": "unavailable",
+      "width": 1440,
+      "height": 1000,
+      "first_course_y": 497.6875,
+      "screenshot": "compact-desktop-unavailable.png"
+    },
+    {
+      "variant": "compact",
+      "device": "desktop",
+      "state": "empty",
+      "width": 1440,
+      "height": 1000,
+      "first_course_y": null,
+      "screenshot": "compact-desktop-empty.png"
+    },
+    {
+      "variant": "compact",
+      "device": "mobile",
+      "state": "discovery",
+      "width": 390,
+      "height": 844,
+      "first_course_y": 549.078125,
+      "screenshot": "compact-mobile.png"
+    },
+    {
+      "variant": "compact",
+      "device": "mobile",
+      "state": "search",
+      "width": 390,
+      "height": 844,
+      "first_course_y": 549.078125,
+      "screenshot": "compact-mobile-search.png"
+    },
+    {
+      "variant": "compact",
+      "device": "mobile",
+      "state": "grades",
+      "width": 390,
+      "height": 844,
+      "first_course_y": 549.078125,
+      "screenshot": "compact-mobile-grades.png"
+    },
+    {
+      "variant": "compact",
+      "device": "mobile",
+      "state": "section",
+      "width": 390,
+      "height": 844,
+      "first_course_y": 549.078125,
+      "screenshot": "compact-mobile-section.png"
+    },
+    {
+      "variant": "compact",
+      "device": "mobile",
+      "state": "limited",
+      "width": 390,
+      "height": 844,
+      "first_course_y": 549.078125,
+      "screenshot": "compact-mobile-limited.png"
+    },
+    {
+      "variant": "compact",
+      "device": "mobile",
+      "state": "unavailable",
+      "width": 390,
+      "height": 844,
+      "first_course_y": 549.078125,
+      "screenshot": "compact-mobile-unavailable.png"
+    },
+    {
+      "variant": "compact",
+      "device": "mobile",
+      "state": "empty",
+      "width": 390,
+      "height": 844,
+      "first_course_y": null,
+      "screenshot": "compact-mobile-empty.png"
+    }
+  ],
+  "checks": [
+    "guide: search by code/title, full five-section MAC list, keyboard expand/collapse and focus, CRN copy, all-level direct search, level/GenEd/format filters, sorting, ranking explanation, honest limited/unavailable states, empty recovery, 320/375/768/844px reflow, reduced motion",
+    "compact: search by code/title, full five-section MAC list, keyboard expand/collapse and focus, CRN copy, all-level direct search, level/GenEd/format filters, sorting, ranking explanation, honest limited/unavailable states, empty recovery, 320/375/768/844px reflow, reduced motion",
+    "Review variant/state/viewport controls and before/after image dimensions"
+  ],
+  "violations": [],
+  "console_errors": []
+}

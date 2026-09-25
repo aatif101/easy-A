@@ -1,0 +1,3521 @@
+window.SKETCH_DATA = {
+  "captured_at": "2026-09-25T08:20:27.727025+00:00",
+  "term": "202701",
+  "source": "USF InfoCenter",
+  "scope": "Eight selected courses; not the full catalog",
+  "courses": [
+    {
+      "code": "MAC 1105",
+      "title": "College Algebra",
+      "level": 1000,
+      "grades": {
+        "a": 1534,
+        "b": 790,
+        "c": 559,
+        "d": 59,
+        "f": 258,
+        "i": 1,
+        "s": 0,
+        "u": 0,
+        "w": 142,
+        "other": 1,
+        "total": 3344,
+        "section_count": 23,
+        "first_term": "202408",
+        "last_term": "202601",
+        "ingested_at": "2026-09-23 20:26:01.908866+00:00",
+        "sources": [
+          "usf_infocenter_grade_distribution_xlsx"
+        ],
+        "source_hashes": [
+          "19866e353ff2b50c92b841e928cd0019da7068043d3a0358e2f4671e9bef35cb",
+          "29d7e409b775d1cdf9b83a012ea151152ac3f5e1f0689719417ad81234aa4788",
+          "2b3a640a3ee6697bed8373c70c331d5cb9b3db2412ad305253890ad4d2fa0840",
+          "9f08830da6e889da8d46bba3a8a8977389b2f6f25249b003d0ae141052b1cbb3",
+          "b3db3eb38477556834e5e79ba8834e29fda1ac00ca9b9bfaf998c3201fa7de22"
+        ]
+      },
+      "letter_count": 3200,
+      "score": 7.95482293129276,
+      "confidence": "high",
+      "attributes": [
+        {
+          "code": "6AM",
+          "label": "State Computation Requirement"
+        },
+        {
+          "code": "SGEM",
+          "label": "General Education Core Mathematics"
+        },
+        {
+          "code": "UGEM",
+          "label": "USF Gen Ed Mathematics"
+        }
+      ],
+      "sections": [
+        {
+          "crn": "13173",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:47:15.649790Z",
+            "freshness": "stale",
+            "age_seconds": 264794.12345,
+            "capacity": 135,
+            "enrollment": 0,
+            "seats_remaining": 135,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [
+            {
+              "signal_type": "attendance",
+              "value": "required",
+              "confidence": 0.98,
+              "source": "schedule_section_note",
+              "source_identifier": "section:100:note",
+              "source_term": "202701",
+              "freshness": "current",
+              "evidence": "Students are required to complete exams, quizzes, and weekly attendance in the SMART lab."
+            },
+            {
+              "signal_type": "lab",
+              "value": "required",
+              "confidence": 0.96,
+              "source": "schedule_section_note",
+              "source_identifier": "section:100:note",
+              "source_term": "202701",
+              "freshness": "current",
+              "evidence": "Students are required to complete exams, quizzes, and weekly attendance in the SMART lab."
+            }
+          ],
+          "signal_provenance": {
+            "freshness": "current",
+            "source": "schedule_section_note",
+            "source_term": "202701",
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "001",
+          "schedule_observed_at": "2026-09-22 06:47:15.649790+00:00"
+        },
+        {
+          "crn": "13174",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:47:15.649790Z",
+            "freshness": "stale",
+            "age_seconds": 264794.12345,
+            "capacity": 135,
+            "enrollment": 0,
+            "seats_remaining": 135,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [
+            {
+              "signal_type": "attendance",
+              "value": "required",
+              "confidence": 0.98,
+              "source": "schedule_section_note",
+              "source_identifier": "section:101:note",
+              "source_term": "202701",
+              "freshness": "current",
+              "evidence": "Students are required to complete exams, quizzes, and weekly attendance in the SMART lab."
+            },
+            {
+              "signal_type": "lab",
+              "value": "required",
+              "confidence": 0.96,
+              "source": "schedule_section_note",
+              "source_identifier": "section:101:note",
+              "source_term": "202701",
+              "freshness": "current",
+              "evidence": "Students are required to complete exams, quizzes, and weekly attendance in the SMART lab."
+            }
+          ],
+          "signal_provenance": {
+            "freshness": "current",
+            "source": "schedule_section_note",
+            "source_term": "202701",
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "002",
+          "schedule_observed_at": "2026-09-22 06:47:15.649790+00:00"
+        },
+        {
+          "crn": "13175",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:47:15.649790Z",
+            "freshness": "stale",
+            "age_seconds": 264794.12345,
+            "capacity": 135,
+            "enrollment": 0,
+            "seats_remaining": 135,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [
+            {
+              "signal_type": "attendance",
+              "value": "required",
+              "confidence": 0.98,
+              "source": "schedule_section_note",
+              "source_identifier": "section:102:note",
+              "source_term": "202701",
+              "freshness": "current",
+              "evidence": "Students are required to complete exams, quizzes, and weekly attendance in the SMART lab."
+            },
+            {
+              "signal_type": "lab",
+              "value": "required",
+              "confidence": 0.96,
+              "source": "schedule_section_note",
+              "source_identifier": "section:102:note",
+              "source_term": "202701",
+              "freshness": "current",
+              "evidence": "Students are required to complete exams, quizzes, and weekly attendance in the SMART lab."
+            }
+          ],
+          "signal_provenance": {
+            "freshness": "current",
+            "source": "schedule_section_note",
+            "source_term": "202701",
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "004",
+          "schedule_observed_at": "2026-09-22 06:47:15.649790+00:00"
+        },
+        {
+          "crn": "17232",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:47:15.649790Z",
+            "freshness": "stale",
+            "age_seconds": 264794.12345,
+            "capacity": 135,
+            "enrollment": 0,
+            "seats_remaining": 135,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [
+            {
+              "signal_type": "attendance",
+              "value": "required",
+              "confidence": 0.98,
+              "source": "schedule_section_note",
+              "source_identifier": "section:103:note",
+              "source_term": "202701",
+              "freshness": "current",
+              "evidence": "Students are required to complete exams, quizzes, and weekly attendance in the SMART lab."
+            },
+            {
+              "signal_type": "lab",
+              "value": "required",
+              "confidence": 0.96,
+              "source": "schedule_section_note",
+              "source_identifier": "section:103:note",
+              "source_term": "202701",
+              "freshness": "current",
+              "evidence": "Students are required to complete exams, quizzes, and weekly attendance in the SMART lab."
+            }
+          ],
+          "signal_provenance": {
+            "freshness": "current",
+            "source": "schedule_section_note",
+            "source_term": "202701",
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "005",
+          "schedule_observed_at": "2026-09-22 06:47:15.649790+00:00"
+        },
+        {
+          "crn": "19410",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "HB",
+            "delivery_label": "Hybrid Blend 50\u201379%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:47:15.649790Z",
+            "freshness": "stale",
+            "age_seconds": 264794.12345,
+            "capacity": 135,
+            "enrollment": 0,
+            "seats_remaining": 135,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [
+            {
+              "signal_type": "exams",
+              "value": "present",
+              "confidence": 0.94,
+              "source": "schedule_section_note",
+              "source_identifier": "section:104:note",
+              "source_term": "202701",
+              "freshness": "current",
+              "evidence": "Quizzes and Exams must be done in-person, in the SMART Lab."
+            },
+            {
+              "signal_type": "exam_location",
+              "value": "in_person",
+              "confidence": 0.97,
+              "source": "schedule_section_note",
+              "source_identifier": "section:104:note",
+              "source_term": "202701",
+              "freshness": "current",
+              "evidence": "Quizzes and Exams must be done in-person, in the SMART Lab."
+            },
+            {
+              "signal_type": "lab",
+              "value": "required",
+              "confidence": 0.96,
+              "source": "schedule_section_note",
+              "source_identifier": "section:104:note",
+              "source_term": "202701",
+              "freshness": "current",
+              "evidence": "Students must spend 2h per week in the SMART Lab working on assignments."
+            },
+            {
+              "signal_type": "quiz",
+              "value": "present",
+              "confidence": 0.92,
+              "source": "schedule_section_note",
+              "source_identifier": "section:104:note",
+              "source_term": "202701",
+              "freshness": "current",
+              "evidence": "Quizzes and Exams must be done in-person, in the SMART Lab."
+            },
+            {
+              "signal_type": "delivery_format",
+              "value": "online",
+              "confidence": 0.94,
+              "source": "schedule_section_note",
+              "source_identifier": "section:104:note",
+              "source_term": "202701",
+              "freshness": "current",
+              "evidence": "Material will be delivered through Video Lectures posted on Canvas."
+            }
+          ],
+          "signal_provenance": {
+            "freshness": "current",
+            "source": "schedule_section_note",
+            "source_term": "202701",
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "021",
+          "schedule_observed_at": "2026-09-22 06:47:15.649790+00:00"
+        }
+      ],
+      "fallback_source": null
+    },
+    {
+      "code": "ENC 1101",
+      "title": "Composition I",
+      "level": 1000,
+      "grades": {
+        "a": 3482,
+        "b": 666,
+        "c": 308,
+        "d": 74,
+        "f": 402,
+        "i": 3,
+        "s": 0,
+        "u": 0,
+        "w": 117,
+        "other": 4,
+        "total": 5056,
+        "section_count": 267,
+        "first_term": "202408",
+        "last_term": "202601",
+        "ingested_at": "2026-09-23 20:24:55.681213+00:00",
+        "sources": [
+          "usf_infocenter_grade_distribution_xlsx"
+        ],
+        "source_hashes": [
+          "3a00d2af17292fb9b4bffc03d8cfdee3366cc3621bda08f426d585f10eb82c44",
+          "4b08b5c2bb755439eef9f4865d5c9da1daaca382a6757173a1bb89b8f0482603",
+          "70635bbd503b3f8e8d212895d4fb4a45d4d1aeb928748fc62c0f6d79ebf99082",
+          "9b37d02bfd03ea8ecfb7e00731ae2b2dfa72fe76464fe58df31beff8ab52fc77",
+          "a8cd41a3645e9af2f503c52d8fda48245da3598d8749b37f96b6044900126b1d"
+        ]
+      },
+      "letter_count": 4932,
+      "score": 8.69695030921327,
+      "confidence": "high",
+      "attributes": [
+        {
+          "code": "6AC",
+          "label": "State Communication Requirement"
+        },
+        {
+          "code": "SGEC",
+          "label": "General Education Core Communication"
+        }
+      ],
+      "sections": [
+        {
+          "crn": "14022",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "001",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14028",
+          "instructor": "A. Shrestha",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "003",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14032",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "006",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14038",
+          "instructor": "E. Davenport",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "008",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14041",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "009",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14045",
+          "instructor": "N. Volz",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "010",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14050",
+          "instructor": "J. Melko",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "011",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14053",
+          "instructor": "C. Badnell",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "012",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14060",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "013",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14067",
+          "instructor": "A. Borruso",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "015",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14073",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "016",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14075",
+          "instructor": "A. Francese",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "017",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14112",
+          "instructor": "S. Perry",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "019",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14113",
+          "instructor": "A. Wholuba",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "020",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14114",
+          "instructor": "N. Volz",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "021",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14115",
+          "instructor": "J. Pfister",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "022",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14116",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "024",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14117",
+          "instructor": "J. Krueger",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "026",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14118",
+          "instructor": "A. Francese",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "028",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14119",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "029",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14120",
+          "instructor": "A. Borruso",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "030",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14121",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "042",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14122",
+          "instructor": "A. Caputo",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "043",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14123",
+          "instructor": "A. Shrestha",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "046",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14124",
+          "instructor": "P. Fields",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "055",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14125",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "058",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14126",
+          "instructor": "P. Fields",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "062",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14127",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "901",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "14288",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "059",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "17488",
+          "instructor": "J. Melko",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "002",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "17489",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "018",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "17490",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "025",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "17491",
+          "instructor": "E. Black",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "027",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "17492",
+          "instructor": "M. Shaver",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "033",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "17493",
+          "instructor": "Z. Aldrich",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "035",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "17494",
+          "instructor": "E. Black",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "036",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "17495",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "045",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "17496",
+          "instructor": "E. Davenport",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "057",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "19319",
+          "instructor": "Z. Aldrich",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "063",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "19320",
+          "instructor": "M. Hanna",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "064",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        },
+        {
+          "crn": "19336",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:24:19.672769Z",
+            "freshness": "stale",
+            "age_seconds": 266170.512402,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "065",
+          "schedule_observed_at": "2026-09-22 06:24:19.672769+00:00"
+        }
+      ],
+      "fallback_source": null
+    },
+    {
+      "code": "PSY 2012",
+      "title": "Introduction to Psychological Science",
+      "level": 2000,
+      "grades": {
+        "a": 1809,
+        "b": 627,
+        "c": 192,
+        "d": 53,
+        "f": 112,
+        "i": 1,
+        "s": 0,
+        "u": 0,
+        "w": 48,
+        "other": 2,
+        "total": 2844,
+        "section_count": 63,
+        "first_term": "202408",
+        "last_term": "202601",
+        "ingested_at": "2026-09-23 20:27:00.645004+00:00",
+        "sources": [
+          "usf_infocenter_grade_distribution_xlsx"
+        ],
+        "source_hashes": [
+          "2b3a640a3ee6697bed8373c70c331d5cb9b3db2412ad305253890ad4d2fa0840",
+          "3a00d2af17292fb9b4bffc03d8cfdee3366cc3621bda08f426d585f10eb82c44",
+          "42a1440a8c6fce5c12f80d690921dc1d8eae75700f429ca7e18e25f6abc1416c",
+          "cb1fdcfda977b02995ef31dd21296d5e0e6876499bac499c1da33a7f9950b36f",
+          "d0ffed28a1e5aecee117d1496bf6be599492c23433858af8682583650a2acf8c",
+          "f430df1d5a45b5f000cb58bd753e69d17a5b1d71ab14b9bed82f0b7d4bdcbd4a"
+        ]
+      },
+      "letter_count": 2793,
+      "score": 8.79242284881094,
+      "confidence": "high",
+      "attributes": [
+        {
+          "code": "SGES",
+          "label": "General Education Core Social Sciences"
+        }
+      ],
+      "sections": [
+        {
+          "crn": "11224",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T07:09:33.194432Z",
+            "freshness": "stale",
+            "age_seconds": 263457.356675,
+            "capacity": 35,
+            "enrollment": 0,
+            "seats_remaining": 35,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "010",
+          "schedule_observed_at": "2026-09-22 07:09:33.194432+00:00"
+        },
+        {
+          "crn": "12188",
+          "instructor": "J. Gillespie",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T07:09:33.194432Z",
+            "freshness": "stale",
+            "age_seconds": 263457.356675,
+            "capacity": 35,
+            "enrollment": 0,
+            "seats_remaining": 35,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "001",
+          "schedule_observed_at": "2026-09-22 07:09:33.194432+00:00"
+        },
+        {
+          "crn": "12189",
+          "instructor": "J. Gillespie",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T07:09:33.194432Z",
+            "freshness": "stale",
+            "age_seconds": 263457.356675,
+            "capacity": 35,
+            "enrollment": 0,
+            "seats_remaining": 35,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "002",
+          "schedule_observed_at": "2026-09-22 07:09:33.194432+00:00"
+        },
+        {
+          "crn": "12193",
+          "instructor": "J. Gillespie",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T07:09:33.194432Z",
+            "freshness": "stale",
+            "age_seconds": 263457.356675,
+            "capacity": 35,
+            "enrollment": 0,
+            "seats_remaining": 35,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "003",
+          "schedule_observed_at": "2026-09-22 07:09:33.194432+00:00"
+        },
+        {
+          "crn": "12194",
+          "instructor": "J. Gillespie",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T07:09:33.194432Z",
+            "freshness": "stale",
+            "age_seconds": 263457.356675,
+            "capacity": 35,
+            "enrollment": 0,
+            "seats_remaining": 35,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "004",
+          "schedule_observed_at": "2026-09-22 07:09:33.194432+00:00"
+        },
+        {
+          "crn": "12195",
+          "instructor": "J. Gillespie",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T07:09:33.194432Z",
+            "freshness": "stale",
+            "age_seconds": 263457.356675,
+            "capacity": 35,
+            "enrollment": 0,
+            "seats_remaining": 35,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "005",
+          "schedule_observed_at": "2026-09-22 07:09:33.194432+00:00"
+        },
+        {
+          "crn": "12197",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T07:09:33.194432Z",
+            "freshness": "stale",
+            "age_seconds": 263457.356675,
+            "capacity": 35,
+            "enrollment": 0,
+            "seats_remaining": 35,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "006",
+          "schedule_observed_at": "2026-09-22 07:09:33.194432+00:00"
+        },
+        {
+          "crn": "12198",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T07:09:33.194432Z",
+            "freshness": "stale",
+            "age_seconds": 263457.356675,
+            "capacity": 35,
+            "enrollment": 0,
+            "seats_remaining": 35,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "007",
+          "schedule_observed_at": "2026-09-22 07:09:33.194432+00:00"
+        },
+        {
+          "crn": "12200",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T07:09:33.194432Z",
+            "freshness": "stale",
+            "age_seconds": 263457.356675,
+            "capacity": 35,
+            "enrollment": 0,
+            "seats_remaining": 35,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "008",
+          "schedule_observed_at": "2026-09-22 07:09:33.194432+00:00"
+        },
+        {
+          "crn": "12202",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T07:09:33.194432Z",
+            "freshness": "stale",
+            "age_seconds": 263457.356675,
+            "capacity": 35,
+            "enrollment": 0,
+            "seats_remaining": 35,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "009",
+          "schedule_observed_at": "2026-09-22 07:09:33.194432+00:00"
+        }
+      ],
+      "fallback_source": null
+    },
+    {
+      "code": "BSC 1005",
+      "title": "Biological Principles for Non-Majors",
+      "level": 1000,
+      "grades": {
+        "a": 881,
+        "b": 679,
+        "c": 225,
+        "d": 40,
+        "f": 39,
+        "i": 0,
+        "s": 0,
+        "u": 0,
+        "w": 28,
+        "other": 2,
+        "total": 1894,
+        "section_count": 9,
+        "first_term": "202408",
+        "last_term": "202601",
+        "ingested_at": "2026-09-23 20:25:48.302097+00:00",
+        "sources": [
+          "usf_infocenter_grade_distribution_xlsx"
+        ],
+        "source_hashes": [
+          "1357425810bb054cda3c4997029d86c1221a6089608046b767c07a93be687187",
+          "160d8fa4dbbb500d03721d3a00f153babcef912eda9c7945a156cbdb0a41d84f",
+          "4849b3a51a43ced2732156033fc04b1f145430e254f6565c0d6d03a45aa683f3",
+          "78328b3d2aa90b1b84006c9ef1683558b989f8ad5dd92d6142d549500e61d7f9"
+        ]
+      },
+      "letter_count": 1864,
+      "score": 8.46213229538042,
+      "confidence": "high",
+      "attributes": [
+        {
+          "code": "SGEN",
+          "label": "General Education Core Natural Sciences"
+        }
+      ],
+      "sections": [
+        {
+          "crn": "13501",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T00:31:32.320206Z",
+            "freshness": "stale",
+            "age_seconds": 287338.588944,
+            "capacity": 250,
+            "enrollment": 0,
+            "seats_remaining": 250,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "001",
+          "schedule_observed_at": "2026-09-22 00:31:32.320206+00:00"
+        },
+        {
+          "crn": "13508",
+          "instructor": "J. Smith-Garvin",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T00:31:32.320206Z",
+            "freshness": "stale",
+            "age_seconds": 287338.588944,
+            "capacity": 250,
+            "enrollment": 0,
+            "seats_remaining": 250,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "002",
+          "schedule_observed_at": "2026-09-22 00:31:32.320206+00:00"
+        }
+      ],
+      "fallback_source": null
+    },
+    {
+      "code": "AMH 2020",
+      "title": "American History II",
+      "level": 2000,
+      "grades": {
+        "a": 2352,
+        "b": 1009,
+        "c": 418,
+        "d": 113,
+        "f": 157,
+        "i": 8,
+        "s": 0,
+        "u": 0,
+        "w": 104,
+        "other": 1,
+        "total": 4162,
+        "section_count": 84,
+        "first_term": "202408",
+        "last_term": "202601",
+        "ingested_at": "2026-09-23 20:25:31.340796+00:00",
+        "sources": [
+          "usf_infocenter_grade_distribution_xlsx"
+        ],
+        "source_hashes": [
+          "2b3a640a3ee6697bed8373c70c331d5cb9b3db2412ad305253890ad4d2fa0840",
+          "3a00d2af17292fb9b4bffc03d8cfdee3366cc3621bda08f426d585f10eb82c44",
+          "606e9be3c2a37c835277874a2ea3aa2845e87d578b290907a7feaa7c845c6ffb",
+          "72fe22874282fa17ea54ce0633e424e28b0adb6cbbc59d47b71b82d397c464e7",
+          "7a4059d792c87d4314ba7dac4ca490a96eddb571b10a75dfb9a1eb65cb98c435",
+          "fe03a7f7dfe1f8784eb047fac7c95ea38b88f1c7264239c78a075605e800307d"
+        ]
+      },
+      "letter_count": 4049,
+      "score": 8.56817894285034,
+      "confidence": "high",
+      "attributes": [
+        {
+          "code": "SCIV",
+          "label": "Civics Literacy"
+        },
+        {
+          "code": "SGES",
+          "label": "General Education Core Social Sciences"
+        }
+      ],
+      "sections": [
+        {
+          "crn": "13298",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-21T22:59:28.189739Z",
+            "freshness": "stale",
+            "age_seconds": 292863.08727,
+            "capacity": 45,
+            "enrollment": 0,
+            "seats_remaining": 45,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "002",
+          "schedule_observed_at": "2026-09-21 22:59:28.189739+00:00"
+        },
+        {
+          "crn": "13414",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-21T22:59:28.189739Z",
+            "freshness": "stale",
+            "age_seconds": 292863.08727,
+            "capacity": 45,
+            "enrollment": 0,
+            "seats_remaining": 45,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "004",
+          "schedule_observed_at": "2026-09-21 22:59:28.189739+00:00"
+        },
+        {
+          "crn": "13416",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-21T22:59:28.189739Z",
+            "freshness": "stale",
+            "age_seconds": 292863.08727,
+            "capacity": 45,
+            "enrollment": 0,
+            "seats_remaining": 45,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "005",
+          "schedule_observed_at": "2026-09-21 22:59:28.189739+00:00"
+        },
+        {
+          "crn": "13417",
+          "instructor": "J. Perry",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-21T22:59:28.189739Z",
+            "freshness": "stale",
+            "age_seconds": 292863.08727,
+            "capacity": 90,
+            "enrollment": 0,
+            "seats_remaining": 90,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "006",
+          "schedule_observed_at": "2026-09-21 22:59:28.189739+00:00"
+        },
+        {
+          "crn": "13426",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-21T22:59:28.189739Z",
+            "freshness": "stale",
+            "age_seconds": 292863.08727,
+            "capacity": 45,
+            "enrollment": 0,
+            "seats_remaining": 45,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "007",
+          "schedule_observed_at": "2026-09-21 22:59:28.189739+00:00"
+        },
+        {
+          "crn": "13429",
+          "instructor": "S. Miller",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-21T22:59:28.189739Z",
+            "freshness": "stale",
+            "age_seconds": 292863.08727,
+            "capacity": 45,
+            "enrollment": 0,
+            "seats_remaining": 45,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "009",
+          "schedule_observed_at": "2026-09-21 22:59:28.189739+00:00"
+        },
+        {
+          "crn": "15572",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-21T22:59:28.189739Z",
+            "freshness": "stale",
+            "age_seconds": 292863.08727,
+            "capacity": 90,
+            "enrollment": 0,
+            "seats_remaining": 90,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "901",
+          "schedule_observed_at": "2026-09-21 22:59:28.189739+00:00"
+        },
+        {
+          "crn": "15987",
+          "instructor": "C. Adkins",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-21T22:59:28.189739Z",
+            "freshness": "stale",
+            "age_seconds": 292863.08727,
+            "capacity": 45,
+            "enrollment": 0,
+            "seats_remaining": 45,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "013",
+          "schedule_observed_at": "2026-09-21 22:59:28.189739+00:00"
+        },
+        {
+          "crn": "17821",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-21T22:59:28.189739Z",
+            "freshness": "stale",
+            "age_seconds": 292863.08727,
+            "capacity": 45,
+            "enrollment": 0,
+            "seats_remaining": 45,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "019",
+          "schedule_observed_at": "2026-09-21 22:59:28.189739+00:00"
+        },
+        {
+          "crn": "18689",
+          "instructor": "A. Scapicchio",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-21T22:59:28.189739Z",
+            "freshness": "stale",
+            "age_seconds": 292863.08727,
+            "capacity": 45,
+            "enrollment": 0,
+            "seats_remaining": 45,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "001",
+          "schedule_observed_at": "2026-09-21 22:59:28.189739+00:00"
+        },
+        {
+          "crn": "18690",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-21T22:59:28.189739Z",
+            "freshness": "stale",
+            "age_seconds": 292863.08727,
+            "capacity": 45,
+            "enrollment": 0,
+            "seats_remaining": 45,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "011",
+          "schedule_observed_at": "2026-09-21 22:59:28.189739+00:00"
+        },
+        {
+          "crn": "20503",
+          "instructor": "B. Thomason",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-21T22:59:28.189739Z",
+            "freshness": "stale",
+            "age_seconds": 292863.08727,
+            "capacity": 90,
+            "enrollment": 0,
+            "seats_remaining": 90,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "008",
+          "schedule_observed_at": "2026-09-21 22:59:28.189739+00:00"
+        },
+        {
+          "crn": "20505",
+          "instructor": "R. Byington",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-21T22:59:28.189739Z",
+            "freshness": "stale",
+            "age_seconds": 292863.08727,
+            "capacity": 45,
+            "enrollment": 0,
+            "seats_remaining": 45,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "003",
+          "schedule_observed_at": "2026-09-21 22:59:28.189739+00:00"
+        },
+        {
+          "crn": "20507",
+          "instructor": "M. Steimle",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-21T22:59:28.189739Z",
+            "freshness": "stale",
+            "age_seconds": 292863.08727,
+            "capacity": 45,
+            "enrollment": 0,
+            "seats_remaining": 45,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "0",
+          "schedule_observed_at": "2026-09-21 22:59:28.189739+00:00"
+        },
+        {
+          "crn": "20509",
+          "instructor": "C. Adkins",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-21T22:59:28.189739Z",
+            "freshness": "stale",
+            "age_seconds": 292863.08727,
+            "capacity": 45,
+            "enrollment": 0,
+            "seats_remaining": 45,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "010",
+          "schedule_observed_at": "2026-09-21 22:59:28.189739+00:00"
+        },
+        {
+          "crn": "20510",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-21T22:59:28.189739Z",
+            "freshness": "stale",
+            "age_seconds": 292863.08727,
+            "capacity": 45,
+            "enrollment": 0,
+            "seats_remaining": 45,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "012",
+          "schedule_observed_at": "2026-09-21 22:59:28.189739+00:00"
+        },
+        {
+          "crn": "20512",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-21T22:59:28.189739Z",
+            "freshness": "stale",
+            "age_seconds": 292863.08727,
+            "capacity": 45,
+            "enrollment": 0,
+            "seats_remaining": 45,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "017",
+          "schedule_observed_at": "2026-09-21 22:59:28.189739+00:00"
+        },
+        {
+          "crn": "20578",
+          "instructor": "J. Perry",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-21T22:59:28.189739Z",
+            "freshness": "stale",
+            "age_seconds": 292863.08727,
+            "capacity": 45,
+            "enrollment": 0,
+            "seats_remaining": 45,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "020",
+          "schedule_observed_at": "2026-09-21 22:59:28.189739+00:00"
+        },
+        {
+          "crn": "20597",
+          "instructor": "S. Miller",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-21T22:59:28.189739Z",
+            "freshness": "stale",
+            "age_seconds": 292863.08727,
+            "capacity": 45,
+            "enrollment": 0,
+            "seats_remaining": 45,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "018",
+          "schedule_observed_at": "2026-09-21 22:59:28.189739+00:00"
+        }
+      ],
+      "fallback_source": null
+    },
+    {
+      "code": "MVJ 1111",
+      "title": "Intro to Jazz Major",
+      "level": 1000,
+      "grades": {
+        "a": 4,
+        "b": 0,
+        "c": 1,
+        "d": 0,
+        "f": 0,
+        "i": 0,
+        "s": 0,
+        "u": 0,
+        "w": 0,
+        "other": 0,
+        "total": 5,
+        "section_count": 1,
+        "first_term": "202508",
+        "last_term": "202508",
+        "ingested_at": "2026-09-23 21:34:58.254532+00:00",
+        "sources": [
+          "usf_infocenter_grade_distribution_xlsx"
+        ],
+        "source_hashes": [
+          "f19be4d38e146e0d7fbc2fdd41571b8dc1ff79ba87fb998ab95a88f3802234b5"
+        ]
+      },
+      "letter_count": 5,
+      "score": 8.69835835187189,
+      "confidence": "low",
+      "attributes": [],
+      "sections": [
+        {
+          "crn": "17357",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T06:58:42.949853Z",
+            "freshness": "stale",
+            "age_seconds": 264108.703612,
+            "capacity": 19,
+            "enrollment": 0,
+            "seats_remaining": 19,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "001",
+          "schedule_observed_at": "2026-09-22 06:58:42.949853+00:00"
+        }
+      ],
+      "fallback_source": null
+    },
+    {
+      "code": "CAI 1000",
+      "title": "Artificial Intelligence Fundamentals",
+      "level": 1000,
+      "grades": {
+        "a": 0,
+        "b": 0,
+        "c": 0,
+        "d": 0,
+        "f": 0,
+        "i": 0,
+        "s": 0,
+        "u": 0,
+        "w": 0,
+        "other": 0,
+        "total": 0,
+        "section_count": 0,
+        "first_term": null,
+        "last_term": null,
+        "ingested_at": null,
+        "sources": null,
+        "source_hashes": null
+      },
+      "letter_count": 0,
+      "score": null,
+      "confidence": null,
+      "attributes": [],
+      "sections": [
+        {
+          "crn": "20531",
+          "instructor": "Staff",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T00:50:46.311409Z",
+            "freshness": "stale",
+            "age_seconds": 286185.703684,
+            "capacity": 50,
+            "enrollment": 0,
+            "seats_remaining": 50,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "001",
+          "schedule_observed_at": "2026-09-22 00:50:46.311409+00:00"
+        }
+      ],
+      "fallback_source": "subject"
+    },
+    {
+      "code": "THE 3111",
+      "title": "Theatre History II",
+      "level": 3000,
+      "grades": {
+        "a": 2,
+        "b": 2,
+        "c": 0,
+        "d": 0,
+        "f": 0,
+        "i": 0,
+        "s": 0,
+        "u": 0,
+        "w": 1,
+        "other": 0,
+        "total": 5,
+        "section_count": 1,
+        "first_term": "202601",
+        "last_term": "202601",
+        "ingested_at": "2026-09-23 21:30:34.917960+00:00",
+        "sources": [
+          "usf_infocenter_grade_distribution_xlsx"
+        ],
+        "source_hashes": [
+          "d4feb440e6a09bda26edfb30cb3d41e6407bbd5e4823218797fc4dcb8bd98987"
+        ]
+      },
+      "letter_count": 4,
+      "score": 8.72016853472801,
+      "confidence": "low",
+      "attributes": [],
+      "sections": [
+        {
+          "crn": "10670",
+          "instructor": "J. Moy",
+          "modality": {
+            "delivery_method": "CL",
+            "delivery_label": "Classroom 1\u201349%",
+            "provenance": {
+              "freshness": "current",
+              "source": "sections.delivery_method",
+              "source_term": "202701",
+              "detail": null
+            }
+          },
+          "seats": {
+            "observed_at": "2026-09-22T07:19:54.481763Z",
+            "freshness": "stale",
+            "age_seconds": 262837.905362,
+            "capacity": 16,
+            "enrollment": 0,
+            "seats_remaining": 16,
+            "wait_seats_available": 0,
+            "provenance": {
+              "freshness": "current",
+              "source": "seat_snapshots",
+              "source_term": "202701",
+              "detail": "latest seat snapshot for this section"
+            }
+          },
+          "signals": [],
+          "signal_provenance": {
+            "freshness": "unavailable",
+            "source": "unavailable",
+            "source_term": null,
+            "detail": "signal resolver source precedence"
+          },
+          "section_number": "001",
+          "schedule_observed_at": "2026-09-22 07:19:54.481763+00:00"
+        }
+      ],
+      "fallback_source": null
+    }
+  ]
+};

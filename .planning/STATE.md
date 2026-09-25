@@ -1,20 +1,20 @@
 ---
 gsd_state_version: "1.0"
 current_plan: Not started
-status: ready_to_plan
-stopped_at: Phase 08 complete, ready to plan Phase 9
-last_updated: "2026-09-24T20:24:06.801Z"
-state_head: 7db0ddb3dea293295f31b2bceceab52439d74181
+status: design_direction_selected
+stopped_at: User selected A — Student guide; selection saved, final specification review and student walkthrough open
+last_updated: "2026-09-25T20:25:28.989003+00:00"
+state_head: e490d74af3b68af6a5fd11b34fde887709a07afe
 progress:
   total_phases: 10
   completed_phases: 7
   total_plans: 20
   completed_plans: 20
   percent: 70
-last_activity: 2026-09-24
+last_activity: 2026-09-25
 current_phase: 9
 current_phase_name: Hosted Beta — Deployment, CI, Observability
-last_activity_desc: Phase 08 (MVP1-P5) complete (5/5 plans) — 08-05 gap closure fixed CR-01 (D-21 integrity gate) and WR-01 (stale_cache window), documented WR-02, and re-confirmed Phase 8 / MVP-1 (D-21) verdicts PASS live against hosted Supabase (2026-09-24)
+last_activity_desc: User selected A — Student guide; marked winner in review UI and planning artifacts, retained B, and narrowed the design handoff to A
 ---
 
 # Project State
@@ -23,12 +23,16 @@ last_activity_desc: Phase 08 (MVP1-P5) complete (5/5 plans) — 08-05 gap closur
 rules live in `PROJECT.md` `<decisions>`; the phase sequence lives in `ROADMAP.md`; dated history
 lives in `ARCHIVE.md`.
 
-## Current state — as of 2026-09-23
+## Current state — as of 2026-09-25 (database facts retain their observation dates)
 
 **Repo / git**
 
-- `origin/main` = `c063c27727f9cb87bb55da7b8f2ea76175abab67` (verified by fetch on
-  2026-09-23; grade import, D-21 amendment and Phase 08 drafts merged via PRs #26–#28).
+- `origin/main` = `e490d74af3b68af6a5fd11b34fde887709a07afe` (verified by fetch on
+  2026-09-25; latest commit merges PR #30 from `codex/phase8-replan`).
+- Working branch: `codex/student-experience-sketch`, created from that verified SHA.
+  Current work is limited to `.planning/sketches/` and this state record. Pre-existing untracked
+  `.planning/config.json`, `.planning/research/`, `.planning/state.json`, and `phase1_report.md`
+  were preserved. No production source or database mutation was performed.
 
 **Database (hosted Supabase — the only live DB now; the old local beta DB is history in `ARCHIVE.md`)**
 
@@ -79,6 +83,29 @@ Total Plans in Phase: 0 (Phase 9 not yet planned)
 
 ## Next action
 
+**Active user-directed work (2026-09-25): student-experience visual review before rebuilding.**
+Two interactive alternatives and the selected Student guide specification are available in
+`.planning/sketches/001-student-experience/`. Start the static preview with
+`python3 -m http.server 4173 --bind 127.0.0.1 --directory .planning/sketches`, then open
+`http://127.0.0.1:4173/001-student-experience/`. `index.html` switches A/B, viewport and journey
+state; `comparison.html` compares the current app and sketches at identical dimensions.
+**The user selected A — Student guide (2026-09-25).** Selection is recorded in the review UI,
+README, manifest and specification; B is preserved. Do not ask the user to choose A/B again.
+Next: use A for any requested refinement and final specification review; carry out the actual
+freshman/sophomore comprehension walkthrough (`REVIEW.md`). No specific screen changes
+accompanied the choice. Production implementation remains a later task. Phase 9 remains the
+next roadmap phase, not the active task.
+
+Verified design evidence: eight selected real courses, complete current section sets, derived
+grade aggregates/provenance only. MAC 1105 confirmed 1,534/3,200 A–F grades; five current sections.
+28 browser state/viewport checks passed with no axe violations or console errors, plus keyboard,
+filters/search, CRN copy, narrow reflow and 200% text checks. On a 390×844 phone the first course
+starts at y=549px versus y=1,086px in the current app. These are prototype checks, not evidence of
+student comprehension, production performance, or an update to the full-dataset test baseline.
+
+**Phase history / roadmap context follows.** The former merge/Phase-9 next action below is
+superseded for this session by the user's visual-design request.
+
 **Phase 07 (MVP1-P4) is complete (3/3 plans).** REQ-PERF-01 is met with live evidence in
 `.planning/phases/07-mvp1-p4-full-scale-cache-build-search-performance-p95-1-5s/07-PERF-REPORT.md`.
 The fixes were one DB engine per API process, key-first search paging with page-only latest-seat
@@ -127,8 +154,9 @@ fixes: widen the 160px desktop evidence note, replace `text-[11px]`, consolidate
 Task 2 fixed the `test_inventory_tampa_grades.py` portion; `tests/api/test_verify_rankings_pages.py`
 stays open, out of 08-05's scope, not a gate blocker).
 
-**Do next:** MVP 1 is verified end to end and Phase 08 is complete. Merge PR #29, then either
-close the MVP-1 milestone (`/gsd-audit-milestone`, `/gsd-complete-milestone`) or start Phase 9 —
+**Roadmap continuation after the design review:** MVP 1 is verified end to end and Phase 08 is
+complete; fetched main now includes the Phase 8 merge (PR #30). Either close the MVP-1 milestone
+(`/gsd-audit-milestone`, `/gsd-complete-milestone`) or start Phase 9 —
 Hosted Beta (deployment, CI, observability) with `/gsd-discuss-phase 9` / `/gsd-plan-phase 9`.
 Deployment host and domain are still not supplied.
 
@@ -181,7 +209,9 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Phase 08 complete, ready to plan Phase 9
+**Stopped at:** Student-experience sketch 001 winner is A — Student guide, selected by the user.
+Final specification review and student walkthrough remain open. See
+`.planning/sketches/001-student-experience/README.md`.
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
 **Resume file:** None
 
