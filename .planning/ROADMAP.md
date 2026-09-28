@@ -479,18 +479,62 @@ to keep it running.
 
 **Scope**
 
-1. Deployment — minimal and portable, no provider-specific infrastructure
+1. Deployment — minimal and portable, no provider-specific infrastructure. One image, two
+   processes (`api`, `worker`) on a small container host (D-23)
 2. CI for Python and frontend checks (net-new; there is no `.github/` directory today)
 3. Observability — refresh success/failure, search latency
 4. Operator runbook — refreshing data, recovering from a failed refresh
+5. **Live schedule sync worker (D-22, D-23)** — one whole-term Tampa request per sweep, tiered
+   cadence from configured registration windows, change-only writes (instructor/seat rows appended
+   only on change), `sections.removed_at` for sections gone from USF, sanity gate that aborts a
+   short/empty sweep before any write, one `IngestRun` per sweep, advisory lock, `--dry-run`.
+   Seat freshness moves from latest-snapshot time to `Section.last_seen_at`. Plan:
+   `.planning/research/live-sync-and-prof-grades-plan-2026-09-28.md` (Phase A); evidence:
+   `.planning/research/instructor-grade-feasibility-2026-09-28.md`
 
 **Success criteria**
 
 1. The hosted beta is reachable and serves real data
 2. CI runs Python and frontend checks on push
 3. An operator can follow the runbook to refresh data and recover from a failed refresh
+4. The worker keeps Spring 2027 seats, instructor names and section existence within one cadence
+   interval of USF; an unchanged sweep writes no instructor or seat rows; removed sections leave
+   search; the UI shows when data was last verified
 
-**Requirements**: REQ-OPS-01
+**Requirements**: REQ-OPS-01, REQ-SYNC-01
+
+---
+
+## Phase 10: Professor-level grades
+
+**Goal**: Show a named instructor's own grade history for a course, next to the course-wide
+history, wherever the evidence supports it.
+
+**Depends on**: Phase 9 (live sync keeps current instructor names correct)
+
+**Status**: Planned (2026-09-28), not started
+
+**Scope**
+
+1. Historical backfill — five whole-term fetches (D-22e) into `sections`/`section_instructors`
+   for the grade terms, filtered to catalog courses. Populates the existing
+   `_fetch_instructor_course_grade_observations` join; no query change. Independent of Phase 9
+   and may run early
+2. Scoring retune — **only if D-24 is approved** at planning time (threshold 60 → 30, prior
+   strength ≈ 30, single-term flag; methodology note and tests). Without approval, ship a
+   display-only instructor breakdown and leave scoring at D-02
+3. Landmines — label or exclude Laboratory sections; caveat that co-teaching is invisible in the
+   source; key any cross-course professor view by name + college
+4. UI — per-instructor breakdown with n and terms; "historically taught by…" even when the current
+   section is Staff
+
+**Success criteria**
+
+1. Historical join coverage re-measured against the DB matches the 2026-09-28 report (3,216 pairs;
+   1,329 / 2,178 / 2,829 at n ≥ 60 / 30 / 15)
+2. Every instructor-level figure shows its denominator, term count and source (D-06, D-07)
+
+**Requirements**: REQ-PROF-01
 
 ---
 
@@ -515,9 +559,10 @@ provider acceptance from inbox receipt.
 Whenever picked up: no scraping, no bulk crawler, and no imported ratings, review counts, review
 text, tags or summaries — a verified link only.
 
-### Phase 999.3: Deeper professor-specific coverage (candidate later phase)
+### Phase 999.3: Deeper professor-specific coverage — promoted to Phase 10 (2026-09-28)
 
-Depends on named-instructor coverage in the source data.
+The 2026-09-28 investigation showed named-instructor coverage is recoverable from the public
+schedule (8,661 / 8,662 grade rows matched). See Phase 10.
 
 ### Phase 999.4: Additional UX features (candidate later phase)
 
@@ -550,7 +595,8 @@ rewrite is planned or approved.
 | 6 — MVP1-P3 all-Tampa ingestion | ✓ Complete | 100% |
 | 7 — MVP1-P4 full-scale perf (p95 < 1.5s) | ✓ Complete | 100% |
 | 8 — MVP1-P5 MVP-1 verification | Complete    | 100% |
-| 9 — Hosted beta | ○ After MVP 1 | 0% |
+| 9 — Hosted beta + live schedule sync | ○ After MVP 1 | 0% |
+| 10 — Professor-level grades | ○ Planned 2026-09-28 | 0% |
 
 ---
 
@@ -569,6 +615,8 @@ rewrite is planned or approved.
 | REQ-GRADES-01 | 4–5, 8 | ✓ Complete under D-21 — 3,122 evidence-backed sections, 661 listed source-limited exceptions, honest fallback labeling verified end to end (2026-09-24, Phase 8 verification) |
 | REQ-PERF-01 | 7, 8 | ✓ Complete — loopback HTTP p95 277.25 ms at 3,783 sections on hosted Supabase, re-confirmed in Phase 8 end-to-end verification (2026-09-24) |
 | REQ-OPS-01 | 9 | ○ After MVP 1 |
+| REQ-SYNC-01 | 9 | ○ Planned 2026-09-28 |
+| REQ-PROF-01 | 10 | ○ Planned 2026-09-28 |
 
 Backlog requirements (`REQ-ALERT-*`, `REQ-RMP-01`) are deliberately unmapped — they belong to
 candidate later phases.

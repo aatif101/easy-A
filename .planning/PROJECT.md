@@ -112,6 +112,8 @@ plausible-looking result.
 ### After MVP 1 — hosted beta
 
 - [ ] **REQ-OPS-01** — Deployable, observable, reproducible hosted beta
+- [ ] **REQ-SYNC-01** — Near-live seats, instructor names and section add/remove (Phase 9, D-22/D-23)
+- [ ] **REQ-PROF-01** — Professor-level grade history (Phase 10; scoring change only via D-24)
 
 ### Later / optional
 
@@ -309,7 +311,7 @@ Treat it as input, never as an approved requirement.
 - **D-06 [locked]:** No fabricated data. No production synthetic fallback, no invented coverage figures, no unsupported policy assertion, no guessed source link, no silent scope expansion, no auto-registration, no LLM or AI features.
 - **D-07 [locked]:** Explicit unavailable / insufficient / suppressed / invalid states with reasons. Absent evidence is reported as absent.
 - **D-08 [locked]:** No scraping of any source, and no imported RMP ratings, review counts, review text, tags or summaries. This prohibition holds regardless of whether verified RMP links are ever implemented.
-- **D-09 [locked]:** Bounded, narrow requests to USF public sources. No broad crawling.
+- **D-09 [locked]:** Bounded, narrow requests to USF public sources. No broad crawling. (Scoped exception for the live schedule sync and historical backfill: D-22.)
 - **D-10 [locked]:** Fetch and verify current `origin/main` before planning; work from branches or worktrees descended from it. Preserve untracked local work; do not check out, merge or fast-forward a local `main` you did not verify.
 - **D-11 [locked]:** Use GSD Core's `.planning/` structure, not GSD2 `.gsd/` conventions.
 - **D-12 [locked]:** Preserve the passing test baseline and update tests when semantics genuinely change. Measured 2026-09-09: 192 passed / 1 skipped without `EASY_A_TEST_POSTGRES_URL` (193 collected); 193 passed with PostgreSQL configured; 78 frontend passed. A default run does not use PostgreSQL — state both facts, not one.
@@ -322,6 +324,9 @@ Treat it as input, never as an approved requirement.
 - **D-20 [locked]:** A global-prior fallback score is not course history. Never present a course with `effective_n = 0` as having evidence-backed historical analytics.
 - **D-21 [locked, 2026-09-23]:** MVP-1 grade-coverage criterion. "Historical grades behind every section" means: every Spring 2027 Tampa section's exact course key was checked against the allowed source range (USF InfoCenter, Spring 2025 through Spring 2026; Summer 2026 empty), and each section either has sourced own-course history (`score_source` `course`/`instructor_course`, `effective_n > 0`) or is reported as a source-limited exception (no rows, <5 enrollment, new course, or non-letter-grade course) that keeps its honest `subject`/`global` fallback with D-20 labeling. Fallbacks are never counted as course history, and no data is invented. This replaces the earlier "zero fallbacks" reading. Baseline: 3,122 of 3,783 sections evidence-backed; 661 exceptions (311 subject, 50 global, 300 `course` with `effective_n = 0`).
 - **D-19 [locked]:** Never commit raw grade export files.
+- **D-22 [locked, 2026-09-28]:** USF schedule request policy for the live sync (narrow exception to D-09). Allowed: (a) **one whole-term Tampa StaffScheduleSearch request per sweep** (empty subject, `campus=T`; measured 2026-09-28 at 6,663 rows / 9.2 s / 7.1 MB); (b) tiered cadence — no more often than every 5 minutes inside configured registration windows and no more often than every 60 minutes otherwise; (c) at most one sweep in flight (single worker, DB advisory lock); (d) the identifying `DEFAULT_USER_AGENT`, backoff on errors, and no retries storms; (e) one-time whole-term backfills of the five grade terms (202408, 202501, 202505, 202508, 202601). Everything else stays under D-09. Evidence: `.planning/research/instructor-grade-feasibility-2026-09-28.md`.
+- **D-23 [locked, 2026-09-28]:** Sequencing and hosting. Live schedule sync (seats, instructor names, section add/remove) ships first, inside Phase 9, as an always-on worker on a small container host (Fly.io / Railway / Render class) next to the API, with hosted Supabase as the DB. Professor-level grades follow as Phase 10. Sync writes are change-only (no per-sweep append of unchanged instructor or seat rows); removed sections are marked, not deleted.
+- **D-24 [pending approval]:** Instructor-course scoring retune for Phase 10 — `instructor_course_min_effective_n` 60 → 30, instructor-level prior strength ≈ 30 (instead of reusing `grade_prior_strength` 60), and a single-term flag. This amends D-02 and is **not approved yet**: it needs explicit user approval at Phase 10 planning, plus a methodology note and tests. Phase 9 and the Phase 10 historical backfill do not depend on it.
 
 ### Deferred — candidate later phases, not committed
 
