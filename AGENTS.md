@@ -40,7 +40,7 @@ phase sequence to get there lives in `.planning/ROADMAP.md`.
 
 ## Hard constraints
 
-These are durable and govern all work. The authoritative set is `D-01`..`D-20` in the
+These are durable and govern all work. The authoritative set is `D-01`..`D-24` in the
 `.planning/PROJECT.md` `<decisions>` block; the load-bearing ones:
 
 - **No scoring rewrite without explicit approval.** The historical easiness score — its
@@ -55,6 +55,8 @@ These are durable and govern all work. The authoritative set is `D-01`..`D-20` i
   term/CRN/**source**; duplicate exports must not double-count (D-04).
 - **Never commit raw grade export files.** The repo stores derived aggregates and provenance (D-19).
 - **Narrow, bounded requests to USF public sources.** No scraping, no broad crawling (D-08, D-09).
+  The only exception is D-22: the live schedule sync worker's single whole-term request per sweep
+  on a tiered cadence, and the one-time five-term historical backfill.
 - **No LLM/AI features; no auth/accounts; no auto-registration** (D-06, out-of-scope in PROJECT.md).
 - **Verify `origin/main` by fetch** and work from a branch/worktree descended from it; do not check
   out, merge or fast-forward a local `main` you have not verified (D-10).

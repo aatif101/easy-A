@@ -2,19 +2,19 @@
 gsd_state_version: "1.0"
 current_plan: Not started
 status: design_direction_selected
-stopped_at: User selected A — Student guide; selection saved, final specification review and student walkthrough open
-last_updated: "2026-09-25T20:25:28.989003+00:00"
-state_head: e490d74af3b68af6a5fd11b34fde887709a07afe
+stopped_at: Live-sync + professor-level grades planned (D-22/D-23 locked, D-24 pending); Phase 9 discuss/plan is next
+last_updated: "2026-09-28T00:00:00+00:00"
+state_head: db8a98a26d8acfa10c66905f3c7f8eed6a8267ac
 progress:
-  total_phases: 10
+  total_phases: 11
   completed_phases: 7
   total_plans: 20
   completed_plans: 20
   percent: 70
-last_activity: 2026-09-25
+last_activity: 2026-09-28
 current_phase: 9
 current_phase_name: Hosted Beta — Deployment, CI, Observability
-last_activity_desc: User selected A — Student guide; marked winner in review UI and planning artifacts, retained B, and narrowed the design handoff to A
+last_activity_desc: Instructor-grade feasibility investigation (read-only) and live-sync plan; ROADMAP Phase 9 scope extended, Phase 10 added
 ---
 
 # Project State
@@ -82,6 +82,23 @@ Current Plan: Not started
 Total Plans in Phase: 0 (Phase 9 not yet planned)
 
 ## Next action
+
+**Active work (2026-09-28): live schedule sync, then professor-level grades — planned, not
+started.** Branch `codex/live-sync-plan` from verified `origin/main` `db8a98a`.
+- Investigation (read-only; hosted DB not written): `.planning/research/instructor-grade-feasibility-2026-09-28.md`.
+  Production has 0 historical sections/instructors, so `instructor_course` cannot activate at any
+  threshold. Live `section_rankings`: 3,422 course / 311 subject / 50 global / 0 instructor_course.
+- Stored Spring 2027 schedule already drifted by 2026-09-28: 92 sections gone at USF, 84 instructor
+  changes, 7 new CRNs in tracked courses. A single whole-term request returns all 6,663 Tampa rows
+  in 9.2 s.
+- Plan: `.planning/research/live-sync-and-prof-grades-plan-2026-09-28.md`. Decisions: D-22 (USF
+  request policy, narrow D-09 exception) and D-23 (sync first in Phase 9, container host) locked;
+  **D-24 (instructor-course scoring retune) pending user approval** at Phase 10 planning.
+- Next: `/gsd-discuss-phase 9` → `/gsd-plan-phase 9`. Container host provider and domain still to
+  be chosen. The Phase A migration (`sections.removed_at`) needs explicit go-ahead before it is
+  applied to hosted Supabase.
+
+The 2026-09-25 student-experience design work below is still valid input for later UI work.
 
 **Active user-directed work (2026-09-25): student-experience visual review before rebuilding.**
 Two interactive alternatives and the selected Student guide specification are available in
@@ -171,7 +188,8 @@ are in `.planning/ARCHIVE.md`. They describe the earlier local beta DB and are n
 - D-06: no fabricated data / invented coverage figures; D-07: explicit unavailable states
 - D-20: a global-prior fallback (`effective_n = 0`) is **not** course history — never present it as such
 - D-04 / D-19: term/CRN/source dedup; never commit raw grade export files
-- D-08 / D-09: bounded, narrow USF requests; no scraping/crawling
+- D-08 / D-09: bounded, narrow USF requests; no scraping/crawling. D-22 is the scoped exception for the live sync worker and the five-term historical backfill
+- D-23: live sync ships first inside Phase 9; D-24 (instructor-course scoring retune) is pending approval
 - D-10: verify `origin/main` by fetch; do not check out/merge an unverified local `main`
 - Note: the D-18 "broader launch coverage is deferred" decision is **superseded** — full Tampa
   breadth is now the MVP-1 goal (see PROJECT.md). Email alerts (D-16) and RMP (D-17, = MVP 2) stay deferred.

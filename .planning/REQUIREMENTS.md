@@ -216,6 +216,20 @@ Kept for traceability. Verified present in code at `62fb2f1`.
   CI runs Python and frontend checks (net-new; no `.github/` directory exists today). Basic
   observability covers refresh success/failure and search latency. An operator runbook covers
   refreshing data and recovering from a failed refresh.
+- [ ] **REQ-SYNC-01**: Spring 2027 seats, instructor names and section existence stay near-live.
+  *Acceptance*: An always-on worker makes one whole-term Tampa request per sweep under the D-22
+  policy (tiered cadence, single worker). Instructor and seat rows are appended only on change;
+  sections absent from a sanity-checked sweep are marked removed and leave search; each sweep
+  records an `IngestRun`; the UI shows when data was last verified. Phase 9.
+
+## Phase 10 — professor-level grades
+
+- [ ] **REQ-PROF-01**: A named instructor's own grade history for a course is shown next to the
+  course-wide history wherever evidence supports it.
+  *Acceptance*: Historical sections/instructors backfilled for the five grade terms (D-22e);
+  instructor-level figures show denominator, term count and source; Laboratory sections and
+  invisible co-teaching are labeled. Any change to instructor-course scoring requires D-24
+  approval (amends D-02). Phase 10.
 
 ---
 
