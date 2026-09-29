@@ -718,7 +718,8 @@ source currently offers those sections. Use timestamps and the refresh command's
 per-pass counts to assess recency. No deletion or inferred cancellation is performed.
 When explicitly supplied targets (as both refresh commands do), quality checks warn
 about targets missing catalog metadata, targets without stored
-sections, and seat snapshots older than the configured stale threshold. No migration
+sections, and seat data not verified within the cadence-derived stale threshold (judged from
+the section's last-seen time; removed sections are ignored). No migration
 is required. Generic `run_quality_checks(..., targets=None)` and `check_data_quality.py`
 do not load target configuration or run these registration coverage/seat freshness checks;
 they retain existing schedule and historical quality checks.
