@@ -503,6 +503,45 @@ to keep it running.
 
 **Requirements**: REQ-OPS-01, REQ-SYNC-01
 
+**Plans:** 15 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 09-01-PLAN.md — CI gates: fix 2 pre-existing E501, GitHub Actions python (ruff, alembic round-trip, pytest on postgres:16, mypy report-only) and web jobs
+- [ ] 09-02-PLAN.md — Tracer: `sections.removed_at` (migration 0004 + seat_snapshots index, not applied), cache/section/course exclusion, schema guard
+- [ ] 09-03-PLAN.md — Cadence engine: `config/registration_windows.toml` (D-02), tier/jitter/backoff/boundary rules, freshness thresholds, SIGTERM-clean runner
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [ ] 09-04-PLAN.md — Whole-term fetch: `search_term`, chunked fail-closed parse, D-04 scope + D-03 report, sanity gate, xact advisory lock
+- [ ] 09-05-PLAN.md — Seat freshness from last verification with cadence-aware thresholds (D-10)
+- [ ] 09-06-PLAN.md — `/api/v1/metadata/sync-status` (D-07), request-duration JSON log (D-08), API schema guard
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 09-07-PLAN.md — Remaining removed_at consumers: legacy restore, coverage, refresh counts, analytics listings, quality
+- [ ] 09-08-PLAN.md — Change-only sweep transaction: diff/apply, removals/restores, cache upkeep, failure evidence, dry run
+- [ ] 09-09-PLAN.md — Student "Updated N min ago" indicator and stale warning (web SyncStatus)
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 09-10-PLAN.md — Operator scripts: benchmark `--remote-url`, validators/inventory aware of removals and D-05 auto-adds
+- [ ] 09-11-PLAN.md — Worker CLI `python -m easy_a.sync`: loop/--once/--dry-run/--restore-crn, DB-backed floor, SIGTERM
+- [ ] 09-12-PLAN.md — D-05 auto-add of undergraduate Tampa courses via paced catalog lookups
+
+**Wave 5** *(blocked on Wave 4)*
+
+- [ ] 09-13-PLAN.md — Dockerfile, `.dockerignore`, `render.yaml`, CI docker job, env-group checkpoint, operator runbook
+
+**Wave 6** *(blocked on Wave 5)*
+
+- [ ] 09-14-PLAN.md — Rollout 1: operator-applied migration 0004, real-data dry run evidence, merge with green CI
+
+**Wave 7** *(blocked on Wave 6)*
+
+- [ ] 09-15-PLAN.md — Rollout 2: Render Blueprint go-live, hosted probes and p95, soak across two sweeps, STATE.md facts
+
 ---
 
 ## Phase 10: Professor-level grades
