@@ -503,7 +503,7 @@ to keep it running.
 
 **Requirements**: REQ-OPS-01, REQ-SYNC-01
 
-**Plans:** 4/15 plans executed
+**Plans:** 5/15 plans executed
 
 Plans:
 **Wave 1**
@@ -515,7 +515,7 @@ Plans:
 **Wave 2** *(blocked on Wave 1)*
 
 - [x] 09-04-PLAN.md — Whole-term fetch: `search_term`, chunked fail-closed parse, D-04 scope + D-03 report, sanity gate, xact advisory lock
-- [ ] 09-05-PLAN.md — Seat freshness from last verification with cadence-aware thresholds (D-10)
+- [x] 09-05-PLAN.md — Seat freshness from last verification with cadence-aware thresholds (D-10)
 - [ ] 09-06-PLAN.md — `/api/v1/metadata/sync-status` (D-07), request-duration JSON log (D-08), API schema guard
 
 **Wave 3** *(blocked on Wave 2)*
