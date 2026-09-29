@@ -493,7 +493,12 @@ def _identity_snapshot(
 
 def _dependent_ids(
     session: Session,
-    model: type[SeatSnapshot] | type[SectionInstructor] | type[Syllabus] | type[SectionRankingCache],
+    model: (
+        type[SeatSnapshot]
+        | type[SectionInstructor]
+        | type[Syllabus]
+        | type[SectionRankingCache]
+    ),
     section_ids: frozenset[int],
 ) -> frozenset[int]:
     if not section_ids:

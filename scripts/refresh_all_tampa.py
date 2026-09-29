@@ -147,7 +147,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--subject-timeout",
         type=float,
         default=DEFAULT_SUBJECT_TIMEOUT_SECONDS,
-        help=f"Per-subject wall-clock ceiling in seconds (default {DEFAULT_SUBJECT_TIMEOUT_SECONDS}). "
+        help=f"Per-subject wall-clock ceiling in seconds "
+        f"(default {DEFAULT_SUBJECT_TIMEOUT_SECONDS}). "
         f"A subject exceeding this is killed and recorded as failed so the run continues; "
         f"0 or negative disables the ceiling.",
     )

@@ -1,0 +1,73 @@
+name: ci
+
+# Runs on every push to any branch and every pull request, with no path filters:
+# Render's checksPass deploy trigger refuses to deploy a commit that has zero checks.
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # Never cancel a run on main: every main commit must finish its checks.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: easy_a
+          POSTGRES_USER: easy_a
+          POSTGRES_PASSWORD: easy_a
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U easy_a -d easy_a"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      EASY_A_TEST_POSTGRES_URL: postgresql+psycopg://easy_a:easy_a@localhost:5432/easy_a
+      MIGRATION_DATABASE_URL: postgresql+psycopg://easy_a:easy_a@localhost:5432/easy_a
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install locked dependencies
+        run: uv sync --locked
+
+      - name: Ruff (hard gate)
+        run: uv run ruff check .
+
+      - name: Alembic round-trip on postgres:16
+        run: |
+          uv run alembic upgrade head
+          uv run alembic downgrade -1
+          uv run alembic upgrade head
+
+      - name: Pytest (full suite against postgres:16)
+        run: uv run pytest -q -rs 2>&1 | tee pytest-output.txt
+
+      - name: PostgreSQL integration tests must not skip
+        run: |
+          if grep -q "Set EASY_A_TEST_POSTGRES_URL" pytest-output.txt; then
+            echo "A PostgreSQL integration test was skipped; the postgres service is not being used." >&2
+            exit 1
+          fi
+          echo "No PostgreSQL integration test was skipped."
