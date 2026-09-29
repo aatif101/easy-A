@@ -160,3 +160,21 @@ export interface CourseCoverage {
 }
 
 export type CoverageLoader = (term: string, signal?: AbortSignal) => Promise<CourseCoverage[]>;
+
+/** Mirrors the API SyncStatusResponse (GET /api/v1/metadata/sync-status). */
+export interface SyncStatus {
+  term: string;
+  last_success_at: string | null;
+  last_run_at: string | null;
+  last_status: "succeeded" | "failed" | null;
+  last_error_kind: string | null;
+  last_records_failed: number | null;
+  failures_last_24h: number;
+  in_registration_window: boolean;
+  cadence_seconds: number;
+  stale_after_seconds: number;
+  is_stale: boolean;
+  as_of: string;
+}
+
+export type SyncStatusLoader = (term: string, signal?: AbortSignal) => Promise<SyncStatus>;

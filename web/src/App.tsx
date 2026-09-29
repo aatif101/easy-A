@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { fetchCoverage, fetchMetadata, fetchRankings, isUsingMockData } from "./api/rankings";
+import { fetchCoverage, fetchMetadata, fetchRankings, fetchSyncStatus, isUsingMockData } from "./api/rankings";
 import { CoverageNotice } from "./components/CoverageNotice";
 import { FilterBar } from "./components/FilterBar";
 import { EmptyRankings } from "./components/EmptyRankings";
 import { RankingTable } from "./components/RankingTable";
+import { SyncStatus } from "./components/SyncStatus";
 import { SYNTHETIC_FIXTURE_NOTICE } from "./fixtures/rankings";
 import type {
   CoverageLoader,
@@ -12,6 +13,7 @@ import type {
   RankingLoader,
   RankingMetadata,
   RankingsSearchResponse,
+  SyncStatusLoader,
 } from "./types/rankings";
 import {
   hasActiveFilters,
@@ -26,6 +28,7 @@ interface AppProps {
   coverageLoader?: CoverageLoader;
   rankingLoader?: RankingLoader;
   metadataLoader?: MetadataLoader;
+  syncStatusLoader?: SyncStatusLoader;
   mockMode?: boolean;
 }
 
@@ -39,6 +42,7 @@ export default function App({
   coverageLoader = fetchCoverage,
   rankingLoader = fetchRankings,
   metadataLoader = fetchMetadata,
+  syncStatusLoader = fetchSyncStatus,
   mockMode = isUsingMockData,
 }: AppProps) {
   const [metadata, setMetadata] = useState<RankingMetadata | null>(null);
@@ -197,6 +201,7 @@ export default function App({
       <main id="main-content" className="mx-auto max-w-[1500px] px-4 py-7 md:px-6 md:py-10" tabIndex={-1}>
         {metadata && term ? (
           <>
+            <SyncStatus key={term} term={term} loader={syncStatusLoader} synthetic={mockMode} />
             <CoverageNotice key={term} term={term} subject={query?.subject} courseNumber={query?.course_number} loader={coverageLoader} />
             <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
