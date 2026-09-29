@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from datetime import datetime
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -55,5 +57,35 @@ class GenEdAttributeMetadata(BaseModel):
 class DeliveryMethodMetadata(BaseModel):
     code: str
     label: str | None
+
+    model_config = ConfigDict(frozen=True)
+
+
+class SyncStatusResponse(BaseModel):
+    """Public health of the live schedule sync for one term (D-07).
+
+    Reports only coarse facts. The raw ``IngestRun.error_message`` is never serialized;
+    ``last_error_kind`` comes from the fixed ``easy_a.sync.SYNC_ERROR_KINDS`` vocabulary.
+    """
+
+    term: str = Field(examples=["202701"])
+    last_success_at: datetime | None = Field(
+        description="Finish time of the latest succeeded sweep (UTC); null when none exists."
+    )
+    last_run_at: datetime | None = Field(
+        description="Start time of the latest sweep of any status (UTC); null when none exists."
+    )
+    last_status: Literal["succeeded", "failed"] | None = Field(examples=["succeeded"])
+    last_error_kind: str | None = Field(
+        description="Coarse failure kind of the latest sweep, only when it failed.",
+        examples=["usf_http"],
+    )
+    last_records_failed: int | None
+    failures_last_24h: int = Field(examples=[0])
+    in_registration_window: bool
+    cadence_seconds: int = Field(examples=[3600])
+    stale_after_seconds: int = Field(examples=[7200])
+    is_stale: bool
+    as_of: datetime
 
     model_config = ConfigDict(frozen=True)
