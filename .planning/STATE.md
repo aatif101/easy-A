@@ -2,8 +2,8 @@
 gsd_state_version: "1.0"
 current_plan: Not started
 status: design_direction_selected
-stopped_at: Live-sync + professor-level grades planned (D-22/D-23 locked, D-24 pending); Phase 9 discuss/plan is next
-last_updated: "2026-09-28T00:00:00+00:00"
+stopped_at: Render hosting account set up; live-sync + professor-level grades planned; Phase 9 discuss/plan is next
+last_updated: "2026-09-29T00:00:00+00:00"
 state_head: db8a98a26d8acfa10c66905f3c7f8eed6a8267ac
 progress:
   total_phases: 11
@@ -11,7 +11,7 @@ progress:
   total_plans: 20
   completed_plans: 20
   percent: 70
-last_activity: 2026-09-28
+last_activity: 2026-09-29
 current_phase: 9
 current_phase_name: Hosted Beta — Deployment, CI, Observability
 last_activity_desc: Instructor-grade feasibility investigation (read-only) and live-sync plan; ROADMAP Phase 9 scope extended, Phase 10 added
@@ -94,9 +94,19 @@ started.** Branch `codex/live-sync-plan` from verified `origin/main` `db8a98a`.
 - Plan: `.planning/research/live-sync-and-prof-grades-plan-2026-09-28.md`. Decisions: D-22 (USF
   request policy, narrow D-09 exception) and D-23 (sync first in Phase 9, container host) locked;
   **D-24 (instructor-course scoring retune) pending user approval** at Phase 10 planning.
-- Next: `/gsd-discuss-phase 9` → `/gsd-plan-phase 9`. Container host provider and domain still to
-  be chosen. The Phase A migration (`sections.removed_at`) needs explicit go-ahead before it is
-  applied to hosted Supabase.
+- Next: `/gsd-discuss-phase 9` → `/gsd-plan-phase 9`. The Phase A migration (`sections.removed_at`)
+  needs explicit go-ahead before it is applied to hosted Supabase.
+- **Hosting set up (2026-09-29): Render**, free `*.onrender.com` subdomains for the beta (no custom
+  domain yet). Workspace "My Workspace" (`tea-datbnkm7bikc73cuhkq0`), no services yet. Payment
+  method added; Render GitHub app has access to `aatif101/easy-A`; environment group
+  **`easy-a-shared`** holds `DATABASE_URL` (Supabase transaction pooler, port 6543, IPv4). No
+  `MIGRATION_DATABASE_URL` on Render — migrations stay manual. Render CLI v2.28.0 installed and
+  logged in locally (`render blueprints validate ./render.yaml` available).
+- Phase 9 still owns (code, not done): Dockerfile; `render.yaml` Blueprint with `api` (web,
+  Starter), `worker` (background worker, Starter, ~512 MB) and `web` (static site, free), all in
+  region **ohio** (same AWS region as Supabase us-east-2); API listens on `0.0.0.0:$PORT`;
+  `EASY_A_ALLOWED_FRONTEND_ORIGINS` = the static site URL; frontend built with
+  `VITE_USE_MOCK_DATA=false` and `VITE_API_BASE_URL` = the API URL. Expected cost ≈ $14/month.
 
 The 2026-09-25 student-experience design work below is still valid input for later UI work.
 
