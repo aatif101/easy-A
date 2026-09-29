@@ -594,3 +594,47 @@ def test_seat_freshness_and_coverage_api(
     assert rows[0]["section_count"] > 0
     assert rows[0]["latest_observed_at"] is not None
     assert api_client.get("/api/v1/metadata/coverage?term=bad").status_code == 422
+
+
+def test_removed_section_leaves_all_ranking_routes_and_returns_when_restored(
+    api_client: TestClient,
+    api_session_factory: sessionmaker[Session],
+) -> None:
+    with api_session_factory() as session:
+        _seed_search_data(session)
+        session.commit()
+
+    def _routes() -> tuple[int, list[str], int, set[str]]:
+        section = api_client.get("/api/v1/rankings/section?term=202701&crn=70002")
+        course = api_client.get(
+            "/api/v1/rankings/course?term=202701&subject=MAC&course_number=1105"
+        )
+        search = api_client.get("/api/v1/rankings/search?term=202701")
+        assert course.status_code == 200
+        assert search.status_code == 200
+        return (
+            section.status_code,
+            [item["crn"] for item in course.json()],
+            search.json()["total"],
+            {item["crn"] for item in search.json()["items"]},
+        )
+
+    assert _routes() == (200, ["70001", "70002"], 4, {"70001", "70002", "71001", "72001"})
+
+    with api_session_factory() as session:
+        section = session.execute(select(Section).where(Section.crn == "70002")).scalar_one()
+        section.removed_at = NOW + timedelta(days=1)
+        session.flush()
+        refresh_section_rankings(session, term="202701")
+        session.commit()
+
+    assert _routes() == (404, ["70001"], 3, {"70001", "71001", "72001"})
+
+    with api_session_factory() as session:
+        section = session.execute(select(Section).where(Section.crn == "70002")).scalar_one()
+        section.removed_at = None
+        session.flush()
+        refresh_section_rankings(session, term="202701")
+        session.commit()
+
+    assert _routes() == (200, ["70001", "70002"], 4, {"70001", "70002", "71001", "72001"})
