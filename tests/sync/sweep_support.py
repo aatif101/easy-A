@@ -13,6 +13,7 @@ from easy_a.models import Course, IngestRun, SeatSnapshot, Section, SectionInstr
 from easy_a.rankings.cache import SectionRankingCache, refresh_section_rankings
 from easy_a.schedule.client import DEFAULT_USER_AGENT, StaffScheduleClient
 from easy_a.schedule.ingest import ingest_schedule_html
+from easy_a.sync.sweep import SweepOutcome, run_sweep
 from tests.sync.wholeterm_html import RowSpec, build_whole_term_html
 
 TERM = "202701"
@@ -123,3 +124,18 @@ def section_marks(session_factory: sessionmaker[Session]) -> dict[str, tuple[obj
 def naive(value: datetime) -> datetime:
     """SQLite drops timezone metadata; PostgreSQL keeps UTC-aware values."""
     return value.replace(tzinfo=None)
+
+
+def sweep_rows(
+    session_factory: sessionmaker[Session],
+    rows: Iterable[RowSpec],
+    *,
+    at: datetime = SWEEP_AT,
+    dry_run: bool = False,
+) -> tuple[SweepOutcome, list[httpx.Request]]:
+    """Run one real (or dry) sweep against a MockTransport serving ``rows``."""
+    client, requests = usf_client(build_whole_term_html(list(rows)))
+    outcome = run_sweep(
+        session_factory, term=TERM, client=client, now_fn=lambda: at, dry_run=dry_run
+    )
+    return outcome, requests
