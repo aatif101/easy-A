@@ -233,6 +233,20 @@ def missing_active_count(rows: Iterable[NormalizedSection], state: DbState) -> i
     )
 
 
+def new_course_keys(
+    rows: Iterable[NormalizedSection], state: DbState
+) -> tuple[tuple[str, str], ...]:
+    """Sorted ``(subject, number)`` of in-scope courses that only new CRNs reference and that
+    Easy-A does not know yet: exactly the courses the sweep would otherwise leave unapplied."""
+    keys = {
+        (row.subject, row.course_number)
+        for row in rows
+        if row.crn not in state.sections_by_crn
+        and (row.subject, row.course_number) not in state.course_ids
+    }
+    return tuple(sorted(keys))
+
+
 def describe_unknown_courses(plan: SweepPlan) -> list[str]:
     """Sorted 'SUBJ NNNN' labels of in-scope courses that are not in Easy-A."""
     return sorted(f"{subject} {number}" for subject, number in plan.unknown_course_keys)

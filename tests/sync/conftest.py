@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Generator
 
+import httpx
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
@@ -10,6 +11,8 @@ from sqlalchemy.pool import StaticPool
 
 from easy_a.db import Base
 from easy_a.models import Course, Term
+from easy_a.sync import courses as courses_module
+from easy_a.sync.courses import CatalogSettings, CourseAdder
 from tests.sync.sweep_support import TERM
 
 
@@ -50,3 +53,22 @@ def engine() -> Generator[Engine, None, None]:
 @pytest.fixture
 def session_factory(engine: Engine) -> sessionmaker[Session]:
     return sessionmaker(bind=engine, expire_on_commit=False)
+
+
+def _offline_catalog_fetch(url: str) -> str:
+    raise httpx.ConnectError(f"catalog is offline in tests: {url}")
+
+
+@pytest.fixture(autouse=True)
+def offline_default_course_adder(monkeypatch: pytest.MonkeyPatch) -> CourseAdder:
+    """Sweeps without an explicit adder use the worker singleton; never let a test reach USF."""
+    adder = CourseAdder(
+        fetch=_offline_catalog_fetch,
+        sleep=lambda seconds: None,
+        settings=CatalogSettings(
+            catalog_edition="2026-2027",
+            catalog_url_template="https://catalog.invalid/{subject}/{number}",
+        ),
+    )
+    monkeypatch.setattr(courses_module, "_default_adder", adder)
+    return adder

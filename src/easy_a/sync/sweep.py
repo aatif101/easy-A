@@ -13,23 +13,30 @@ from __future__ import annotations
 import logging
 import re
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any
 
 import httpx
-from sqlalchemy import text
+from sqlalchemy import select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 from easy_a.common.lookups import ensure_term
-from easy_a.models import IngestRun
+from easy_a.models import Course, IngestRun
 from easy_a.schedule.client import StaffScheduleClient, WholeTermResponseError
 from easy_a.schedule.normalize import NormalizedSection
 from easy_a.schedule.parser import ScheduleParseError
 from easy_a.schema_guard import SchemaNotCurrentError
 from easy_a.sync import SYNC_ERROR_KINDS, sync_source
 from easy_a.sync.apply import apply_sweep_plan, load_db_state
+from easy_a.sync.courses import (
+    AutoAddResult,
+    CourseAdderLike,
+    CourseKey,
+    default_course_adder,
+    label,
+)
 from easy_a.sync.fetch import FetchedTerm, fetch_whole_term
 from easy_a.sync.gate import GateInput, evaluate_gate
 from easy_a.sync.lock import try_sweep_lock
@@ -39,6 +46,7 @@ from easy_a.sync.plan import (
     build_sweep_plan,
     describe_unknown_courses,
     missing_active_count,
+    new_course_keys,
 )
 from easy_a.sync.runner import SweepStatus
 from easy_a.sync.scope import SweepScopeError, apply_scope
@@ -46,6 +54,7 @@ from easy_a.sync.scope import SweepScopeError, apply_scope
 logger = logging.getLogger(__name__)
 
 ERROR_DETAIL_LIMIT = 500
+UNAPPLIED_MESSAGE_LIMIT = 2000
 _DB_URL_RE = re.compile(r"postgres(?:ql)?(?:\+\w+)?://\S*", re.I)
 
 
@@ -68,6 +77,8 @@ class SweepOutcome:
     gate_reasons: tuple[str, ...] = ()
     unknown_course_keys: tuple[str, ...] = ()
     would_add: tuple[str, ...] = ()
+    auto_added: tuple[str, ...] = ()
+    unapplied: tuple[str, ...] = ()
     page: dict[str, Any] | None = None
     tail_error: bool = False
     error_kind: str | None = None
@@ -93,14 +104,13 @@ class SweepOutcome:
             "gate_reasons": list(self.gate_reasons),
             "unknown_course_keys": list(self.unknown_course_keys),
             "would_add": list(self.would_add),
+            "auto_added": list(self.auto_added),
+            "unapplied": list(self.unapplied),
             "page": self.page,
             "tail_error": self.tail_error,
             "error_kind": self.error_kind,
             "error_detail": self.error_detail,
         }
-
-
-CourseAdder = Callable[..., object]
 
 
 def sanitize_error_detail(detail: str) -> str:
@@ -141,14 +151,37 @@ def _page_metadata(fetched: FetchedTerm) -> dict[str, Any]:
     }
 
 
-def _unapplied_message(plan: SweepPlan) -> str | None:
-    keys = describe_unknown_courses(plan)
-    if not keys:
-        return None
-    return sanitize_error_detail(
-        f"{plan.unapplied_count} in-scope section(s) not applied; course not in Easy-A: "
-        + ", ".join(keys)
+def _unapplied_reasons(plan: SweepPlan, reasons: dict[CourseKey, str]) -> tuple[str, ...]:
+    """'SUBJ NNNN (reason)' for every course the plan could not apply, sorted by course."""
+    return tuple(
+        f"{label(key)} ({reasons.get(key, 'course not in Easy-A')})"
+        for key in sorted(plan.unknown_course_keys)
     )
+
+
+def _unapplied_message(unapplied: tuple[str, ...]) -> str | None:
+    if not unapplied:
+        return None
+    message = "unapplied courses: " + "; ".join(unapplied)
+    return _DB_URL_RE.sub("[redacted-url]", message)[:UNAPPLIED_MESSAGE_LIMIT]
+
+
+def _resolve_added_course_ids(
+    session: Session, added: tuple[CourseKey, ...]
+) -> dict[CourseKey, int]:
+    """Course id per added key, choosing the highest catalog edition (as load_db_state does)."""
+    wanted = set(added)
+    rows = session.execute(
+        select(Course.subject, Course.number, Course.id)
+        .where(Course.subject.in_(sorted({subject for subject, _ in wanted})))
+        .order_by(Course.catalog_edition.desc(), Course.id.desc())
+    ).all()
+    resolved: dict[CourseKey, int] = {}
+    for subject, number, course_id in rows:
+        key = (subject, number)
+        if key in wanted:
+            resolved.setdefault(key, course_id)
+    return resolved
 
 
 def run_sweep(
@@ -159,10 +192,9 @@ def run_sweep(
     now_fn: Callable[[], datetime],
     dry_run: bool = False,
     max_missing_fraction: float = 0.10,
-    course_adder: CourseAdder | None = None,
+    course_adder: CourseAdderLike | None = None,
 ) -> SweepOutcome:
     """Run one sweep of ``term``. Exactly one USF request; one database transaction."""
-    del course_adder  # Plan 09-12 plugs in auto-add; a dry run must never call it.
     started_at = now_fn()
     progress: dict[str, Any] = {"records_seen": None}
     try:
@@ -185,6 +217,7 @@ def run_sweep(
                 dry_run=dry_run,
                 max_missing_fraction=max_missing_fraction,
                 progress=progress,
+                course_adder=course_adder,
             )
             if dry_run:
                 session.rollback()
@@ -211,6 +244,7 @@ def _sweep_in_transaction(
     dry_run: bool,
     max_missing_fraction: float,
     progress: dict[str, Any],
+    course_adder: CourseAdderLike | None = None,
 ) -> SweepOutcome:
     fetched = fetch_whole_term(client, term, now_fn=now_fn)
     rows: tuple[NormalizedSection, ...]
@@ -234,8 +268,20 @@ def _sweep_in_transaction(
     if not gate.passed:
         raise SweepGateError(gate.reasons)
 
+    add_result = AutoAddResult()
+    if not dry_run:
+        # D-05: bounded, paced catalog lookups for new in-scope courses; a dry run never fetches.
+        new_keys = new_course_keys(rows, state)
+        if new_keys:
+            adder = course_adder if course_adder is not None else default_course_adder()
+            add_result = adder.add_missing(session, new_keys)
+            if add_result.added:
+                added_ids = _resolve_added_course_ids(session, add_result.added)
+                state = replace(state, course_ids={**state.course_ids, **added_ids})
+
     plan = build_sweep_plan(rows, state)
     counts = plan.counts()
+    unapplied = _unapplied_reasons(plan, add_result.unapplied())
     unknown_labels = tuple(describe_unknown_courses(plan))
     common: dict[str, Any] = {
         "term": term,
@@ -244,6 +290,7 @@ def _sweep_in_transaction(
         "scope": report.as_dict(),
         "page": _page_metadata(fetched),
         "tail_error": fetched.parse.tail_error,
+        "auto_added": tuple(label(key) for key in sorted(add_result.added)),
         "extra": {
             "removed": len(plan.removals),
             "restored": len(plan.restores),
@@ -278,7 +325,7 @@ def _sweep_in_transaction(
             records_inserted=counts.records_inserted,
             records_updated=counts.records_updated,
             records_failed=counts.records_failed,
-            error_message=_unapplied_message(plan),
+            error_message=_unapplied_message(unapplied),
         )
     )
     session.flush()
@@ -286,6 +333,7 @@ def _sweep_in_transaction(
         status=SweepStatus.succeeded,
         finished_at=finished_at,
         unknown_course_keys=unknown_labels,
+        unapplied=unapplied,
         **common,
     )
 

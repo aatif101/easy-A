@@ -207,6 +207,8 @@ def outcome_log_dict(
         "seat_changes": extra.get("seat_changes"),
         "unapplied_course_keys": list(outcome.unknown_course_keys),
         "would_add": list(outcome.would_add),
+        "auto_added": list(outcome.auto_added),
+        "unapplied_courses": list(outcome.unapplied),
         "gate_reasons": list(outcome.gate_reasons),
         "error_kind": outcome.error_kind,
         "error_detail": outcome.error_detail,

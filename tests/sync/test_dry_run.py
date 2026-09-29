@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime, timedelta
 
 import pytest
@@ -7,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
 from easy_a.models import Section, SectionInstructor
+from easy_a.sync.courses import AutoAddResult, CourseKey
 from easy_a.sync.runner import SweepStatus
 from easy_a.sync.sweep import run_sweep
 from tests.sync.sweep_support import (
@@ -20,6 +22,17 @@ from tests.sync.sweep_support import (
     usf_client,
 )
 from tests.sync.wholeterm_html import RowSpec, build_whole_term_html
+
+
+class RecordingAdder:
+    """A course adder that records every call; a dry run must never make one."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[CourseKey, ...]] = []
+
+    def add_missing(self, session: Session, keys: Sequence[CourseKey]) -> AutoAddResult:
+        self.calls.append(tuple(keys))
+        return AutoAddResult()
 
 
 def _seed_rows() -> list[RowSpec]:
@@ -60,7 +73,7 @@ def test_dry_run_writes_nothing_and_reports_what_a_real_sweep_then_applies(
     counts_before = table_counts(session_factory)
     marks_before = section_marks(session_factory)
     instructors_before = _instructor_names(session_factory)
-    adder_calls: list[object] = []
+    adder = RecordingAdder()
     client, requests = usf_client(build_whole_term_html(_response_rows()))
 
     dry = run_sweep(
@@ -69,12 +82,12 @@ def test_dry_run_writes_nothing_and_reports_what_a_real_sweep_then_applies(
         client=client,
         now_fn=lambda: SWEEP_AT,
         dry_run=True,
-        course_adder=lambda *args, **kwargs: adder_calls.append(args),
+        course_adder=adder,
     )
 
     assert len(requests) == 1
     assert dry.status is SweepStatus.dry_run
-    assert adder_calls == []
+    assert adder.calls == []
     assert table_counts(session_factory) == counts_before
     assert section_marks(session_factory) == marks_before
     assert _instructor_names(session_factory) == instructors_before
