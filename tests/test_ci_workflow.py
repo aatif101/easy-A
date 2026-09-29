@@ -77,3 +77,95 @@ def test_main_runs_are_never_cancelled() -> None:
     cancel_lines = [line for line in _lines() if "cancel-in-progress" in line]
     assert cancel_lines
     assert any("refs/heads/main" in line for line in cancel_lines)
+
+
+def _steps() -> list[tuple[str, str]]:
+    """Return (name, block) for each `- name:` step, blocks split between consecutive steps."""
+    steps: list[tuple[str, str]] = []
+    current_name: str | None = None
+    current: list[str] = []
+    for line in _lines():
+        match = re.match(r"^\s*-\s+name:\s*(.+?)\s*$", line)
+        if match:
+            if current_name is not None:
+                steps.append((current_name, "\n".join(current)))
+            current_name = match.group(1)
+            current = [line]
+        elif current_name is not None:
+            # a new job header (two-space-indented key) ends the last step of the previous job
+            if re.match(r"^  \S", line) and not line.startswith("   "):
+                steps.append((current_name, "\n".join(current)))
+                current_name = None
+                current = []
+            else:
+                current.append(line)
+    if current_name is not None:
+        steps.append((current_name, "\n".join(current)))
+    return steps
+
+
+def _job_names() -> list[str]:
+    in_jobs = False
+    names: list[str] = []
+    for line in _lines():
+        if re.match(r"^jobs:\s*$", line):
+            in_jobs = True
+            continue
+        if in_jobs:
+            match = re.match(r"^  ([A-Za-z0-9_-]+):\s*$", line)
+            if match:
+                names.append(match.group(1))
+            elif re.match(r"^\S", line):
+                break
+    return names
+
+
+def test_workflow_has_exactly_python_and_web_jobs() -> None:
+    assert _job_names() == ["python", "web"]
+
+
+def test_web_job_runs_every_frontend_gate() -> None:
+    text = _text()
+    for needle in (
+        "npm ci",
+        "npm run lint",
+        "npm run typecheck",
+        "npm test",
+        "npm run build",
+        "actions/setup-node@v7",
+        'node-version: "24"',
+        "working-directory: web",
+    ):
+        assert needle in text, f"workflow is missing: {needle}"
+
+
+def test_web_build_uses_real_api_mode() -> None:
+    build = [block for _, block in _steps() if "npm run build" in block]
+    assert build, "no web build step"
+    assert 'VITE_USE_MOCK_DATA: "false"' in build[0]
+    assert re.search(r'VITE_API_BASE_URL:\s*"https://', build[0])
+
+
+def test_mypy_steps_are_report_only() -> None:
+    mypy_blocks = [block for _, block in _steps() if re.search(r"run:.*\buv run mypy\b", block)]
+    commands = " ".join(mypy_blocks)
+    assert "uv run mypy src" in commands
+    assert "uv run mypy ." in commands
+    assert len(mypy_blocks) == 2
+    for block in mypy_blocks:
+        assert "continue-on-error: true" in block, block
+
+
+def test_hard_gates_are_not_continue_on_error() -> None:
+    hard = [
+        (name, block)
+        for name, block in _steps()
+        if re.search(
+            r"uv run ruff check|uv run pytest|must not skip|npm run lint|npm run typecheck"
+            r"|npm test|npm run build",
+            name + "\n" + block,
+        )
+    ]
+    assert len(hard) >= 5
+    for name, block in hard:
+        assert "continue-on-error" not in block, f"hard gate is report-only: {name}"
