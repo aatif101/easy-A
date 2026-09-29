@@ -1,15 +1,15 @@
 ---
 gsd_state_version: "1.0"
-current_plan: 6
+current_plan: 7
 status: design_direction_selected
-stopped_at: Completed 09-05-PLAN.md
-last_updated: "2026-09-29T17:24:05.688Z"
-state_head: 740c2499de656c6f3b437642295a27b3d22def4f
+stopped_at: Completed 09-06-PLAN.md
+last_updated: "2026-09-29T17:27:24.153Z"
+state_head: a3ae9460356e88714ba0b18dba431d3931de6b36
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 35
-  completed_plans: 25
+  completed_plans: 26
   percent: 64
 last_activity: 2026-09-29
 current_phase: 9
@@ -78,7 +78,7 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: 6
+Current Plan: 7
 Total Plans in Phase: 15
 
 ## Next action
@@ -237,7 +237,7 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Completed 09-05-PLAN.md
+**Stopped at:** Completed 09-06-PLAN.md
 Final specification review and student walkthrough remain open. See
 `.planning/sketches/001-student-experience/README.md`.
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
@@ -249,7 +249,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-09-29T17:24:05.627Z
+Last session: 2026-09-29T17:27:24.078Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
@@ -284,6 +284,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 | Phase 09 P03 | 12 min | 2 tasks | 8 files |
 | Phase 09 P04 | 25 min | 2 tasks | 9 files |
 | Phase 09 P05 | 8 min | 2 tasks | 8 files |
+| Phase 09 P06 | 12 min | 2 tasks | 5 files |
 
 ## Decisions
 
@@ -320,3 +321,5 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 - [Phase 09]: 09-04: undergraduate scope rule lives only in is_undergraduate_number (first four chars digits, below 5000); gate thresholds compared as exact decimals; whole-term request is a separate search_term path so narrow-query validation stays strict
 - [Phase 09]: 09-05: partial seat-freshness env overrides are ignored (cadence applies) and warned once; both must be set to override
 - [Phase 09]: 09-05: unreadable registration-windows file falls back to legacy 600/1800 s freshness thresholds (never optimistic) instead of failing search
+- [Phase 09]: 09-06: /sync-status is a separate endpoint from /coverage and latency observability is structured request logs with no metrics vendor (D-07/D-08, Claude's lean, pending user review)
+- [Phase 09]: 09-06: sync-status last_status is limited to succeeded/failed and last_error_kind comes only from SYNC_ERROR_KINDS; error_message is never serialized
