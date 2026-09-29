@@ -503,12 +503,12 @@ to keep it running.
 
 **Requirements**: REQ-OPS-01, REQ-SYNC-01
 
-**Plans:** 15 plans
+**Plans:** 1/15 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 09-01-PLAN.md — CI gates: fix 2 pre-existing E501, GitHub Actions python (ruff, alembic round-trip, pytest on postgres:16, mypy report-only) and web jobs
+- [x] 09-01-PLAN.md — CI gates: fix 2 pre-existing E501, GitHub Actions python (ruff, alembic round-trip, pytest on postgres:16, mypy report-only) and web jobs
 - [ ] 09-02-PLAN.md — Tracer: `sections.removed_at` (migration 0004 + seat_snapshots index, not applied), cache/section/course exclusion, schema guard
 - [ ] 09-03-PLAN.md — Cadence engine: `config/registration_windows.toml` (D-02), tier/jitter/backoff/boundary rules, freshness thresholds, SIGTERM-clean runner
 
@@ -634,7 +634,7 @@ rewrite is planned or approved.
 | 6 — MVP1-P3 all-Tampa ingestion | ✓ Complete | 100% |
 | 7 — MVP1-P4 full-scale perf (p95 < 1.5s) | ✓ Complete | 100% |
 | 8 — MVP1-P5 MVP-1 verification | Complete    | 100% |
-| 9 — Hosted beta + live schedule sync | ○ After MVP 1 | 0% |
+| 9 — Hosted beta + live schedule sync | In Progress| 0% |
 | 10 — Professor-level grades | ○ Planned 2026-09-28 | 0% |
 
 ---

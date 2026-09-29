@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_plan: Not started
+current_plan: 2
 status: design_direction_selected
-stopped_at: Phase 9 context gathered
-last_updated: "2026-09-29T17:05:31.881Z"
-state_head: 11b3f7e64c6cb8f03bec393539e35d02b020b0be
+stopped_at: Completed 09-01-PLAN.md
+last_updated: "2026-09-29T17:08:02.777Z"
+state_head: be7f87ef145d87b11cfe650754993eb1e00786dc
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 35
-  completed_plans: 20
-  percent: 9
+  completed_plans: 21
+  percent: 60
 last_activity: 2026-09-29
-current_phase_name: hosted-beta-deployment-ci-observability
 current_phase: 9
+current_phase_name: hosted-beta-deployment-ci-observability
 last_activity_desc: Instructor-grade feasibility investigation (read-only) and live-sync plan; ROADMAP Phase 9 scope extended, Phase 10 added
 ---
 
@@ -78,7 +78,7 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: Not started
+Current Plan: 2
 Total Plans in Phase: 15
 
 ## Next action
@@ -237,11 +237,11 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Phase 9 context gathered
+**Stopped at:** Completed 09-01-PLAN.md
 Final specification review and student walkthrough remain open. See
 `.planning/sketches/001-student-experience/README.md`.
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
-**Resume file:** .planning/phases/09-hosted-beta-deployment-ci-observability/09-CONTEXT.md
+**Resume file:** None
 
 Earlier session: 2026-09-23. Phase 07 execution ran across three sessions. Codex (Windows clone)
 completed the 07-01 benchmarks and baseline. A Claude Code WSL session fetched that branch,
@@ -249,7 +249,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-09-29T06:58:51.870Z
+Last session: 2026-09-29T17:08:02.710Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
@@ -279,6 +279,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 | Phase 08 P03 | 53min | 2 tasks | 4 files |
 | Phase 08 P04 | 15min | 3 tasks | 4 files |
 | Phase 08 P05 | ~30min | 3 tasks | 6 files |
+| Phase 09 P01 | 2 min | 2 tasks | 4 files |
 
 ## Decisions
 
@@ -307,3 +308,4 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 - [Phase 8]: [Phase 8]: [Phase 08-05]: Closed the CR-01 verification gap by deriving verdicts.integrity/d21_grade_coverage from the same mapping emitted under integrity (not a hardcoded 4-of-5 check), so rows_at_or_after_term can never print PASS while nonzero; proven end to end through main().
 - [Phase 8]: [Phase 8]: [Phase 08-05]: Fixed WR-01 by tracking a second running max (evidence_ingested_at_max) over only the rows that pass the scoring query's term_code < before_term filter, so stale_cache reflects only evidence that actually feeds the cached scores; kept WR-02's suffix-guard raise condition byte-for-byte unchanged and documented the ambiguous zero-section case as fail-closed rather than narrowing it.
 - [Phase 8]: [Phase 8]: [Phase 08-05]: Re-ran the fixed D-21 inventory and validator read-only against hosted Supabase (202701) and reproduced the 08-04 baseline exactly (PASS/PASS, 3,122/361/300, all integrity counters clean); no hosted data written, 08-D21-EXCEPTIONS.md not regenerated.
+- [Phase 09]: 09-01: mypy src stays report-only per D-12; promotion to hard gate flagged for user review (research Open Question 5)
