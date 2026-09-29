@@ -99,7 +99,7 @@ def refresh_section_rankings(
         select(Section, Course, Term)
         .join(Course, Section.course_id == Course.id)
         .join(Term, Section.term_id == Term.id)
-        .where(Term.banner_code == normalized_term)
+        .where(Term.banner_code == normalized_term, Section.removed_at.is_(None))
         .order_by(Course.subject, Course.number, Section.crn)
     )
     if subject is not None and course_number is not None:
@@ -215,6 +215,25 @@ def refresh_section_rankings(
             for field_name, value in payload.items():
                 setattr(cache_row, field_name, value)
 
+    # Removed sections leave search: drop cache rows for any section of the rebuilt scope
+    # that carries a removal mark. Only the derived cache row is deleted; the Section row
+    # and its instructor/seat history stay, so clearing removed_at and rebuilding restores it.
+    removed_section_ids = (
+        select(Section.id)
+        .join(Course, Section.course_id == Course.id)
+        .join(Term, Section.term_id == Term.id)
+        .where(Term.banner_code == normalized_term, Section.removed_at.is_not(None))
+    )
+    if subject is not None and course_number is not None:
+        removed_section_ids = removed_section_ids.where(
+            Course.subject == subject.strip().upper(),
+            Course.number == course_number.strip().upper(),
+        )
+    session.execute(
+        sa.delete(SectionRankingCache)
+        .where(SectionRankingCache.section_id.in_(removed_section_ids))
+        .execution_options(synchronize_session="fetch")
+    )
     session.flush()
     return len(section_course_rows)
 

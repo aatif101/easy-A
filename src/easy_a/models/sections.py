@@ -2,7 +2,17 @@ from __future__ import annotations
 
 from datetime import datetime, time
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, Time, UniqueConstraint
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    Time,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -38,6 +48,9 @@ class Section(Base):
     fees_raw: Mapped[str | None] = mapped_column(Text, nullable=True)
     first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # Reversible removal mark (PROJECT.md D-23): set when a sanity-checked sweep no longer
+    # lists the section; cleared if it reappears. The row and its history are never deleted.
+    removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     instructors: Mapped[list[SectionInstructor]] = relationship(
         back_populates="section",
@@ -68,6 +81,15 @@ class SectionInstructor(Base):
 
 class SeatSnapshot(Base):
     __tablename__ = "seat_snapshots"
+    __table_args__ = (
+        # Serves the latest-snapshot lookup (newest observed_at, then highest id) per section.
+        Index(
+            "ix_seat_snapshots_section_id_observed_at",
+            "section_id",
+            text("observed_at DESC"),
+            text("id DESC"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     section_id: Mapped[int] = mapped_column(
