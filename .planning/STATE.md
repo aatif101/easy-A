@@ -1,15 +1,15 @@
 ---
 gsd_state_version: "1.0"
-current_plan: 8
+current_plan: 9
 status: design_direction_selected
-stopped_at: Completed 09-07-PLAN.md
-last_updated: "2026-09-29T17:30:50.930Z"
-state_head: 4b21ea711208077eb7243c6a9da28832a88d4272
+stopped_at: Completed 09-08-PLAN.md
+last_updated: "2026-09-29T17:36:53.938Z"
+state_head: 1c8ab92529be41f977c79e39ba9e81c6e4f8134f
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 35
-  completed_plans: 27
+  completed_plans: 28
   percent: 64
 last_activity: 2026-09-29
 current_phase: 9
@@ -78,7 +78,7 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: 8
+Current Plan: 9
 Total Plans in Phase: 15
 
 ## Next action
@@ -237,7 +237,7 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Completed 09-07-PLAN.md
+**Stopped at:** Completed 09-08-PLAN.md
 Final specification review and student walkthrough remain open. See
 `.planning/sketches/001-student-experience/README.md`.
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
@@ -249,7 +249,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-09-29T17:30:50.869Z
+Last session: 2026-09-29T17:36:53.869Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
@@ -286,6 +286,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 | Phase 09 P05 | 8 min | 2 tasks | 8 files |
 | Phase 09 P06 | 12 min | 2 tasks | 5 files |
 | Phase 09 P07 | 4 min | 3 tasks | 12 files |
+| Phase 09 P08 | 25min | 3 tasks | 9 files |
 
 ## Decisions
 
@@ -326,3 +327,5 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 - [Phase 09]: 09-06: sync-status last_status is limited to succeeded/failed and last_error_kind comes only from SYNC_ERROR_KINDS; error_message is never serialized
 - [Phase 09]: 09-07: removed_at filtered on every current-term consumer (coverage, refresh counts, analytics listings, quality); legacy ingest clears removed_at; signals/resolver.py intentionally unfiltered
 - [Phase 09]: 09-07: stale_seat_observation judged from Section.last_seen_at with cadence thresholds (7200 s stale outside registration windows)
+- [Phase 09]: 09-08: IngestRun has no summary column; sweep counts map to records_seen/inserted/updated/failed and the full summary is the returned SweepOutcome (Open Question 4)
+- [Phase 09]: 09-08: existing sections keep course_id; DB sections count as in scope for the gate and removals only when Tampa and undergraduate
