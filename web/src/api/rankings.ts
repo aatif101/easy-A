@@ -1,4 +1,4 @@
-import { syntheticCoverage, syntheticRankings } from "../fixtures/rankings";
+import { syntheticCoverage, syntheticRankings, syntheticSyncStatus } from "../fixtures/rankings";
 import type {
   CoverageLoader,
   CourseCoverage,
@@ -177,24 +177,8 @@ export const fetchCoverage: CoverageLoader = async (term, signal) => {
   return fetchJson<CourseCoverage[]>(url, signal);
 };
 
-// Synthetic (mock mode only): deliberately carries no last_success_at, so no "Updated" time is ever fabricated.
-const mockSyncStatus: SyncStatus = {
-  term: "202701",
-  last_success_at: null,
-  last_run_at: null,
-  last_status: null,
-  last_error_kind: null,
-  last_records_failed: null,
-  failures_last_24h: 0,
-  in_registration_window: false,
-  cadence_seconds: 3600,
-  stale_after_seconds: 7200,
-  is_stale: false,
-  as_of: "2027-01-01T00:00:00Z",
-};
-
 export const fetchSyncStatus: SyncStatusLoader = async (term, signal) => {
-  if (isUsingMockData) return { ...mockSyncStatus, term };
+  if (isUsingMockData) return { ...syntheticSyncStatus, term };
   const url = endpointUrl("/api/v1/metadata/sync-status");
   url.searchParams.set("term", term);
   return fetchJson<SyncStatus>(url, signal);

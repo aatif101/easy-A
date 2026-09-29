@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { SyncStatus } from "./SyncStatus";
@@ -63,4 +63,35 @@ test("synthetic mode never shows an Updated time", async () => {
   render(<SyncStatus term="202701" loader={loader} synthetic />);
   expect(await screen.findByText("Synthetic demo data: seat freshness is not live.")).toBeVisible();
   await waitFor(() => expect(screen.queryByText(/Updated/)).not.toBeInTheDocument());
+});
+
+test("staleness appears on a long-open page without a new fetch result, then a refetch happens", async () => {
+  vi.useRealTimers();
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
+  const fiveMinutesAgo = "2027-01-15T11:55:00Z";
+  const loader = vi.fn<SyncStatusLoader>(async () => status({ last_success_at: fiveMinutesAgo, stale_after_seconds: 600, is_stale: false }));
+  render(<SyncStatus term="202701" loader={loader} />);
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  expect(screen.getByText("Updated 5 min ago")).toBeVisible();
+  expect(screen.queryByText("Seat data may be out of date.")).not.toBeInTheDocument();
+  expect(loader).toHaveBeenCalledTimes(1);
+
+  await act(async () => { await vi.advanceTimersByTimeAsync(6 * 60_000); });
+  expect(screen.getByText("Updated 11 min ago")).toBeVisible();
+  expect(screen.getByText("Seat data may be out of date.")).toBeVisible();
+  // The refetch at the 5 minute mark kept the status on screen instead of showing the loading text.
+  expect(loader).toHaveBeenCalledTimes(2);
+  expect(screen.queryByText("Checking data freshness…")).not.toBeInTheDocument();
+});
+
+test("unmounting clears both intervals", async () => {
+  vi.useRealTimers();
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
+  const { unmount } = render(<SyncStatus term="202701" loader={async () => status()} />);
+  await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+  expect(vi.getTimerCount()).toBeGreaterThanOrEqual(2);
+  unmount();
+  expect(vi.getTimerCount()).toBe(0);
 });
