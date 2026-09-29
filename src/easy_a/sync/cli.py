@@ -20,23 +20,28 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import random
 import re
+import signal
 import sys
+import threading
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, sessionmaker
 
 from easy_a.common.terms import TermParseError, normalize_banner_term_code
 from easy_a.config import DatabaseConfigError
 from easy_a.db import get_engine, get_session_factory
-from easy_a.models import IngestRun
+from easy_a.models import IngestRun, Section, Term
+from easy_a.rankings.cache import refresh_section_rankings
 from easy_a.schedule.client import StaffScheduleClient
 from easy_a.schema_guard import SchemaNotCurrentError, require_sync_schema
 from easy_a.sync import sync_source
-from easy_a.sync.runner import SweepStatus
+from easy_a.sync.lock import try_sweep_lock
+from easy_a.sync.runner import SweepStatus, install_stop_signal_handlers, run_loop
 from easy_a.sync.sweep import SweepOutcome, run_sweep, sanitize_error_detail
 from easy_a.sync.windows import (
     RegistrationWindows,
@@ -268,6 +273,7 @@ def main(
     client_factory: ClientFactory | None = None,
     now_fn: NowFn | None = None,
     windows: RegistrationWindows | None = None,
+    stop_event: threading.Event | None = None,
 ) -> int:
     """Run the CLI and return the exit code. Keyword arguments exist for tests."""
     try:
@@ -283,6 +289,7 @@ def main(
             client_factory=client_factory,
             now_fn=now_fn or (lambda: datetime.now(UTC)),
             windows=windows,
+            stop_event=stop_event,
         )
     finally:
         logger.removeHandler(handler)
@@ -295,6 +302,7 @@ def _run(
     client_factory: ClientFactory | None,
     now_fn: NowFn,
     windows: RegistrationWindows | None,
+    stop_event: threading.Event | None,
 ) -> int:
     term: str = args.term
 
@@ -340,8 +348,16 @@ def _run(
                 now_fn=now_fn,
                 windows=active_windows,
             )
-        print("loop and restore modes are not available yet", file=sys.stderr)
-        return EXIT_FAILED
+        if args.restore_crn:
+            return _restore_crns(session_factory, term, args.restore_crn)
+        return _run_worker_loop(
+            term,
+            session_factory=session_factory,
+            client_factory=client_factory,
+            now_fn=now_fn,
+            windows=active_windows,
+            stop_event=stop_event,
+        )
     finally:
         if engine is not None:
             engine.dispose()
@@ -385,3 +401,103 @@ def _run_single_sweep(
         outcome, next_start_at=earliest_next_start(windows, outcome.started_at, failures=failures)
     )
     return _EXIT_BY_STATUS[outcome.status]
+
+
+def _run_worker_loop(
+    term: str,
+    *,
+    session_factory: SessionFactory,
+    client_factory: ClientFactory | None,
+    now_fn: NowFn,
+    windows: RegistrationWindows,
+    stop_event: threading.Event | None,
+) -> int:
+    """Sweep on the tiered cadence until SIGTERM/SIGINT (or the injected stop event).
+
+    The stop event only interrupts sleeps: a sweep already running finishes or rolls back inside
+    its own transaction. The wait before the first sweep honours the persisted last start, so a
+    restart never sweeps early (PROJECT.md D-22(b)).
+    """
+    event = stop_event or threading.Event()
+    previous_handlers: dict[signal.Signals, Any] = {}
+    if stop_event is None and threading.current_thread() is threading.main_thread():
+        previous_handlers = {sig: signal.getsignal(sig) for sig in (signal.SIGTERM, signal.SIGINT)}
+        install_stop_signal_handlers(event)
+
+    last_start = latest_sweep_start(session_factory, term)
+    logger.info(
+        {
+            "event": "worker_started",
+            "term": term,
+            "last_sweep_started_at": None if last_start is None else last_start.isoformat(),
+        }
+    )
+
+    def sweep() -> SweepOutcome:
+        outcome = run_sweep(session_factory, term=term, client=client, now_fn=now_fn)
+        failures = 1 if outcome.status is SweepStatus.failed else 0
+        log_outcome(
+            outcome,
+            next_start_at=earliest_next_start(windows, outcome.started_at, failures=failures),
+        )
+        return outcome
+
+    def on_wait(target: datetime) -> None:
+        logger.info({"event": "sleeping", "next_start_at": target.isoformat()})
+
+    client = (client_factory or StaffScheduleClient)()
+    try:
+        run_loop(
+            sweep,
+            windows=windows,
+            stop_event=event,
+            now_fn=now_fn,
+            rng=random.SystemRandom(),
+            initial_last_start=last_start,
+            on_wait=on_wait,
+        )
+    finally:
+        client.close()
+        for sig, handler in previous_handlers.items():
+            if handler is not None:
+                signal.signal(sig, handler)
+    logger.info({"event": "worker_stopped"})
+    return EXIT_OK
+
+
+def _restore_crns(session_factory: SessionFactory, term: str, crns: list[str]) -> int:
+    """Clear ``removed_at`` for the given CRNs and rebuild the ranking cache. No USF request."""
+    requested = sorted(set(crns))
+    with session_factory.begin() as session:
+        if not try_sweep_lock(session):
+            logger.info({"event": "restore_busy", "term": term})
+            return EXIT_BUSY
+        term_id = session.scalar(select(Term.id).where(Term.banner_code == term))
+        state: dict[str, bool] = {}
+        if term_id is not None:
+            for crn, removed_at in session.execute(
+                select(Section.crn, Section.removed_at).where(
+                    Section.term_id == term_id, Section.crn.in_(requested)
+                )
+            ):
+                state[crn] = removed_at is not None
+        restorable = [crn for crn in requested if state.get(crn)]
+        not_found = [crn for crn in requested if crn not in state]
+        not_removed = [crn for crn in requested if state.get(crn) is False]
+        if restorable:
+            session.execute(
+                update(Section)
+                .where(Section.term_id == term_id, Section.crn.in_(restorable))
+                .values(removed_at=None)
+            )
+            refresh_section_rankings(session, term=term)
+    logger.info(
+        {
+            "event": "restored",
+            "term": term,
+            "crns": restorable,
+            "not_found": not_found,
+            "not_removed": not_removed,
+        }
+    )
+    return EXIT_OK if restorable else EXIT_FAILED

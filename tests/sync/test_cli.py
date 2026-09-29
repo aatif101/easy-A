@@ -1,17 +1,21 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
-from datetime import timedelta
+import threading
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import httpx
 import pytest
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import Session, sessionmaker
 
-from easy_a.models import IngestRun
+from easy_a.db import Base
+from easy_a.models import IngestRun, Section
+from easy_a.rankings.cache import SectionRankingCache
 from easy_a.schedule.client import StaffScheduleClient
 from easy_a.sync import sync_source
 from easy_a.sync.cli import main
@@ -21,6 +25,7 @@ from tests.sync.sweep_support import (
     Clock,
     enc_rows,
     seed_from_rows,
+    sweep_rows,
     table_counts,
     usf_client,
 )
@@ -287,3 +292,269 @@ def test_once_and_dry_run_are_mutually_exclusive() -> None:
 
 def test_invalid_term_is_a_usage_error() -> None:
     assert main(["--term", "2027", "--once"]) == 2
+
+
+# -- loop mode ---------------------------------------------------------------------------------
+
+
+def _stop_after_first_response(
+    rows: list[RowSpec], stop: threading.Event
+) -> tuple[list[httpx.Request], StaffScheduleClient]:
+    html = build_whole_term_html(rows)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        threading.Timer(0.05, stop.set).start()
+        return httpx.Response(200, text=html, headers={"content-type": "text/html; charset=utf-8"})
+
+    client, requests = usf_client(handler=handler)
+    return requests, client
+
+
+def test_loop_sweeps_once_then_stops_cleanly_on_the_stop_event(
+    session_factory: sessionmaker[Session], capsys: pytest.CaptureFixture[str]
+) -> None:
+    seed_from_rows(session_factory, _seed_rows())
+    stop = threading.Event()
+    watchdog = threading.Timer(20, stop.set)
+    watchdog.start()
+    requests, client = _stop_after_first_response(_response_rows(), stop)
+
+    try:
+        code = main(
+            ["--term", TERM],
+            session_factory=session_factory,
+            client_factory=lambda: client,
+            now_fn=lambda: SWEEP_AT,
+            stop_event=stop,
+        )
+    finally:
+        watchdog.cancel()
+
+    events = [line["event"] for line in _json_lines(capsys.readouterr().out)]
+    assert code == 0
+    assert len(requests) == 1
+    assert events.count("sweep_succeeded") == 1
+    assert events[-1] == "worker_stopped"
+    assert "sleeping" in events
+
+
+def test_loop_restart_with_a_recent_ingest_run_waits_instead_of_sweeping(
+    session_factory: sessionmaker[Session], capsys: pytest.CaptureFixture[str]
+) -> None:
+    seed_from_rows(session_factory, _seed_rows())
+    with session_factory.begin() as session:
+        session.add(
+            IngestRun(
+                source=sync_source(TERM),
+                status="succeeded",
+                started_at=SWEEP_AT - timedelta(minutes=10),
+                finished_at=SWEEP_AT - timedelta(minutes=9),
+            )
+        )
+    stop = threading.Event()
+    threading.Timer(0.2, stop.set).start()
+    requests, make = _factory(_response_rows())
+
+    code = main(
+        ["--term", TERM],
+        session_factory=session_factory,
+        client_factory=make,  # type: ignore[arg-type]
+        now_fn=lambda: SWEEP_AT,
+        stop_event=stop,
+    )
+
+    events = [line["event"] for line in _json_lines(capsys.readouterr().out)]
+    assert code == 0
+    assert requests == []
+    assert "sleeping" in events
+    assert not any(str(event).startswith("sweep_") for event in events)
+    assert events[-1] == "worker_stopped"
+
+
+def test_sigterm_stops_a_sleeping_worker_process_with_exit_0(tmp_path: Path) -> None:
+    """Real process, real signal handlers, SQLite file database (never the hosted database)."""
+    import signal
+    import time
+
+    db_path = tmp_path / "worker.db"
+    engine = create_engine(f"sqlite+pysqlite:///{db_path}")
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        session.add(
+            IngestRun(
+                source=sync_source(TERM),
+                status="succeeded",
+                started_at=datetime.now(UTC),
+                finished_at=datetime.now(UTC),
+            )
+        )
+        session.commit()
+    engine.dispose()
+
+    env = {
+        **os.environ,
+        "DATABASE_URL": f"sqlite+pysqlite:///{db_path}",
+        "EASY_A_REGISTRATION_WINDOWS_PATH": str(REPO_ROOT / "config" / "registration_windows.toml"),
+    }
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "easy_a.sync", "--term", TERM],
+        cwd=tmp_path,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    watchdog = threading.Timer(60, proc.kill)
+    watchdog.start()
+    try:
+        assert proc.stdout is not None
+        seen: list[str] = []
+        while True:
+            line = proc.stdout.readline()
+            if not line:
+                break
+            seen.append(line)
+            if '"event": "sleeping"' in line:
+                break
+        assert any('"sleeping"' in line for line in seen), (seen, proc.stderr.read())  # type: ignore[union-attr]
+        started = time.monotonic()
+        proc.send_signal(signal.SIGTERM)
+        remaining = proc.stdout.read()
+        code = proc.wait(timeout=15)
+        elapsed = time.monotonic() - started
+    finally:
+        watchdog.cancel()
+        if proc.poll() is None:
+            proc.kill()
+    assert code == 0
+    assert elapsed < 5
+    assert '"event": "worker_stopped"' in remaining
+
+
+# -- restore mode ------------------------------------------------------------------------------
+
+
+def _forbidden_client() -> StaffScheduleClient:
+    raise AssertionError("--restore-crn must not create a USF client")
+
+
+def test_restore_crn_clears_removed_at_and_restores_the_cache_row_without_http(
+    session_factory: sessionmaker[Session], capsys: pytest.CaptureFixture[str]
+) -> None:
+    seed_from_rows(session_factory, _seed_rows())
+    # A real sweep whose response omits 20000 marks it removed and drops its cache row.
+    rows = [row for row in _response_rows() if row.crn != "90001"]
+    sweep_rows(session_factory, rows)
+    with session_factory() as session:
+        removed = session.scalar(select(Section.removed_at).where(Section.crn == "20000"))
+        assert removed is not None
+        assert "20000" not in set(session.scalars(select(SectionRankingCache.crn)))
+
+    code = main(
+        [
+            "--term",
+            TERM,
+            "--restore-crn",
+            "20000",
+            "--restore-crn",
+            "13173",
+            "--restore-crn",
+            "99999",
+        ],
+        session_factory=session_factory,
+        client_factory=_forbidden_client,
+        now_fn=Clock(),
+    )
+
+    lines = _json_lines(capsys.readouterr().out)
+    assert code == 0
+    assert len(lines) == 1
+    assert lines[0]["event"] == "restored"
+    assert lines[0]["crns"] == ["20000"]
+    assert lines[0]["not_found"] == ["99999"]
+    assert lines[0]["not_removed"] == ["13173"]
+    with session_factory() as session:
+        assert session.scalar(select(Section.removed_at).where(Section.crn == "20000")) is None
+        assert "20000" in set(session.scalars(select(SectionRankingCache.crn)))
+
+
+def test_restore_crn_with_nothing_restorable_exits_1(
+    session_factory: sessionmaker[Session], capsys: pytest.CaptureFixture[str]
+) -> None:
+    seed_from_rows(session_factory, _seed_rows())
+    before = table_counts(session_factory)
+
+    code = main(
+        ["--term", TERM, "--restore-crn", "13173"],
+        session_factory=session_factory,
+        client_factory=_forbidden_client,
+        now_fn=Clock(),
+    )
+
+    assert code == 1
+    assert _json_lines(capsys.readouterr().out)[0]["not_removed"] == ["13173"]
+    assert table_counts(session_factory) == before
+
+
+def test_restore_crn_rejects_a_malformed_crn() -> None:
+    assert main(["--term", TERM, "--restore-crn", "123"]) == 2
+
+
+# -- option validation -------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("extra", [[], ["--restore-crn", "20000"]])
+def test_max_missing_fraction_requires_once_or_dry_run(extra: list[str]) -> None:
+    assert main(["--term", TERM, "--max-missing-fraction", "0.5", *extra]) == 2
+
+
+def _mass_removal_rows() -> list[RowSpec]:
+    """Only 8 of the 13 seeded sections come back: 38% missing, far above the default 10%."""
+    return enc_rows(8)
+
+
+def test_default_gate_refuses_a_mass_removal_in_dry_run(
+    session_factory: sessionmaker[Session], capsys: pytest.CaptureFixture[str]
+) -> None:
+    seed_from_rows(session_factory, _seed_rows())
+    _, make = _factory(_mass_removal_rows())
+
+    code = main(
+        ["--term", TERM, "--dry-run"],
+        session_factory=session_factory,
+        client_factory=make,  # type: ignore[arg-type]
+        now_fn=Clock(),
+    )
+
+    failed = next(
+        line for line in _json_lines(capsys.readouterr().out) if line["event"] == "sweep_failed"
+    )
+    assert code == 1
+    assert failed["error_kind"] == "gate"
+    assert failed["gate_reasons"]
+
+
+@pytest.mark.parametrize("mode", ["--once", "--dry-run"])
+def test_max_missing_fraction_override_lets_the_operator_apply_a_mass_removal(
+    mode: str, session_factory: sessionmaker[Session], capsys: pytest.CaptureFixture[str]
+) -> None:
+    seed_from_rows(session_factory, _seed_rows())
+    _, make = _factory(_mass_removal_rows())
+
+    code = main(
+        ["--term", TERM, mode, "--max-missing-fraction", "0.9"],
+        session_factory=session_factory,
+        client_factory=make,  # type: ignore[arg-type]
+        now_fn=Clock(),
+    )
+
+    lines = [
+        line
+        for line in _json_lines(capsys.readouterr().out)
+        if str(line["event"]).startswith("sweep_")
+    ]
+    assert code == 0
+    assert [line["event"] for line in lines] == [
+        "sweep_succeeded" if mode == "--once" else "sweep_dry_run"
+    ]
+    assert lines[0]["removed"] == 5
