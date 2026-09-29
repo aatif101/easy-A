@@ -278,6 +278,7 @@ def hydrate_ranking(
             **snapshot_freshness(
                 latest_snapshot,
                 as_of=as_of or datetime.now(UTC),
+                verified_at=section.last_seen_at,
             ).model_dump(),
             capacity=latest_snapshot.capacity,
             enrollment=latest_snapshot.enrollment,

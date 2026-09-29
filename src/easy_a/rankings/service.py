@@ -253,7 +253,9 @@ def _seat_info_for(
     )
     if latest_snapshot is not None:
         return SeatInfo(
-            **snapshot_freshness(latest_snapshot, as_of=as_of).model_dump(),
+            **snapshot_freshness(
+                latest_snapshot, as_of=as_of, verified_at=section.last_seen_at
+            ).model_dump(),
             capacity=latest_snapshot.capacity,
             enrollment=latest_snapshot.enrollment,
             seats_remaining=latest_snapshot.seats_remaining,
