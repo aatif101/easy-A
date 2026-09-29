@@ -503,7 +503,7 @@ to keep it running.
 
 **Requirements**: REQ-OPS-01, REQ-SYNC-01
 
-**Plans:** 9/15 plans executed
+**Plans:** 10/15 plans executed
 
 Plans:
 **Wave 1**
@@ -526,7 +526,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3)*
 
-- [ ] 09-10-PLAN.md — Operator scripts: benchmark `--remote-url`, validators/inventory aware of removals and D-05 auto-adds
+- [x] 09-10-PLAN.md — Operator scripts: benchmark `--remote-url`, validators/inventory aware of removals and D-05 auto-adds
 - [ ] 09-11-PLAN.md — Worker CLI `python -m easy_a.sync`: loop/--once/--dry-run/--restore-crn, DB-backed floor, SIGTERM
 - [ ] 09-12-PLAN.md — D-05 auto-add of undergraduate Tampa courses via paced catalog lookups
 

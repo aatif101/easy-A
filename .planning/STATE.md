@@ -1,15 +1,15 @@
 ---
 gsd_state_version: "1.0"
-current_plan: 10
+current_plan: 11
 status: design_direction_selected
-stopped_at: Completed 09-09-PLAN.md
-last_updated: "2026-09-29T17:40:52.822Z"
-state_head: d10ef4b3ac8760d35d1a240d700061143a85f87f
+stopped_at: Completed 09-10-PLAN.md
+last_updated: "2026-09-29T17:45:25.826Z"
+state_head: c9b02f5d08b3377c920799580634f0526dbb7bc8
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 35
-  completed_plans: 29
+  completed_plans: 30
   percent: 64
 last_activity: 2026-09-29
 current_phase: 9
@@ -78,7 +78,7 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: 10
+Current Plan: 11
 Total Plans in Phase: 15
 
 ## Next action
@@ -237,7 +237,7 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Completed 09-09-PLAN.md
+**Stopped at:** Completed 09-10-PLAN.md
 Final specification review and student walkthrough remain open. See
 `.planning/sketches/001-student-experience/README.md`.
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
@@ -249,7 +249,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-09-29T17:40:52.754Z
+Last session: 2026-09-29T17:45:25.762Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
@@ -288,6 +288,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 | Phase 09 P07 | 4 min | 3 tasks | 12 files |
 | Phase 09 P08 | 25min | 3 tasks | 9 files |
 | Phase 09 P09 | 15 min | 2 tasks | 8 files |
+| Phase 09 P10 | 12 min | 2 tasks | 8 files |
 
 ## Decisions
 
@@ -331,3 +332,5 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 - [Phase 09]: 09-08: IngestRun has no summary column; sweep counts map to records_seen/inserted/updated/failed and the full summary is the returned SweepOutcome (Open Question 4)
 - [Phase 09]: 09-08: existing sections keep course_id; DB sections count as in scope for the gate and removals only when Tampa and undergraduate
 - [Phase 09]: 09-09: D-10 freshness copy ('Updated N min ago', 'Seat data may be out of date.') is Claude's lean pending user review; synthetic mode makes no request and never shows an Updated time
+- [Phase 09]: D-05 accounting: auto-added courses are derived (active 202701 section, not a configured target, all-Tampa undergraduate), never stored; validator reconciles stored_active == coverage_sum + auto_added_active_sections == rankings_total; D-21 inventory lists their sections as no_rows exceptions
+- [Phase 09]: Hosted p95 measured with benchmark --remote-url (plain https origin, no DB, no redirects, trust_env False); operator scripts count active sections only (removed_at IS NULL)
