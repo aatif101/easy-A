@@ -1,15 +1,15 @@
 ---
 gsd_state_version: "1.0"
-current_plan: 4
+current_plan: 5
 status: design_direction_selected
-stopped_at: Completed 09-03-PLAN.md
-last_updated: "2026-09-29T17:16:23.302Z"
-state_head: f4a21e9bd2a782be5f27da6467eaa5a1affe641b
+stopped_at: Completed 09-04-PLAN.md
+last_updated: "2026-09-29T17:20:15.308Z"
+state_head: 9a4ff70006de530334c7977c54b235351f5ae137
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 35
-  completed_plans: 23
+  completed_plans: 24
   percent: 64
 last_activity: 2026-09-29
 current_phase: 9
@@ -78,7 +78,7 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: 4
+Current Plan: 5
 Total Plans in Phase: 15
 
 ## Next action
@@ -237,7 +237,7 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Completed 09-03-PLAN.md
+**Stopped at:** Completed 09-04-PLAN.md
 Final specification review and student walkthrough remain open. See
 `.planning/sketches/001-student-experience/README.md`.
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
@@ -249,7 +249,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-09-29T17:16:23.241Z
+Last session: 2026-09-29T17:20:15.241Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
@@ -282,6 +282,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 | Phase 09 P01 | 2 min | 2 tasks | 4 files |
 | Phase 09 P02 | 25 min | 2 tasks | 8 files |
 | Phase 09 P03 | 12 min | 2 tasks | 8 files |
+| Phase 09 P04 | 25 min | 2 tasks | 9 files |
 
 ## Decisions
 
@@ -315,3 +316,4 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 - [Phase 09]: 09-02: removal is a reversible removed_at mark; cache rebuild deletes only section_rankings rows of removed sections — PROJECT.md D-23; history retained
 - [Phase 09]: Plan 09-03: sweep jitter is uniform in [1.0, 1.2] (never negative) so no gap breaks the D-22(b) 300 s / 3600 s floors; flagged for user review
 - [Phase 09]: Plan 09-03: first sweep of a registration window fires at local midnight, or previous start + 300 s when the previous sweep began under 300 s before midnight
+- [Phase 09]: 09-04: undergraduate scope rule lives only in is_undergraduate_number (first four chars digits, below 5000); gate thresholds compared as exact decimals; whole-term request is a separate search_term path so narrow-query validation stays strict
