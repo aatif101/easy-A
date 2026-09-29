@@ -503,7 +503,7 @@ to keep it running.
 
 **Requirements**: REQ-OPS-01, REQ-SYNC-01
 
-**Plans:** 8/15 plans executed
+**Plans:** 9/15 plans executed
 
 Plans:
 **Wave 1**
@@ -522,7 +522,7 @@ Plans:
 
 - [x] 09-07-PLAN.md — Remaining removed_at consumers: legacy restore, coverage, refresh counts, analytics listings, quality
 - [x] 09-08-PLAN.md — Change-only sweep transaction: diff/apply, removals/restores, cache upkeep, failure evidence, dry run
-- [ ] 09-09-PLAN.md — Student "Updated N min ago" indicator and stale warning (web SyncStatus)
+- [x] 09-09-PLAN.md — Student "Updated N min ago" indicator and stale warning (web SyncStatus)
 
 **Wave 4** *(blocked on Wave 3)*
 
