@@ -120,8 +120,8 @@ def _job_names() -> list[str]:
     return names
 
 
-def test_workflow_has_exactly_python_and_web_jobs() -> None:
-    assert _job_names() == ["python", "web"]
+def test_workflow_has_exactly_python_web_and_docker_jobs() -> None:
+    assert _job_names() == ["python", "web", "docker"]
 
 
 def test_web_job_runs_every_frontend_gate() -> None:

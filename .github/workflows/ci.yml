@@ -119,3 +119,40 @@ jobs:
           VITE_USE_MOCK_DATA: "false"
           # Dummy value used only for this CI build; the Render static-site build bakes in the real URL.
           VITE_API_BASE_URL: "https://example.onrender.com"
+
+  docker:
+    # Builds the single image on every push and PR, so Render's checksPass also covers
+    # image buildability, then proves both processes can start inside it.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Build image
+        run: docker build -t easy-a:ci .
+
+      - name: OS tz database provides America/New_York
+        run: |
+          docker run --rm easy-a:ci python -c "from zoneinfo import ZoneInfo; ZoneInfo('America/New_York'); print('zoneinfo ok')"
+
+      - name: Worker entry point starts
+        run: docker run --rm easy-a:ci python -m easy_a.sync --help
+
+      - name: API app imports
+        run: docker run --rm easy-a:ci python -c "import easy_a.api.app"
+
+      - name: Worker import stays under 150 MB RSS
+        run: |
+          docker run --rm easy-a:ci python -c "import resource, sys; import easy_a.sync.cli; mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024; print(f'ru_maxrss={mb:.1f} MB'); sys.exit(1 if mb > 150 else 0)"
+
+      - name: Container runs as a non-root user
+        run: |
+          uid="$(docker run --rm easy-a:ci id -u)"
+          echo "uid=$uid"
+          test "$uid" != "0"
+
+      - name: No .env in the image and windows config present
+        run: docker run --rm easy-a:ci sh -c 'test ! -e /app/.env && test -f /app/config/registration_windows.toml'

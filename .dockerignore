@@ -1,0 +1,18 @@
+# Keep secrets and bulk out of the build context (a local `docker build` must never bake
+# a real .env into a layer). README.md, pyproject.toml, uv.lock, src/, config/, migrations/
+# and alembic.ini are needed by the build and are intentionally NOT excluded.
+.env
+.env.*
+.venv
+.git
+web/node_modules
+web/dist
+data/
+courses.csv
+.planning/
+*.xlsx
+.mypy_cache
+.ruff_cache
+.pytest_cache
+__pycache__
+*.pyc
