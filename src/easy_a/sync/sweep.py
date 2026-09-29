@@ -244,6 +244,12 @@ def _sweep_in_transaction(
         "scope": report.as_dict(),
         "page": _page_metadata(fetched),
         "tail_error": fetched.parse.tail_error,
+        "extra": {
+            "removed": len(plan.removals),
+            "restored": len(plan.restores),
+            "instructor_changes": len(plan.instructor_appends),
+            "seat_changes": len(plan.snapshot_appends),
+        },
     }
 
     if dry_run:
