@@ -95,11 +95,13 @@ def refresh_data(
         assert term_row is not None
         courses = session.scalar(
             select(func.count(distinct(Section.course_id))).where(
-                Section.term_id == term_row.id
+                Section.term_id == term_row.id, Section.removed_at.is_(None)
             )
         )
         sections = session.scalar(
-            select(func.count()).select_from(Section).where(Section.term_id == term_row.id)
+            select(func.count())
+            .select_from(Section)
+            .where(Section.term_id == term_row.id, Section.removed_at.is_(None))
         )
         grade_rows = session.scalar(
             select(func.count())
