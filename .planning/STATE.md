@@ -2,15 +2,15 @@
 gsd_state_version: "1.0"
 current_plan: Not started
 status: design_direction_selected
-stopped_at: Render hosting account set up; live-sync + professor-level grades planned; Phase 9 discuss/plan is next
-last_updated: "2026-09-29T00:00:00+00:00"
-state_head: db8a98a26d8acfa10c66905f3c7f8eed6a8267ac
+stopped_at: Phase 9 context gathered
+last_updated: "2026-09-29T06:58:51.976Z"
+state_head: cdecdf96a2d8b37ac58119024725ba1a65ac78ee
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 20
   completed_plans: 20
-  percent: 70
+  percent: 64
 last_activity: 2026-09-29
 current_phase: 9
 current_phase_name: Hosted Beta — Deployment, CI, Observability
@@ -237,11 +237,11 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Student-experience sketch 001 winner is A — Student guide, selected by the user.
+**Stopped at:** Phase 9 context gathered
 Final specification review and student walkthrough remain open. See
 `.planning/sketches/001-student-experience/README.md`.
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
-**Resume file:** None
+**Resume file:** .planning/phases/09-hosted-beta-deployment-ci-observability/09-CONTEXT.md
 
 Earlier session: 2026-09-23. Phase 07 execution ran across three sessions. Codex (Windows clone)
 completed the 07-01 benchmarks and baseline. A Claude Code WSL session fetched that branch,
@@ -249,7 +249,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-09-24T19:28:54.090Z
+Last session: 2026-09-29T06:58:51.870Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
