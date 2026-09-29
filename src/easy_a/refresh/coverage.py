@@ -56,7 +56,11 @@ def coverage_metadata(
         count, observed = session.execute(
             select(func.count(Section.id), func.max(Section.last_seen_at))
             .join(Term)
-            .where(Term.banner_code == term, Section.course_id.in_(course_ids))
+            .where(
+                Term.banner_code == term,
+                Section.course_id.in_(course_ids),
+                Section.removed_at.is_(None),
+            )
         ).one()
         result.append(
             TargetCoverage(
@@ -90,6 +94,8 @@ def refresh_targets(
     if crn is not None:
         if not crn.isdigit() or len(crn) != 5:
             raise ValueError("CRN must contain five digits.")
+        # Deliberately unfiltered by removed_at: a narrow legacy refresh of a removed CRN is
+        # how an operator restores it.
         row = session.execute(
             select(Course.subject, Course.number)
             .join(Section, Section.course_id == Course.id)

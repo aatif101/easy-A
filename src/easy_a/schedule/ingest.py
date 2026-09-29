@@ -143,5 +143,7 @@ def _update_section(
 ) -> None:
     section.course_id = course_id
     section.last_seen_at = observed_at
+    # A section seen again is live: this is how the legacy narrow ingest restores a removed one.
+    section.removed_at = None
     for field_name, value in _section_values(row).items():
         setattr(section, field_name, value)
