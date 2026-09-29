@@ -1,16 +1,16 @@
 ---
 gsd_state_version: "1.0"
-current_plan: 2
+current_plan: 3
 status: design_direction_selected
-stopped_at: Completed 09-01-PLAN.md
-last_updated: "2026-09-29T17:08:02.777Z"
-state_head: be7f87ef145d87b11cfe650754993eb1e00786dc
+stopped_at: Completed 09-02-PLAN.md
+last_updated: "2026-09-29T17:10:34.462Z"
+state_head: ba6b1bd7b02c81add1a05c7af2784674a567f1a4
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 35
-  completed_plans: 21
-  percent: 60
+  completed_plans: 22
+  percent: 63
 last_activity: 2026-09-29
 current_phase: 9
 current_phase_name: hosted-beta-deployment-ci-observability
@@ -78,7 +78,7 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: 2
+Current Plan: 3
 Total Plans in Phase: 15
 
 ## Next action
@@ -237,7 +237,7 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Completed 09-01-PLAN.md
+**Stopped at:** Completed 09-02-PLAN.md
 Final specification review and student walkthrough remain open. See
 `.planning/sketches/001-student-experience/README.md`.
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
@@ -249,7 +249,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-09-29T17:08:02.710Z
+Last session: 2026-09-29T17:10:34.402Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
@@ -280,6 +280,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 | Phase 08 P04 | 15min | 3 tasks | 4 files |
 | Phase 08 P05 | ~30min | 3 tasks | 6 files |
 | Phase 09 P01 | 2 min | 2 tasks | 4 files |
+| Phase 09 P02 | 25 min | 2 tasks | 8 files |
 
 ## Decisions
 
@@ -309,3 +310,5 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 - [Phase 8]: [Phase 8]: [Phase 08-05]: Fixed WR-01 by tracking a second running max (evidence_ingested_at_max) over only the rows that pass the scoring query's term_code < before_term filter, so stale_cache reflects only evidence that actually feeds the cached scores; kept WR-02's suffix-guard raise condition byte-for-byte unchanged and documented the ambiguous zero-section case as fail-closed rather than narrowing it.
 - [Phase 8]: [Phase 8]: [Phase 08-05]: Re-ran the fixed D-21 inventory and validator read-only against hosted Supabase (202701) and reproduced the 08-04 baseline exactly (PASS/PASS, 3,122/361/300, all integrity counters clean); no hosted data written, 08-D21-EXCEPTIONS.md not regenerated.
 - [Phase 09]: 09-01: mypy src stays report-only per D-12; promotion to hard gate flagged for user review (research Open Question 5)
+- [Phase 09]: 09-02: migration 0004_sync_removed_at authored and tested offline only; hosted apply stays manual in 09-14 — Carried decision: migrations stay manual; downgrade would discard removal marks
+- [Phase 09]: 09-02: removal is a reversible removed_at mark; cache rebuild deletes only section_rankings rows of removed sections — PROJECT.md D-23; history retained

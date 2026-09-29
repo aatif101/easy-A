@@ -503,13 +503,13 @@ to keep it running.
 
 **Requirements**: REQ-OPS-01, REQ-SYNC-01
 
-**Plans:** 1/15 plans executed
+**Plans:** 2/15 plans executed
 
 Plans:
 **Wave 1**
 
 - [x] 09-01-PLAN.md — CI gates: fix 2 pre-existing E501, GitHub Actions python (ruff, alembic round-trip, pytest on postgres:16, mypy report-only) and web jobs
-- [ ] 09-02-PLAN.md — Tracer: `sections.removed_at` (migration 0004 + seat_snapshots index, not applied), cache/section/course exclusion, schema guard
+- [x] 09-02-PLAN.md — Tracer: `sections.removed_at` (migration 0004 + seat_snapshots index, not applied), cache/section/course exclusion, schema guard
 - [ ] 09-03-PLAN.md — Cadence engine: `config/registration_windows.toml` (D-02), tier/jitter/backoff/boundary rules, freshness thresholds, SIGTERM-clean runner
 
 **Wave 2** *(blocked on Wave 1)*
