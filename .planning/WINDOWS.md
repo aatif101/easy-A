@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 10
-waived_count: 0
+open_count: 9
+waived_count: 1
 fixed_count: 1
 total_count: 11
-last_updated: 2026-09-30T20:10:55.683Z
+last_updated: 2026-09-30T23:25:37.749Z
 ---
 
 # Broken Windows Ledger
@@ -24,7 +24,7 @@ last_updated: 2026-09-30T20:10:55.683Z
 | 7 | 03.5 | unmet-truth | scripts/benchmark_rankings_search.py |  | Rankings-search p95 ~2.40s at 3782-section synthetic scale exceeds the ~1.5s target (REQ-PERF-01 acceptance criterion 2). Accepted deviation: deferred to a post-pilot tuning pass (index/query tuning); pilot scale ~132 sections not user-facing-blocked. Measured 2026-09-20. | open |  | 2026-09-20T22:57:39.281Z |  |
 | 8 | 08 | unrun-verify | web/src/components/RankingTable.tsx |  | 08-03 Task 2 manual desktop/mobile browser inspection of course, course/effective_n=0, subject and global rows not run — no browser/Playwright available in this environment; the 8 RankingEvidence.test.tsx component tests render both layouts (jsdom) and assert the exact same strings | fixed |  | 2026-09-24T18:26:16.640Z | 2026-09-24T20:24:35.483Z |
 | 9 | 08 | lint-warning | tests/api/test_verify_rankings_pages.py |  | Repo-wide mypy (src migrations scripts tests) grew from the 2026-09-23 planning baseline of 30/9 files to 36/11 files after 08-01/08-02: tests/api/test_verify_rankings_pages.py (5 errors: missing return type annotation, 2x untyped-call, unused type:ignore, int() overload) and tests/refresh/test_inventory_tampa_grades.py (1 error: re-export of scripts.inventory_tampa_grades.os). Both are test files added by 08-01/08-02, outside 08-04's declared file scope (08-VERIFICATION-REPORT.md/08-D21-EXCEPTIONS.md/08-VALIDATION.md only). The three production gate scripts (verify_rankings_pages.py, inventory_tampa_grades.py, validate_tampa_ingest.py) remain mypy-clean. Recorded honestly in 08-VERIFICATION-REPORT.md rather than silently repeating the stale baseline (D-06/D-07). | open |  | 2026-09-24T18:40:36.196Z |  |
-| 10 | 09 | unmet-truth | .planning/phases/09-hosted-beta-deployment-ci-observability/09-ROLLOUT-EVIDENCE.md |  | 09-15 soak: hosted sweeps took 50.69 s and 37.166 s against the 'each sweep under 30 s' criterion; GAP unresolved, operator has not decided | open |  | 2026-09-30T20:10:55.397Z |  |
+| 10 | 09 | unmet-truth | .planning/phases/09-hosted-beta-deployment-ci-observability/09-ROLLOUT-EVIDENCE.md |  | 09-15 soak: hosted sweeps took 50.69 s and 37.166 s against the 'each sweep under 30 s' criterion; GAP unresolved, operator has not decided | waived | Operator accepted the 30 s sweep-duration bar as unmet on 2026-09-30 (recorded override in 09-VERIFICATION.md). Hosted sweeps took 50.69, 37.166 and 27.209 s against a 300-3600 s cadence; no roadmap criterion depends on 30 s. | 2026-09-30T20:10:55.397Z | 2026-09-30T23:25:37.749Z |
 | 11 | 09 | deviation | .planning/phases/09-hosted-beta-deployment-ci-observability/09-ROLLOUT-EVIDENCE.md |  | 09-15 soak: NEB 0001 fails every sweep ('no catalog heading'), so records_failed stays 1 and students cannot find its sections | open |  | 2026-09-30T20:10:55.683Z |  |
 
 ````json
@@ -153,10 +153,10 @@ last_updated: 2026-09-30T20:10:55.683Z
     "file": ".planning/phases/09-hosted-beta-deployment-ci-observability/09-ROLLOUT-EVIDENCE.md",
     "line": null,
     "description": "09-15 soak: hosted sweeps took 50.69 s and 37.166 s against the 'each sweep under 30 s' criterion; GAP unresolved, operator has not decided",
-    "status": "open",
-    "reason": "",
+    "status": "waived",
+    "reason": "Operator accepted the 30 s sweep-duration bar as unmet on 2026-09-30 (recorded override in 09-VERIFICATION.md). Hosted sweeps took 50.69, 37.166 and 27.209 s against a 300-3600 s cadence; no roadmap criterion depends on 30 s.",
     "recorded_at": "2026-09-30T20:10:55.397Z",
-    "resolved_at": null,
+    "resolved_at": "2026-09-30T23:25:37.749Z",
     "milestone": null
   },
   {
