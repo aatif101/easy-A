@@ -17,7 +17,7 @@ All three are in region ohio. Public URLs follow the pattern `https://<service-n
 - `DATABASE_URL` (Supabase transaction pooler) is set on `easy-a-api` and `easy-a-worker`. It was entered per service when the Blueprint was created: the dashboard environment group `easy-a-shared` exists and holds it, but `render blueprints validate` rejects `fromGroup`, so `render.yaml` does not use the group. If you rotate the password, update the group and both services.
 - **Migrations are manual.** Apply them from a workstation with `MIGRATION_DATABASE_URL` pointing at the Supabase **session** pooler, and do it **before** merging code that needs them. The worker and the API refuse to start against a schema that is not current (worker exit code 4, "startup check failed"). Never add `MIGRATION_DATABASE_URL` to Render and never run migrations from the image at start-up.
 - **Do not run `scripts/refresh_all_tampa.py`, `scripts/refresh_seats.py` or `scripts/refresh_course_coverage.py` for 202701 once the worker is live.** They append every row and issue many requests, which breaks the request policy and bloats `seat_snapshots`. The worker replaces them for this term.
-- **Request policy (PROJECT.md D-22):** one whole-term USF request per sweep, at most one sweep in flight, and floors of 5 minutes inside a registration window and 60 minutes outside. No flag bypasses the floor. A dry run is a real USF request, so leave one tier interval after it before starting or restarting the worker.
+- **Request policy (PROJECT.md D-22):** one whole-term USF request per sweep, at most one sweep in flight, and floors of 5 minutes inside a registration window and 60 minutes outside. No flag bypasses the floor of the last recorded sweep, but a dry run records nothing, so the tool does not rate-limit repeated dry runs (section 3). A dry run is a real USF request, so leave one tier interval after it before starting or restarting the worker.
 - `[skip render]` in a commit message skips the Render deploy for that commit. `buildFilter` paths already keep docs-only and `.planning/` commits from restarting the worker.
 
 ## 1. Daily health check
@@ -69,10 +69,33 @@ Find the kind in `last_error_kind` (section 1) or in the worker log line `sweep_
 | `usf_http`, `usf_timeout` | USF returned an error or was slow or unreachable | Wait: the worker backs off and retries at the next allowed time. If it persists for several hours, check the USF site by hand |
 | `usf_response`, `parse` | USF changed its page or the response is not the expected whole-term table | Suspend the worker (section 5) and investigate. Do not loosen anything to get past it; the parser is fail-closed on purpose |
 | `scope` | The response could not be scoped safely | Treat like `parse`: suspend and investigate |
-| `gate` | The sanity gate refused (empty response, header change, too many sections missing, row floor, subject drop) | Run `--dry-run` and read `gate_reasons`. If the change is real, run `uv run python -m easy_a.sync --term 202701 --once --max-missing-fraction X` (default 0.10) **only** with a written justification in the Run Log below |
+| `gate` | The sanity gate refused before any write. Rules: `zero_rows` (empty scoped response), `missing_fraction` (too many active in-scope sections missing), `row_floor` (in-scope rows below 90% of the last succeeded sweep) and `subjects_absent` (too many subjects missing) | Follow **Gate refusal** below. `zero_rows` has no override |
 | `database` | A database error (connectivity, pooler, timeout) | Check Supabase status and the connection limits, then wait for the next sweep |
 | `schema` | The database schema is behind the code | Apply the pending migration from a workstation (see Standing rules), then restart the worker |
 | `unexpected` | Anything else | Read the worker log, suspend if it repeats, and open an issue with the sanitized log line |
+
+### Gate refusal: legitimate mass removal
+
+`--max-missing-fraction X` works only with `--once` and `--dry-run`, the worker loop always uses the default thresholds, and the flag never changes the cadence floor. X is the largest share of the term you accept losing, between 0 and 1. It maps onto the gate rules like this:
+
+| Rule | No flag | X at or below 0.10 | X above 0.10 |
+|---|---|---|---|
+| `zero_rows` | An empty scoped response is refused | Unchanged | Unchanged, never overridable |
+| `missing_fraction` | More than 10% of active in-scope sections missing is refused | More than X missing is refused | More than X missing is refused |
+| `row_floor` | Rows below 90% of the last succeeded sweep's `records_seen` are refused | Unchanged (90%) | Rows below `1 - X` of the last succeeded sweep's `records_seen` are refused |
+| `subjects_absent` | More absent subjects than the larger of 2 and 2% of active subjects is refused | Unchanged | More absent subjects than the larger of 2 and X of active subjects is refused |
+
+Steps:
+
+1. Suspend `easy-a-worker` (section 5), so its retries neither race your run nor move the floor.
+2. Once the floor allows it (exit 3 prints the time), run `uv run python -m easy_a.sync --term 202701 --dry-run` and read `gate_reasons`.
+3. Stop and treat the response like `usf_response`, with no override, if any reason is `zero_rows`, or if `subjects_absent` names a subject the USF schedule search still lists (check by hand). That response is truncated or wrong, not a removal.
+4. Confirm the removal is real by checking a few of the missing CRNs by hand on the USF schedule search.
+5. Choose X, rounded up to two decimals, at least the missing fraction in the `missing_fraction` reason and at least 1 - (rows / last success) from the `row_floor` reason.
+6. Run `uv run python -m easy_a.sync --term 202701 --dry-run --max-missing-fraction X`. Continue only when `gate_reasons` is empty and `removed` matches what you expect. This dry run also confirms X covers `subjects_absent`.
+7. Wait one tier interval, because a dry run is a real USF request (D-22). Then run `uv run python -m easy_a.sync --term 202701 --once --max-missing-fraction X` and expect exit 0.
+8. Add a Run Log row: date, X, the step 2 `gate_reasons`, the CRNs checked and the justification.
+9. Resume the worker (section 5). The succeeded sweep is now the `row_floor` baseline, so the next automatic sweep passes at the default thresholds with no flag. A wrongly removed section returns on the next sweep that lists it, or at once with section 6.
 
 ## 5. Pause and resume the worker
 
