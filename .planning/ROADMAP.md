@@ -503,7 +503,7 @@ to keep it running.
 
 **Requirements**: REQ-OPS-01, REQ-SYNC-01
 
-**Plans:** 15/15 plans executed
+**Plans:** 16 plans (15 executed; 09-16 gap closure planned)
 
 Plans:
 **Wave 1**
@@ -541,6 +541,10 @@ Plans:
 **Wave 7** *(blocked on Wave 6)*
 
 - [x] 09-15-PLAN.md — Rollout 2: Render Blueprint go-live, hosted probes and p95, soak across two sweeps, STATE.md facts
+
+**Gap closure** *(09-VERIFICATION.md CR-01; wave 1 of the gap run)*
+
+- [ ] 09-16-PLAN.md — Gate override also covers `row_floor` and `subjects_absent` (no-flag gate unchanged); runbook section 4 gate recovery that works
 
 ---
 
