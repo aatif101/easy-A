@@ -126,3 +126,46 @@ Figures from 09-RESEARCH.md (2026-09-29) against this run (2026-09-30). None of 
 Dry-run sweep start: 2026-09-30T05:15:45.689Z. Adding the 60-minute floor (D-01 floor, D-22 outside a registration window) gives:
 
 **Earliest Blueprint creation: 2026-09-30T06:15:46Z (UTC)**, which matches the dry run's own `next_start_at` of 2026-09-30T06:15:45.689Z. Creating the Blueprint earlier would let the hosted worker's first sweep fall inside the floor of the last USF request.
+
+## CI and merge
+
+Recorded 2026-09-30T05:37:45Z (UTC). The operator pushed nothing themselves: after the `push-approved` reply and adding the `workflow` token scope, the executor ran `git push -u origin HEAD` and `gh pr create --base main --fill`. The merge was the operator's action.
+
+| Item | Value |
+|------|-------|
+| PR | #33, https://github.com/aatif101/easy-A/pull/33 |
+| State | MERGED at 2026-09-30T05:36:53Z |
+| Merge commit | `5def3562824599d5705d286fee3b8dc046facc76` |
+| `origin/main` after `git fetch origin` | `5def3562824599d5705d286fee3b8dc046facc76` (equals the merge commit) |
+| PR head that was tested | `79f9efd21a00742aa89949c93775b1f28f67a131` |
+
+### First CI run (head b2e89cc): python failed, two test bugs
+
+The first python job failed with 2 failed and 691 passed. Both failures were test-only bugs that appear once the PostgreSQL service is really used (the merge blocker the plan wanted to surface):
+
+1. `tests/refresh/test_postgres_coverage.py`: assumed the seeded MAC 1105 course was `rows[0]`; the regenerated Tampa-wide target list makes `rows[0]` ACG 2021. Fixed by selecting the row by key.
+2. `tests/test_database_config.py::test_missing_database_url_fails_loudly`: CI sets `MIGRATION_DATABASE_URL` for Alembic and the test cleared only `DATABASE_URL`. Fixed by also clearing `MIGRATION_DATABASE_URL`.
+
+Fix commit `79f9efd` was pushed to the same branch. The web and docker jobs passed on both heads.
+
+### Final CI on head 79f9efd
+
+| Job | push run | pull_request run |
+|-----|----------|------------------|
+| python | success | success |
+| web | success | success |
+| docker | success | success |
+
+- push run: https://github.com/aatif101/easy-A/actions/runs/36673205961
+- pull_request run: https://github.com/aatif101/easy-A/actions/runs/36673209773
+
+Python job log checks (both runs):
+
+- Pytest summary present: `693 passed, 1 warning`.
+- No pytest skip line for "Set EASY_A_TEST_POSTGRES_URL". The only two textual matches are the workflow's own guard step; that step printed "No PostgreSQL integration test was skipped."
+- Alembic round-trip on postgres:16: `upgrade head` (0001 to 0004), `downgrade -1` (0004 to 0003) and `upgrade head` (0003 to 0004) all succeeded.
+- Frontend tests: 96 passed.
+
+### Post-merge run on main
+
+A push run on the merge commit (https://github.com/aatif101/easy-A/actions/runs/36674223585) was in progress when this section was written (web and docker success, python still running).

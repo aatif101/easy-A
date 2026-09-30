@@ -211,12 +211,12 @@ Kept for traceability. Verified present in code at `62fb2f1`.
 
 ## After MVP 1 — hosted beta
 
-- [ ] **REQ-OPS-01**: The hosted beta is deployable, observable and reproducible.
+- [x] **REQ-OPS-01**: The hosted beta is deployable, observable and reproducible.
   *Acceptance*: Minimal, portable deployment configuration — no provider-specific infrastructure.
   CI runs Python and frontend checks (net-new; no `.github/` directory exists today). Basic
   observability covers refresh success/failure and search latency. An operator runbook covers
   refreshing data and recovering from a failed refresh.
-- [ ] **REQ-SYNC-01**: Spring 2027 seats, instructor names and section existence stay near-live.
+- [x] **REQ-SYNC-01**: Spring 2027 seats, instructor names and section existence stay near-live.
   *Acceptance*: An always-on worker makes one whole-term Tampa request per sweep under the D-22
   policy (tiered cadence, single worker). Instructor and seat rows are appended only on change;
   sections absent from a sanity-checked sweep are marked removed and leave search; each sweep
