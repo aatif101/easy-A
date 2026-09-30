@@ -38,7 +38,7 @@ from easy_a.sync.courses import (
     label,
 )
 from easy_a.sync.fetch import FetchedTerm, fetch_whole_term
-from easy_a.sync.gate import GateInput, evaluate_gate
+from easy_a.sync.gate import GateInput, evaluate_gate, gate_thresholds
 from easy_a.sync.lock import try_sweep_lock
 from easy_a.sync.plan import (
     SweepCounts,
@@ -191,10 +191,14 @@ def run_sweep(
     client: StaffScheduleClient,
     now_fn: Callable[[], datetime],
     dry_run: bool = False,
-    max_missing_fraction: float = 0.10,
+    max_missing_fraction: float | None = None,
     course_adder: CourseAdderLike | None = None,
 ) -> SweepOutcome:
-    """Run one sweep of ``term``. Exactly one USF request; one database transaction."""
+    """Run one sweep of ``term``. Exactly one USF request; one database transaction.
+
+    ``max_missing_fraction`` is the operator's gate override; None means no override, which is the
+    worker loop's path and leaves the gate at its default thresholds.
+    """
     started_at = now_fn()
     progress: dict[str, Any] = {"records_seen": None}
     try:
@@ -242,7 +246,7 @@ def _sweep_in_transaction(
     now_fn: Callable[[], datetime],
     started_at: datetime,
     dry_run: bool,
-    max_missing_fraction: float,
+    max_missing_fraction: float | None,
     progress: dict[str, Any],
     course_adder: CourseAdderLike | None = None,
 ) -> SweepOutcome:
@@ -254,6 +258,7 @@ def _sweep_in_transaction(
     state = load_db_state(session, term_row.id, rows, term_code=term_row.banner_code)
 
     missing = missing_active_count(rows, state)
+    thresholds = gate_thresholds(max_missing_fraction)
     gate = evaluate_gate(
         GateInput(
             in_scope_rows=report.in_scope_rows,
@@ -263,7 +268,10 @@ def _sweep_in_transaction(
             db_active_subjects=state.active_subjects,
             sweep_subjects=report.subjects,
         ),
-        max_missing_fraction=max_missing_fraction,
+        max_missing_fraction=thresholds.max_missing_fraction,
+        min_row_ratio=thresholds.min_row_ratio,
+        max_absent_subject_fraction=thresholds.max_absent_subject_fraction,
+        min_absent_subjects=thresholds.min_absent_subjects,
     )
     if not gate.passed:
         raise SweepGateError(gate.reasons)

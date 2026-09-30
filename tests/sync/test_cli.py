@@ -558,3 +558,55 @@ def test_max_missing_fraction_override_lets_the_operator_apply_a_mass_removal(
         "sweep_succeeded" if mode == "--once" else "sweep_dry_run"
     ]
     assert lines[0]["removed"] == 5
+
+
+def _seed_prior_success(session_factory: sessionmaker[Session], *, records_seen: int = 13) -> None:
+    """A succeeded sweep two hours before SWEEP_AT: outside the 60 minute floor on this date."""
+    started = SWEEP_AT - timedelta(hours=2)
+    with session_factory.begin() as session:
+        session.add(
+            IngestRun(
+                source=sync_source(TERM),
+                status="succeeded",
+                started_at=started,
+                finished_at=started + timedelta(seconds=40),
+                records_seen=records_seen,
+            )
+        )
+
+
+@pytest.mark.parametrize("mode", ["--once", "--dry-run"])
+def test_override_applies_a_mass_removal_after_a_prior_succeeded_sweep(
+    mode: str, session_factory: sessionmaker[Session], capsys: pytest.CaptureFixture[str]
+) -> None:
+    seed_from_rows(session_factory, _seed_rows())
+    _seed_prior_success(session_factory)
+    before = table_counts(session_factory)
+    _, make = _factory(_mass_removal_rows())
+
+    code = main(
+        ["--term", TERM, mode, "--max-missing-fraction", "0.9"],
+        session_factory=session_factory,
+        client_factory=make,  # type: ignore[arg-type]
+        now_fn=Clock(),
+    )
+
+    lines = [
+        line
+        for line in _json_lines(capsys.readouterr().out)
+        if str(line["event"]).startswith("sweep_")
+    ]
+    assert code == 0
+    assert [line["event"] for line in lines] == [
+        "sweep_succeeded" if mode == "--once" else "sweep_dry_run"
+    ]
+    assert lines[0]["removed"] == 5
+    assert lines[0]["gate_reasons"] == []
+    if mode == "--once":
+        with session_factory() as session:
+            newest = session.scalars(select(IngestRun).order_by(IngestRun.id.desc())).first()
+            assert newest is not None
+            assert newest.status == "succeeded"
+            assert newest.records_seen == 8
+    else:
+        assert table_counts(session_factory) == before

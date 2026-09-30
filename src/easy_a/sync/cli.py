@@ -40,6 +40,7 @@ from easy_a.rankings.cache import refresh_section_rankings
 from easy_a.schedule.client import StaffScheduleClient
 from easy_a.schema_guard import SchemaNotCurrentError, require_sync_schema
 from easy_a.sync import sync_source
+from easy_a.sync.gate import DEFAULT_MAX_MISSING_FRACTION
 from easy_a.sync.lock import try_sweep_lock
 from easy_a.sync.runner import SweepStatus, install_stop_signal_handlers, run_loop
 from easy_a.sync.sweep import SweepOutcome, run_sweep, sanitize_error_detail
@@ -50,7 +51,6 @@ from easy_a.sync.windows import (
 )
 
 LOGGER_NAME = "easy_a.sync"
-DEFAULT_MAX_MISSING_FRACTION = 0.10
 
 EXIT_OK = 0
 EXIT_FAILED = 1
@@ -381,11 +381,6 @@ def _run_single_sweep(
             print(f"refused: next sweep allowed at {earliest.isoformat()}")
             return EXIT_REFUSED
 
-    max_missing = (
-        DEFAULT_MAX_MISSING_FRACTION
-        if args.max_missing_fraction is None
-        else args.max_missing_fraction
-    )
     client = (client_factory or StaffScheduleClient)()
     try:
         outcome = run_sweep(
@@ -394,7 +389,7 @@ def _run_single_sweep(
             client=client,
             now_fn=now_fn,
             dry_run=bool(args.dry_run),
-            max_missing_fraction=max_missing,
+            max_missing_fraction=args.max_missing_fraction,
         )
     finally:
         client.close()

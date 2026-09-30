@@ -2,9 +2,21 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from easy_a.sync.gate import GateInput, evaluate_gate
+from easy_a.sync.gate import GateInput, GateResult, evaluate_gate, gate_thresholds
 
 SUBJECTS = frozenset(f"S{i:02d}" for i in range(100))
+
+
+def _evaluate(inp: GateInput, override: float | None) -> GateResult:
+    """Evaluate the gate the way sweep.py does: all four thresholds from ``gate_thresholds``."""
+    thresholds = gate_thresholds(override)
+    return evaluate_gate(
+        inp,
+        max_missing_fraction=thresholds.max_missing_fraction,
+        min_row_ratio=thresholds.min_row_ratio,
+        max_absent_subject_fraction=thresholds.max_absent_subject_fraction,
+        min_absent_subjects=thresholds.min_absent_subjects,
+    )
 
 
 def _base(**overrides: object) -> GateInput:
@@ -106,3 +118,29 @@ def test_all_failed_rules_are_reported_together() -> None:
     )
     assert result.passed is False
     assert len(result.reasons) == 3
+
+
+# -- operator override (CR-01) -----------------------------------------------------------------
+
+
+def test_override_clears_the_reviewer_mass_removal_case() -> None:
+    inp = GateInput(500, 1000, 500, 1000, SUBJECTS, SUBJECTS)
+
+    default = evaluate_gate(inp)
+    assert default.passed is False
+    assert default.reasons[0].startswith("missing_fraction 0.500 above 0.100")
+    assert default.reasons[1] == "row_floor 500 below 90% of 1000"
+
+    overridden = _evaluate(inp, 0.9)
+    assert overridden.passed is True
+    assert overridden.reasons == ()
+
+
+def test_override_row_floor_boundary_is_exact() -> None:
+    at_floor = GateInput(300, 1000, 0, 1000, SUBJECTS, SUBJECTS)
+    assert _evaluate(at_floor, 0.7).passed is True
+
+    under = GateInput(299, 1000, 0, 1000, SUBJECTS, SUBJECTS)
+    result = _evaluate(under, 0.7)
+    assert result.passed is False
+    assert result.reasons == ("row_floor 299 below 30% of 1000",)
