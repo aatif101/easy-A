@@ -503,7 +503,7 @@ to keep it running.
 
 **Requirements**: REQ-OPS-01, REQ-SYNC-01
 
-**Plans:** 14/15 plans executed
+**Plans:** 15/15 plans executed
 
 Plans:
 **Wave 1**
@@ -540,7 +540,7 @@ Plans:
 
 **Wave 7** *(blocked on Wave 6)*
 
-- [ ] 09-15-PLAN.md — Rollout 2: Render Blueprint go-live, hosted probes and p95, soak across two sweeps, STATE.md facts
+- [x] 09-15-PLAN.md — Rollout 2: Render Blueprint go-live, hosted probes and p95, soak across two sweeps, STATE.md facts
 
 ---
 
@@ -653,8 +653,8 @@ rewrite is planned or approved.
 | REQ-COVERAGE-03 | 6, 8 | ✓ Complete — live 3,783/3,783/3,783 identity reconciliation, 0 missing/extra/duplicate/non-Tampa (2026-09-24, Phase 8 verification) |
 | REQ-GRADES-01 | 4–5, 8 | ✓ Complete under D-21 — 3,122 evidence-backed sections, 661 listed source-limited exceptions, honest fallback labeling verified end to end (2026-09-24, Phase 8 verification) |
 | REQ-PERF-01 | 7, 8 | ✓ Complete — loopback HTTP p95 277.25 ms at 3,783 sections on hosted Supabase, re-confirmed in Phase 8 end-to-end verification (2026-09-24) |
-| REQ-OPS-01 | 9 | ○ After MVP 1 |
-| REQ-SYNC-01 | 9 | ○ Planned 2026-09-28 |
+| REQ-OPS-01 | 9 | ◐ Hosted beta live 2026-09-30 (Render); CI green on PR #33; hosted single-client p95 212.56 ms; pending phase verification and operator review of the open 30 s sweep-duration gap (`09-15-SUMMARY.md`) |
+| REQ-SYNC-01 | 9 | ◐ Worker live 2026-09-30: 2 hosted sweeps, change-only writes reconcile exactly, 109 removed sections out of search; pending phase verification; open gap: sweeps took 50.69 s and 37.166 s vs the 30 s soak criterion (unresolved) |
 | REQ-PROF-01 | 10 | ○ Planned 2026-09-28 |
 
 Backlog requirements (`REQ-ALERT-*`, `REQ-RMP-01`) are deliberately unmapped — they belong to
