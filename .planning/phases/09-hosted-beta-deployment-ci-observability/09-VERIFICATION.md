@@ -41,11 +41,17 @@ covered_files:
   - src/easy_a/sync/sweep.py
 covered_digest: "v2:sha256:702a389049b08bc14fcce69c4373d84294b70b44e72b7d5e756715958692950f"
 behavior_unverified: 0
-overrides_applied: 0
+overrides_applied: 1
+overrides:
+  - must_have: "each sweep takes under 30 s end to end"
+    scope: "duration clause only; the memory clause of the same must-have is unaffected"
+    reason: "Operator accepted the gap (2026-09-30) rather than investigate. Basis recorded: hosted sweeps of 37.166-50.69 s fit inside a 300-3600 s cadence and no roadmap criterion depends on 30 s; the cause of the slower hosted time was not established."
+    accepted_by: "aatif101"
+    accepted_at: "2026-09-30T20:27:43Z"
 gaps:
   - truth: "09-15 must-have: each sweep takes under 30 s end to end (RESEARCH Pitfall 2; live-sync plan soak criteria)"
-    status: failed
-    reason: "Hosted sweeps took 50.69 s (IngestRun 113) and 37.166 s (IngestRun 114), re-derived from ingest_runs started_at/finished_at in a READ ONLY query. The threshold is a PLAN must-have (09-15-PLAN.md line 39), not a ROADMAP success criterion or REQUIREMENTS acceptance line. The operator has not decided whether to accept it. Cause not established (no per-phase timing in the log line)."
+    status: overridden
+    reason: "ACCEPTED BY OPERATOR (see overrides). Hosted sweeps took 50.69 s (IngestRun 113) and 37.166 s (IngestRun 114), re-derived from ingest_runs started_at/finished_at in a READ ONLY query. The threshold is a PLAN must-have (09-15-PLAN.md line 39), not a ROADMAP success criterion or REQUIREMENTS acceptance line. The operator has not decided whether to accept it. Cause not established (no per-phase timing in the log line)."
     artifacts:
       - path: ".planning/phases/09-hosted-beta-deployment-ci-observability/09-ROLLOUT-EVIDENCE.md"
         issue: "Records the gap honestly; WINDOWS.md entry 10 is open"
