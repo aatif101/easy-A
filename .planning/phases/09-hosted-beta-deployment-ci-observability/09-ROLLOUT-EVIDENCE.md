@@ -169,3 +169,159 @@ Python job log checks (both runs):
 ### Post-merge run on main
 
 A push run on the merge commit (https://github.com/aatif101/easy-A/actions/runs/36674223585) was in progress when this section was written (web and docker success, python still running).
+
+---
+
+# Go-live and first hosted sweep (plan 09-15)
+
+All probes below are read-only: `render services` / `render deploys list` / `render logs`, plain HTTP GETs against the operator's own hosted URLs, and database reads inside `SET TRANSACTION READ ONLY` transactions (each reported `transaction_read_only = on`). No Render service or environment variable was created, changed, deployed or deleted by the executor. No connection string, pooler hostname or credential appears in this file.
+
+## Go-live
+
+Operator reply (Task 1, typed in the main session): `live api=https://easy-a-api.onrender.com web=https://easy-a-web.onrender.com`. Precondition met: the "CI and merge" section above records PR #33 merged as `5def356` with all jobs green, docs PR #34 merged as `b485efb`, and the current time (2026-09-30T18:27Z) is after the earliest Blueprint creation time (2026-09-30T06:15:46Z).
+
+Verified 2026-09-30T18:27:19Z through 18:27:29Z (UTC).
+
+| Check | Result |
+|-------|--------|
+| Services (`render services --output json`) | 3 services, all `not_suspended`, branch `main`, auto-deploy on |
+| `easy-a-api` | `srv-daul6tfpn0mc7384h4fg`, web service, region ohio, plan starter, https://easy-a-api.onrender.com, health check path `/health` |
+| `easy-a-worker` | `srv-daul6tnpn0mc7384h5jg`, background worker, region ohio, plan starter |
+| `easy-a-web` | `srv-daul6tfpn0mc7384h50g`, static site, https://easy-a-web.onrender.com. A static site has no region setting in `render.yaml` or the CLI output (it is served from Render's CDN), so the "ohio" check applies to the API and worker only |
+| Worker deploy | `dep-daul6tvpn0mc7384h6eg`, status `live`, trigger `blueprint_sync`, created 2026-09-30T18:22:47Z, finished 2026-09-30T18:23:25Z, commit `b485efb91e95aae0ec93f5578636a8f1c7542f99` (equals `origin/main` after `git fetch`) |
+| `GET <API>/health` | HTTP 200, body `{"status":"ok"}` |
+| `GET <WEB>/` | HTTP 200 |
+| CORS: `GET <API>/api/v1/metadata/terms` with `Origin: https://easy-a-web.onrender.com` | HTTP 200, `access-control-allow-origin: https://easy-a-web.onrender.com` (exactly the web origin, no trailing slash), `vary: Origin`. PASS |
+| API service error-level logs (`render logs -r <api-id> --level error`) | none returned |
+
+Static build check (GET of the built bundle `assets/index-DDdxXJZY.js`, 235,457 bytes): the real API origin `easy-a-api.onrender.com` appears in the bundle and `localhost:8000` does not. The front end code (`web/src/api/rankings.ts`) only uses synthetic data when `VITE_USE_MOCK_DATA === "true"`, so a build that points at the real API is not in mock mode. The literal `VITE_USE_MOCK_DATA` value baked into the build cannot be read back from the bundle and is not claimed beyond that inference. Email notification settings (D-09) live in the dashboard and cannot be read by the CLI; they rest on the operator's confirmation and are NOT independently verified here.
+
+## First hosted sweep
+
+The worker started at 18:23:25Z and ran its first sweep immediately (`worker_started` logged `last_sweep_started_at: null`, because the earlier real-data dry run wrote no IngestRun). `GET <API>/api/v1/metadata/sync-status?term=202701` at 2026-09-30T18:27:29Z:
+
+| Field | Value |
+|-------|-------|
+| last_success_at | 2026-09-30T18:24:16.387516Z |
+| last_run_at | 2026-09-30T18:23:25.697115Z |
+| last_status | succeeded |
+| last_error_kind | null |
+| last_records_failed | 4 (the four courses deferred by the per-sweep add cap, see below) |
+| failures_last_24h | 0 |
+| in_registration_window | false |
+| cadence_seconds / stale_after_seconds | 3600 / 7200 |
+| is_stale | false |
+
+No retry was needed (last_success_at was already set).
+
+`sweep_succeeded` line from `render logs -r srv-daul6tnpn0mc7384h5jg --text sweep_succeeded` (logged 2026-09-30 18:24:16 UTC):
+
+| Field | Value |
+|-------|-------|
+| started_at | 2026-09-30T18:23:25.697115Z |
+| duration_s | **50.69** |
+| bytes | 7,100,787 |
+| content_encoding | null (USF returned an uncompressed body) |
+| tail_error | true (the known USF error tail, not a failure) |
+| scope | total_rows 6,643; distinct_crns 6,643; non_tampa_rows 0; graduate_rows 2,941; unparseable_number_rows 0; in_scope_rows 3,702; subjects 210; course_keys 1,372 |
+| inserted | 24 |
+| updated | 560 |
+| removed | 109 |
+| restored | 0 |
+| instructor_changes | 156 |
+| seat_changes | 100 |
+| auto_added (10) | ARH 4301, ART 3781C, ART 4930, FIL 4839, FIN 4934, FRE 2201, HUM 4368, HUM 4391, HUM 4434, HUM 4890 |
+| unapplied courses (4, by name) | LDR 3363, LDR 4204, NEB 0001, POT 4936 (each "deferred: per-sweep cap") |
+| would_add | empty |
+| gate_reasons | empty |
+| error_kind / error_detail | null / null |
+| peak_rss_mb | 193.6 |
+| next_start_at (in the sweep line) | 2026-09-30T19:23:25.697115Z |
+
+Following `sleeping` line (18:24:16 UTC): `next_start_at` = **2026-09-30T19:32:01.016767Z**, which is 68 minutes 36 seconds after the sweep start, later than the 60-minute floor (the jitter on top of the floor). Sweep 2 is therefore expected no earlier than 19:32:01Z.
+
+Observations recorded without interpretation beyond what is stated:
+
+- **Sweep duration FAIL against the 30 s soak criterion for this sweep.** The first sweep took 50.69 s end to end, against "each sweep takes under 30 s". This sweep applied the whole catch-up (24 inserts, 560 updates, 109 removals, 156 instructor and 100 seat changes, 10 auto-added courses plus cache refresh), so it is the heaviest sweep the worker will do; the dry run that only read and diffed took 15.2 s. Whether steady-state sweeps stay under 30 s is decided by the later sweeps in the soak. The threshold was not changed.
+- **Memory:** `peak_rss_mb` 193.6 from the sweep's own log line, under the 350 MB target and the 512 MB plan limit (Render Metrics not yet read; that is an operator step in Task 3).
+- **Per-sweep add cap:** 10 courses were auto-added and 4 were deferred to a later sweep, which is why `last_records_failed` is 4 and the IngestRun `error_message` lists the four unapplied courses. The next sweep(s) should add them; their new sections will then count as inserts in that sweep.
+- **Drift against the dry run (12 hours earlier):** total rows 6,643 (dry run 6,645), removals 109 (105), instructor changes 156 (150), seat changes 100 (97), inserts 24 (12 plus would-add), FRE 2201 newly appeared as an auto-added course. USF changes daily; none of this is a gate issue.
+
+### Database snapshot 1 (READ ONLY, 2026-09-30T18:29:39Z)
+
+This is soak snapshot 1 (taken after sweep 1 and before sweep 2). The pre-deploy counts come from "Row counts before/after" above.
+
+| Item | Pre-deploy (05:16Z) | Snapshot 1 | Delta | Reconciliation with the sweep line |
+|------|---------------------|------------|-------|-------------------------------------|
+| sections (all) | 3,783 | 3,807 | +24 | equals inserted (24) |
+| active 202701 sections (`removed_at IS NULL`) | 3,783 | 3,698 | -85 | 3,783 + 24 inserted - 109 removed = 3,698 |
+| removed 202701 sections | 0 | 109 | +109 | equals removed (109) |
+| section_instructors | 4,226 | 4,406 | +180 | 156 instructor_changes + 24 inserted = 180 |
+| seat_snapshots | 4,226 | 4,350 | +124 | 100 seat_changes + 24 inserted = 124 |
+| section_rankings (202701) | 3,783 | 3,698 | -85 | equals the active count |
+| ingest_runs | 112 | 113 | +1 | one sweep |
+
+Latest IngestRun for `usf_schedule_sync:202701`: id 113, status `succeeded`, started 2026-09-30 18:23:25.697115+00, finished 18:24:16.387516+00, records_seen 3,702, records_inserted 24, records_updated 560, records_failed 4, error_message lists the four deferred courses.
+
+Auto-added courses (courses with active 202701 sections that are not configured targets): exactly the 10 named in the sweep line, all catalog edition 2026-2027. Their `section_rankings.score_source` values: `subject` for all 11 sections across the 10 courses (HUM 4391 has 2 sections, the rest 1), and none is `course`. No auto-added course shows own-course history, as required (PROJECT.md D-20). Overall 202701 score_source split: course 3,330; subject 319; global 49 (total 3,698). Rankings rows belonging to removed sections: 0. Active sections without a ranking row: 0.
+
+## Hosted search and p95
+
+### Search total equals the active count
+
+Checked 2026-09-30T18:30:15Z. `GET <API>/api/v1/rankings/search?term=202701&limit=50` (probe at 18:29:51Z) returned `total: 3698`. The executor then paged through the whole result with `limit=200` (19 GETs) and compared against a READ ONLY database read:
+
+| Check | Result |
+|-------|--------|
+| API total | 3,698 |
+| CRNs collected across all pages / distinct | 3,698 / 3,698 |
+| DB active 202701 sections | 3,698 |
+| API CRN set equals the DB active CRN set | yes (0 in API only, 0 in DB only) |
+| Removed CRNs (109) present in the API results | 0 |
+
+Result: PASS. The earlier spot-check of three removed CRNs (10525, 10832, 11141) with a `q=` parameter was not a valid probe (the endpoint has no free-text `q` parameter, so the total stayed 3,698); the full set comparison above replaces it.
+
+### Hosted p95
+
+Command: `uv run python scripts/benchmark_rankings_search.py --remote-url https://easy-a-api.onrender.com --iterations 50` (5 warmups, run once). Run 2026-09-30T18:30:32Z from the operator's workstation.
+
+| Measure | Value |
+|---------|-------|
+| Mode | remote HTTPS request + body + JSON validation (no DB reconciliation) |
+| Dataset size | 3,698 sections (hosted API total) |
+| p50 | 131.53 ms |
+| p95 | **212.56 ms** |
+| max | 371.92 ms |
+| Against the 1,500 ms bar | PASS (14.2 percent of the bar) |
+
+This is deployed-host, single-client latency over the public internet from one workstation. **Browser latency and concurrent-user latency: NOT MEASURED** (D-08; REQ-PERF-01 re-check covers single-client hosted p95 only).
+
+## D-21 re-baseline after sync
+
+Read-only probes run 2026-09-30T18:30:47Z (validator) and 18:33:00Z (inventory) against hosted Supabase. `08-D21-EXCEPTIONS.md` was not regenerated (`--exceptions-md` was not passed); it remains the dated 2026-09-24 record.
+
+`uv run python scripts/validate_tampa_ingest.py --term 202701 --targets config/course_targets.toml` (exit 0):
+
+```
+PASS suffix-exact
+INFO auto-added (D-05): 10 course(s): ARH 4301, ART 3781C, ART 4930, FIL 4839, FIN 4934, FRE 2201, HUM 4368, HUM 4391, HUM 4434, HUM 4890
+PASS reconciliation
+PASS honest-coverage (verified non-letter-grade exceptions: 284)
+```
+
+`uv run python scripts/inventory_tampa_grades.py --term 202701` (exit 0), verdicts `integrity: PASS`, `d21_grade_coverage: PASS`:
+
+| Item | 2026-09-24 record (08-D21-EXCEPTIONS.md / STATE.md) | After the first sync (2026-09-30) |
+|------|------------------------------------------------------|------------------------------------|
+| Active sections inventoried | 3,783 | 3,698 |
+| Courses represented | not recorded in this file | 1,368 |
+| Evidence-backed sections | 3,122 | 3,046 |
+| Listed exceptions (sections) | 661 | 652 |
+| no_rows | 361 | 368 |
+| non_letter_grade | 300 | 284 |
+| Evidence-backed courses | 1,117 (STATE.md) | 1,081 |
+| Exception courses (no_rows, non_letter_grade) | not recorded in this file | 238, 49 |
+| Grade rows stored | not recorded in this file | 8,662 (latest grade ingest 2026-09-23T21:36:34Z, unchanged) |
+| Integrity: unattributed grade rows, bucket-sum mismatches, rows at/after the term, stale cache, non-Tampa sections | PASS | 0, 0, 0, false, 0 (PASS) |
+
+Arithmetic: 3,046 + 368 + 284 = 3,698. The shift is explained by the sync (109 removals, 24 inserts, 10 new courses whose sections fall back to subject-level data) and is not a change to the grade data, which was not touched. The validator's verified non-letter-grade exception count (284) equals the inventory's `non_letter_grade` section count (284).
