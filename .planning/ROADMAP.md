@@ -503,7 +503,7 @@ to keep it running.
 
 **Requirements**: REQ-OPS-01, REQ-SYNC-01
 
-**Plans:** 12/15 plans executed
+**Plans:** 13/15 plans executed
 
 Plans:
 **Wave 1**
@@ -532,7 +532,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4)*
 
-- [ ] 09-13-PLAN.md — Dockerfile, `.dockerignore`, `render.yaml`, CI docker job, env-group checkpoint, operator runbook
+- [x] 09-13-PLAN.md — Dockerfile, `.dockerignore`, `render.yaml`, CI docker job, env-group checkpoint, operator runbook
 
 **Wave 6** *(blocked on Wave 5)*
 
