@@ -49,8 +49,13 @@ def test_postgres_coverage_and_latest_snapshot() -> None:
                         observed_at=observed,
                     )
                 rows = coverage_metadata(session, "202701", config.targets)
-                assert rows[0].section_count == 2
-                assert rows[0].latest_observed_at == NOW + timedelta(minutes=1)
+                # The regenerated target list covers the whole Tampa universe, so pick the
+                # seeded course by key instead of assuming it is the first row.
+                mac = next(
+                    row for row in rows if (row.subject, row.course_number) == ("MAC", "1105")
+                )
+                assert mac.section_count == 2
+                assert mac.latest_observed_at == NOW + timedelta(minutes=1)
                 assert len(list(session.scalars(select(SeatSnapshot)))) == 4
                 # Equal timestamps use the snapshot id as a deterministic tie-breaker.
                 ranking = rank_section(session, term="202701", crn="13173")

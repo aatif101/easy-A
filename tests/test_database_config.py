@@ -16,6 +16,7 @@ def _settings(**env: str | None) -> Settings:
 
 def test_missing_database_url_fails_loudly(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("DATABASE_URL", raising=False)
+    monkeypatch.delenv("MIGRATION_DATABASE_URL", raising=False)  # CI sets it for Alembic
     with pytest.raises(DatabaseConfigError, match="DATABASE_URL is not set"):
         _settings().require_database_url()
     with pytest.raises(DatabaseConfigError):
