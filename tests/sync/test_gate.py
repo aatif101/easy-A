@@ -1,8 +1,17 @@
 from __future__ import annotations
 
+import inspect
 from dataclasses import replace
 
-from easy_a.sync.gate import GateInput, GateResult, evaluate_gate, gate_thresholds
+import pytest
+
+from easy_a.sync.gate import (
+    GateInput,
+    GateResult,
+    GateThresholds,
+    evaluate_gate,
+    gate_thresholds,
+)
 
 SUBJECTS = frozenset(f"S{i:02d}" for i in range(100))
 
@@ -144,3 +153,60 @@ def test_override_row_floor_boundary_is_exact() -> None:
     result = _evaluate(under, 0.7)
     assert result.passed is False
     assert result.reasons == ("row_floor 299 below 30% of 1000",)
+
+
+def test_no_override_and_explicit_default_equal_the_evaluate_gate_defaults() -> None:
+    parameters = inspect.signature(evaluate_gate).parameters
+    defaults = GateThresholds(
+        max_missing_fraction=parameters["max_missing_fraction"].default,
+        min_row_ratio=parameters["min_row_ratio"].default,
+        max_absent_subject_fraction=parameters["max_absent_subject_fraction"].default,
+        min_absent_subjects=parameters["min_absent_subjects"].default,
+    )
+    assert defaults == GateThresholds(0.10, 0.90, 0.02, 2)
+    assert gate_thresholds(None) == defaults
+    assert gate_thresholds(0.10) == defaults
+
+
+@pytest.mark.parametrize("override", [0.0, 0.05, 0.10])
+def test_override_at_or_below_default_changes_only_missing_fraction(override: float) -> None:
+    assert gate_thresholds(override) == GateThresholds(max_missing_fraction=override)
+    assert gate_thresholds(override).min_row_ratio == 0.90
+
+
+def test_zero_override_refuses_any_missing_section() -> None:
+    assert _evaluate(_base(missing_active=0), 0.0).passed is True
+    refused = _evaluate(_base(missing_active=1), 0.0)
+    assert refused.passed is False
+    assert refused.reasons[0].startswith("missing_fraction 0.001 above 0.000")
+
+
+def test_override_above_default_relaxes_every_size_rule() -> None:
+    assert gate_thresholds(0.9) == GateThresholds(0.9, 0.1, 0.9, 2)
+    assert gate_thresholds(1.0) == GateThresholds(1.0, 0.0, 1.0, 2)
+    assert gate_thresholds(0.7).min_row_ratio == 0.3
+
+
+def test_override_scales_the_absent_subject_limit() -> None:
+    thirty_absent = frozenset(sorted(SUBJECTS)[30:])
+    thirty_one_absent = frozenset(sorted(SUBJECTS)[31:])
+
+    assert evaluate_gate(_base(sweep_subjects=thirty_absent)).passed is False
+    assert _evaluate(_base(sweep_subjects=thirty_absent), 0.3).passed is True
+
+    result = _evaluate(_base(sweep_subjects=thirty_one_absent), 0.3)
+    assert result.passed is False
+    assert result.reasons[0].startswith("subjects_absent 31 above 30")
+
+
+def test_override_never_clears_zero_rows() -> None:
+    empty = _base(in_scope_rows=0, last_success_records_seen=None)
+    result = _evaluate(empty, 1.0)
+    assert result.passed is False
+    assert "zero_rows" in result.reasons
+
+
+@pytest.mark.parametrize("override", [-0.01, 1.01])
+def test_override_out_of_range_raises(override: float) -> None:
+    with pytest.raises(ValueError, match=str(override)):
+        gate_thresholds(override)

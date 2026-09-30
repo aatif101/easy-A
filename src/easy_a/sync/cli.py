@@ -155,8 +155,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=_fraction_arg,
         default=None,
         metavar="FRACTION",
-        help="Sanity-gate override for a legitimate mass removal (default "
-        f"{DEFAULT_MAX_MISSING_FRACTION}); only with --once or --dry-run.",
+        help="Sanity-gate override for a legitimate mass removal; only with --once or --dry-run. "
+        "FRACTION is the largest share of the term you accept losing. At or below the default "
+        f"({DEFAULT_MAX_MISSING_FRACTION}) it changes only the missing sections limit. Above it, "
+        "the row floor becomes 1 - FRACTION of the last succeeded sweep, and the absent subject "
+        "limit becomes FRACTION of subjects. An empty response is always refused. It never "
+        "changes the cadence floor.",
     )
     return parser
 

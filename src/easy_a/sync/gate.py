@@ -54,15 +54,24 @@ class GateThresholds:
 
 
 def gate_thresholds(override: float | None) -> GateThresholds:
-    """Map the one operator fraction onto every size rule (``None`` is the unchanged default)."""
+    """Map the one operator fraction onto every size rule (``None`` is the unchanged default).
+
+    The override is the largest share of the term the operator accepts losing. At or below the
+    default it only changes the missing-sections limit. Above it, the row floor becomes
+    ``1 - override`` of the last succeeded sweep and the absent-subject limit becomes ``override``
+    of the subjects. ``zero_rows`` has no threshold, so no override can clear it.
+    """
     if override is None:
         return GateThresholds()
+    if not 0 <= _exact(override) <= 1:
+        raise ValueError(f"gate override must be between 0 and 1, got {override}")
     if _exact(override) <= _exact(DEFAULT_MAX_MISSING_FRACTION):
         return GateThresholds(max_missing_fraction=override)
     # Exact decimal complement: float 1.0 - 0.7 is 0.30000000000000004 and would refuse 300/1000.
     return GateThresholds(
         max_missing_fraction=override,
         min_row_ratio=float(1 - _exact(override)),
+        max_absent_subject_fraction=override,
     )
 
 
