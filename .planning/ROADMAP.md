@@ -503,7 +503,7 @@ to keep it running.
 
 **Requirements**: REQ-OPS-01, REQ-SYNC-01
 
-**Plans:** 13/15 plans executed
+**Plans:** 14/15 plans executed
 
 Plans:
 **Wave 1**
@@ -536,7 +536,7 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5)*
 
-- [ ] 09-14-PLAN.md — Rollout 1: operator-applied migration 0004, real-data dry run evidence, merge with green CI
+- [x] 09-14-PLAN.md — Rollout 1: operator-applied migration 0004, real-data dry run evidence, merge with green CI
 
 **Wave 7** *(blocked on Wave 6)*
 
