@@ -18,12 +18,13 @@ from easy_a.models import IngestRun, Section
 from easy_a.rankings.cache import SectionRankingCache
 from easy_a.schedule.client import StaffScheduleClient
 from easy_a.sync import sync_source
-from easy_a.sync.cli import main
+from easy_a.sync.cli import build_parser, main
 from tests.sync.sweep_support import (
     SWEEP_AT,
     TERM,
     Clock,
     enc_rows,
+    section_marks,
     seed_from_rows,
     sweep_rows,
     table_counts,
@@ -558,3 +559,138 @@ def test_max_missing_fraction_override_lets_the_operator_apply_a_mass_removal(
         "sweep_succeeded" if mode == "--once" else "sweep_dry_run"
     ]
     assert lines[0]["removed"] == 5
+
+
+def _seed_prior_success(session_factory: sessionmaker[Session], *, records_seen: int = 13) -> None:
+    """A succeeded sweep two hours before SWEEP_AT: outside the 60 minute floor on this date."""
+    started = SWEEP_AT - timedelta(hours=2)
+    with session_factory.begin() as session:
+        session.add(
+            IngestRun(
+                source=sync_source(TERM),
+                status="succeeded",
+                started_at=started,
+                finished_at=started + timedelta(seconds=40),
+                records_seen=records_seen,
+            )
+        )
+
+
+@pytest.mark.parametrize("mode", ["--once", "--dry-run"])
+def test_override_applies_a_mass_removal_after_a_prior_succeeded_sweep(
+    mode: str, session_factory: sessionmaker[Session], capsys: pytest.CaptureFixture[str]
+) -> None:
+    seed_from_rows(session_factory, _seed_rows())
+    _seed_prior_success(session_factory)
+    before = table_counts(session_factory)
+    _, make = _factory(_mass_removal_rows())
+
+    code = main(
+        ["--term", TERM, mode, "--max-missing-fraction", "0.9"],
+        session_factory=session_factory,
+        client_factory=make,  # type: ignore[arg-type]
+        now_fn=Clock(),
+    )
+
+    lines = [
+        line
+        for line in _json_lines(capsys.readouterr().out)
+        if str(line["event"]).startswith("sweep_")
+    ]
+    assert code == 0
+    assert [line["event"] for line in lines] == [
+        "sweep_succeeded" if mode == "--once" else "sweep_dry_run"
+    ]
+    assert lines[0]["removed"] == 5
+    assert lines[0]["gate_reasons"] == []
+    if mode == "--once":
+        with session_factory() as session:
+            newest = session.scalars(select(IngestRun).order_by(IngestRun.id.desc())).first()
+            assert newest is not None
+            assert newest.status == "succeeded"
+            assert newest.records_seen == 8
+    else:
+        assert table_counts(session_factory) == before
+
+
+def test_default_gate_refuses_a_mass_removal_after_a_prior_succeeded_sweep(
+    session_factory: sessionmaker[Session], capsys: pytest.CaptureFixture[str]
+) -> None:
+    seed_from_rows(session_factory, _seed_rows())
+    _seed_prior_success(session_factory)
+    marks_before = section_marks(session_factory)
+    counts_before = table_counts(session_factory)
+    _, make = _factory(_mass_removal_rows())
+
+    code = main(
+        ["--term", TERM, "--once"],
+        session_factory=session_factory,
+        client_factory=make,  # type: ignore[arg-type]
+        now_fn=Clock(),
+    )
+
+    lines = [
+        line
+        for line in _json_lines(capsys.readouterr().out)
+        if str(line["event"]).startswith("sweep_")
+    ]
+    assert code == 1
+    assert [line["event"] for line in lines] == ["sweep_failed"]
+    assert lines[0]["error_kind"] == "gate"
+    reasons = lines[0]["gate_reasons"]
+    assert isinstance(reasons, list) and len(reasons) == 2
+    assert str(reasons[0]).startswith("missing_fraction")
+    assert reasons[1] == "row_floor 8 below 90% of 13"
+    assert section_marks(session_factory) == marks_before
+    assert all(marks[0] is None for marks in section_marks(session_factory).values())
+    counts_after = table_counts(session_factory)
+    assert counts_after == {**counts_before, "IngestRun": counts_before["IngestRun"] + 1}
+    with session_factory() as session:
+        newest = session.scalars(select(IngestRun).order_by(IngestRun.id.desc())).first()
+        assert newest is not None
+        assert newest.status == "failed"
+        assert (newest.error_message or "").startswith("gate:")
+
+
+def test_next_default_sweep_passes_after_an_override_sweep(
+    session_factory: sessionmaker[Session], capsys: pytest.CaptureFixture[str]
+) -> None:
+    seed_from_rows(session_factory, _seed_rows())
+    _seed_prior_success(session_factory)
+    _, first = _factory(_mass_removal_rows())
+    assert (
+        main(
+            ["--term", TERM, "--once", "--max-missing-fraction", "0.9"],
+            session_factory=session_factory,
+            client_factory=first,  # type: ignore[arg-type]
+            now_fn=Clock(),
+        )
+        == 0
+    )
+    capsys.readouterr()
+
+    _, second = _factory(_mass_removal_rows())
+    code = main(
+        ["--term", TERM, "--once"],
+        session_factory=session_factory,
+        client_factory=second,  # type: ignore[arg-type]
+        now_fn=Clock(start=SWEEP_AT + timedelta(hours=2)),
+    )
+
+    lines = [
+        line
+        for line in _json_lines(capsys.readouterr().out)
+        if str(line["event"]).startswith("sweep_")
+    ]
+    assert code == 0
+    assert [line["event"] for line in lines] == ["sweep_succeeded"]
+    assert lines[0]["removed"] == 0
+    assert lines[0]["gate_reasons"] == []
+
+
+def test_help_describes_what_the_gate_override_relaxes() -> None:
+    text = " ".join(build_parser().format_help().split())
+
+    assert "row floor" in text
+    assert "absent subject" in text
+    assert "empty response" in text

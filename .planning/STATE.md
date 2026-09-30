@@ -1,20 +1,20 @@
 ---
 gsd_state_version: "1.0"
-current_plan: 15
+current_plan: 16
 status: design_direction_selected
-stopped_at: Completed 09-14-PLAN.md
-last_updated: "2026-09-30T05:38:44.701Z"
-state_head: 7140e55febde4ce423497bcf212d0f86eb2cc0d8
+stopped_at: Completed 09-16-PLAN.md
+last_updated: "2026-09-30T20:58:44.641Z"
+state_head: a46b93e15c19b640db5106911ff7a6443e7777c6
 progress:
   total_phases: 11
   completed_phases: 7
-  total_plans: 35
-  completed_plans: 34
+  total_plans: 36
+  completed_plans: 36
   percent: 64
-last_activity: 2026-09-29
+last_activity: 2026-09-30
 current_phase: 9
 current_phase_name: hosted-beta-deployment-ci-observability
-last_activity_desc: Instructor-grade feasibility investigation (read-only) and live-sync plan; ROADMAP Phase 9 scope extended, Phase 10 added
+last_activity_desc: Plan 09-15 complete; hosted beta live on Render, two sweeps soaked, 30 s sweep-duration gap open for operator decision
 ---
 
 # Project State
@@ -23,18 +23,53 @@ last_activity_desc: Instructor-grade feasibility investigation (read-only) and l
 rules live in `PROJECT.md` `<decisions>`; the phase sequence lives in `ROADMAP.md`; dated history
 lives in `ARCHIVE.md`.
 
-## Current state — as of 2026-09-25 (database facts retain their observation dates)
+## Current state — as of 2026-09-30 (database facts retain their observation dates)
 
 **Repo / git**
 
-- `origin/main` = `e490d74af3b68af6a5fd11b34fde887709a07afe` (verified by fetch on
-  2026-09-25; latest commit merges PR #30 from `codex/phase8-replan`).
-- Working branch: `codex/student-experience-sketch`, created from that verified SHA.
-  Current work is limited to `.planning/sketches/` and this state record. Pre-existing untracked
-  `.planning/config.json`, `.planning/research/`, `.planning/state.json`, and `phase1_report.md`
-  were preserved. No production source or database mutation was performed.
+- `origin/main` = `b485efb91e95aae0ec93f5578636a8f1c7542f99` (verified by fetch on 2026-09-30;
+  merges PR #34 `docs/phase-9-rollout-evidence`; PR #33 `5def356` carried the Phase 9 code). The
+  hosted worker deployed exactly this commit.
+- Working branch: `codex/render-setup`, descends from `origin/main`. Its 09-15 evidence and
+  state commits are **local only (not pushed)**. Pre-existing untracked `.planning/config.json`,
+  `.planning/research/`, `.planning/state.json`, `phase1_report.md` and `.mcp.json` were
+  preserved.
+
+**Hosted beta (live since 2026-09-30, Render, region ohio; evidence in
+`.planning/phases/09-hosted-beta-deployment-ci-observability/09-ROLLOUT-EVIDENCE.md`)**
+
+- API `https://easy-a-api.onrender.com` (`srv-daul6tfpn0mc7384h4fg`, web, Starter); worker
+  `easy-a-worker` (`srv-daul6tnpn0mc7384h5jg`, background worker, Starter); static site
+  `https://easy-a-web.onrender.com` (`srv-daul6tfpn0mc7384h50g`). All on `main`, auto-deploy on.
+  `/health` returns `{"status":"ok"}`; CORS returns exactly the web origin. Failure-email
+  notifications (D-09) rest on the operator's confirmation, not independently verified.
+- Worker sweeps hourly outside registration windows (next registration window Nov 2, 2026).
+  Sweep 1 (2026-09-30 18:23:25Z): 24 inserted, 560 updated, 109 removed, 156 instructor changes,
+  100 seat changes, 10 courses auto-added, 4 deferred by the per-sweep cap, duration 50.69 s.
+  Sweep 2 (19:32:01Z): 5 inserted, 49 updated, 0 removed, 6 instructor changes, 1 seat change,
+  3 courses auto-added (LDR 3363, LDR 4204, POT 4936), duration 37.166 s. `failures_last_24h` 0,
+  `is_stale` false (20:05Z). Change-only writes reconcile exactly between the two snapshots.
+- **Open gap: both sweeps exceed the plan's 30 s soak criterion; not accepted or resolved.**
+  NEB 0001 stays unapplied ("no catalog heading"), so every sweep reports `records_failed` 1.
+- One operator restart (2026-09-30 ~20:01Z) confirmed SIGTERM handling (`worker_stopped`, A1)
+  and the restart floor (new instance slept until 20:38:57Z). Worker `peak_rss_mb` 193.6 / 223.4;
+  operator-reported Render Metrics peak under 350 MB.
 
 **Database (hosted Supabase — the only live DB now; the old local beta DB is history in `ARCHIVE.md`)**
+
+- **Live after the worker's sweeps (READ ONLY snapshot 2026-09-30T20:05Z, Alembic head
+  `0004_sync_removed_at`): term 202701 has 3,703 active sections and 109 removed sections**
+  (3,812 rows in `sections`; removed sections are excluded from search and the rankings cache).
+  Score sources on the 3,703 cache rows: `course` 3,332, `subject` 322, `global` 49. 13 auto-added
+  non-target courses (ARH 4301, ART 3781C, ART 4930, FIL 4839, FIN 4934, FRE 2201, HUM 4368,
+  HUM 4391, HUM 4434, HUM 4890, LDR 3363, LDR 4204, POT 4936), all `subject` fallback, none
+  showing own-course history (D-20). `section_instructors` 4,417; `seat_snapshots` 4,356;
+  `ingest_runs` 114. The D-21 figures below are the 2026-09-24 record.
+- **D-21 re-baseline after the first sync (2026-09-30, inventory over 3,698 active sections, taken
+  after sweep 1 and before the 5 sweep-2 inserts): 3,046 evidence-backed, 652 listed exceptions
+  (368 `no_rows`, 284 `non_letter_grade`); 1,081 evidence-backed courses; integrity PASS.**
+  The grade data was not touched; the shift is the sync's 109 removals, 24 inserts and 10 new
+  courses. `08-D21-EXCEPTIONS.md` is unchanged, the dated 2026-09-24 record.
 
 - Term 202701 (as of 2026-09-22, Phase 06 full ingest): **3,783 sections, all campus=Tampa, across
   1,401 represented courses / 212 subjects. 0 non-Tampa rows. Quality: 0 errors.** (Live count
@@ -67,8 +102,13 @@ lives in `ARCHIVE.md`.
   Deployed and browser latency are not measured.
 - Whole-term cache rebuild: 3,783 rows in **4.77 s** (15 statements). The pre-batch run lost
   its connection after about 30 minutes. Whole-term quality pass: **2.45 s** (was about 35 minutes).
-- Test baseline: 323 passed, 3 skipped. PostgreSQL integration tests still skip without
-  `EASY_A_TEST_POSTGRES_URL`.
+- **Hosted single-client p95 (2026-09-30T18:30Z, `benchmark_rankings_search.py --remote-url`,
+  public HTTPS from one workstation, 50 calls / 5 warmups, 3,698 sections): p50 131.53 ms, p95
+  212.56 ms, max 371.92 ms. Below the 1,500 ms bar.** Browser and concurrent-user latency: NOT
+  MEASURED.
+- Test baseline: CI on PR #33 head `79f9efd`: 693 Python tests passed (PostgreSQL integration
+  tests executed on postgres:16) and 96 frontend tests passed. The 2026-09-23 "323 passed, 3
+  skipped" figure is superseded.
 
 ## Current milestone — MVP 1
 
@@ -78,13 +118,17 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: 15
-Total Plans in Phase: 15
+Current Plan: 16
+Total Plans in Phase: 16
 
 ## Next action
 
-**Active work (2026-09-28): live schedule sync, then professor-level grades — planned, not
-started.** Branch `codex/live-sync-plan` from verified `origin/main` `db8a98a`.
+**Current (2026-09-30): Phase 9 plans 1-15 are executed; the hosted beta is live.** What remains
+is operator review of the open items (30 s sweep-duration gap, NEB 0001, instructor-change delta,
+D-07..D-13 leans; list in `09-15-SUMMARY.md`), phase verification, and sweep 3 (due 20:38:57Z,
+not yet observed). Then Phase 10 (professor-level grades; D-24 still needs explicit approval).
+
+**Earlier (2026-09-28): live schedule sync, then professor-level grades — planned.** Branch `codex/live-sync-plan` from verified `origin/main` `db8a98a`.
 - Investigation (read-only; hosted DB not written): `.planning/research/instructor-grade-feasibility-2026-09-28.md`.
   Production has 0 historical sections/instructors, so `instructor_course` cannot activate at any
   threshold. Live `section_rankings`: 3,422 course / 311 subject / 50 global / 0 instructor_course.
@@ -228,7 +272,7 @@ are in `.planning/ARCHIVE.md`. They describe the earlier local beta DB and are n
 
 - ~~**Search p95 at full scale**~~ **RESOLVED (Phase 07)**: loopback HTTP p95 309.91 ms at 3,783
   sections on hosted Supabase. Deployed-host latency is still to be measured once a host exists.
-- **Deployment host and domain** not yet supplied.
+- ~~**Deployment host and domain**~~ **Host supplied (Render, 2026-09-29) and live (2026-09-30)** on free `*.onrender.com` subdomains; no custom domain yet.
 
 ## Deferred — do not reintroduce as current scope
 
@@ -237,7 +281,7 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Completed 09-14-PLAN.md
+**Stopped at:** Completed 09-16-PLAN.md
 Final specification review and student walkthrough remain open. See
 `.planning/sketches/001-student-experience/README.md`.
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
@@ -249,7 +293,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-09-30T05:38:44.638Z
+Last session: 2026-09-30T20:58:44.555Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
@@ -293,6 +337,8 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 | Phase 09 P12 | 20 min | 2 tasks | 7 files |
 | Phase 09 P13 | 25 min | 3 tasks | 8 files |
 | Phase 09 P14 | 25min | 3 tasks | 3 files |
+| Phase 09 P15 | 12min | 3 tasks | 5 files |
+| Phase 09 P16 | 3 min | 3 tasks | 6 files |
 
 ## Decisions
 
@@ -346,3 +392,6 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 - [Phase 09]: 09-13: render.yaml keeps per-service DATABASE_URL (sync:false); env group easy-a-shared exists in the dashboard but render blueprints validate rejects fromGroup — Plan rule: switch to fromGroup only if the variant validates; it did not. Operator fills DATABASE_URL once per service at Blueprint creation.
 - [Phase 09]: 09-13: tzdata via apt in the image, no PyPI tzdata; runbook documents that --dry-run is not rate-limited because it records no IngestRun — Avoids a package-legitimacy checkpoint; dry-run behaviour verified in sweep.py.
 - [Phase 09]: 09-14: Earliest Blueprint creation is 2026-09-30T06:15:46Z (dry-run start plus 60-minute floor); phase 9 code merged to main via PR #33 (5def356) after two CI-only test fixes
+- [Phase 09]: 09-15: 30 s per-sweep duration criterion recorded as an unresolved GAP (50.69 s, 37.166 s), not loosened; operator decision pending
+- [Phase 09]: 09-15: sweep-line next_start_at is the 60 min floor; jitter is on the following sleeping line (real gaps 66-69 min)
+- [Phase 09]: 09-16: gate override maps one fraction onto every size rule; above 0.10 row floor = 1 - X (exact decimal), absent-subject limit = X, zero_rows never overridable; None (no flag, worker loop) keeps the 0.10/0.90/0.02/2 defaults

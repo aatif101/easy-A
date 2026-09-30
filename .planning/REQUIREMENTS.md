@@ -211,16 +211,25 @@ Kept for traceability. Verified present in code at `62fb2f1`.
 
 ## After MVP 1 — hosted beta
 
-- [x] **REQ-OPS-01**: The hosted beta is deployable, observable and reproducible.
+- [ ] **REQ-OPS-01**: The hosted beta is deployable, observable and reproducible.
   *Acceptance*: Minimal, portable deployment configuration — no provider-specific infrastructure.
   CI runs Python and frontend checks (net-new; no `.github/` directory exists today). Basic
   observability covers refresh success/failure and search latency. An operator runbook covers
   refreshing data and recovering from a failed refresh.
-- [x] **REQ-SYNC-01**: Spring 2027 seats, instructor names and section existence stay near-live.
+  *Evidence (2026-09-30):* Render beta live (api, worker, static web); `/health` ok; CORS exact
+  origin; hosted single-client search p95 212.56 ms (50 calls; browser and concurrent latency not
+  measured); CI green on PR #33. See `09-ROLLOUT-EVIDENCE.md`. Failure-email notifications rest on
+  the operator's confirmation.
+- [ ] **REQ-SYNC-01**: Spring 2027 seats, instructor names and section existence stay near-live.
   *Acceptance*: An always-on worker makes one whole-term Tampa request per sweep under the D-22
   policy (tiered cadence, single worker). Instructor and seat rows are appended only on change;
   sections absent from a sanity-checked sweep are marked removed and leave search; each sweep
   records an `IngestRun`; the UI shows when data was last verified. Phase 9.
+  *Evidence (2026-09-30):* two hosted sweeps (IngestRuns 113, 114); snapshot-to-snapshot row
+  growth equals the logged changes exactly; 109 removed sections absent from search; UI freshness
+  line operator-approved (not itemized). **Open gap, not resolved: hosted sweeps took 50.69 s and
+  37.166 s against the plan's 30 s soak criterion.** See `09-ROLLOUT-EVIDENCE.md` and
+  `09-15-SUMMARY.md`.
 
 ## Phase 10 — professor-level grades
 

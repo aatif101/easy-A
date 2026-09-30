@@ -40,6 +40,7 @@ from easy_a.rankings.cache import refresh_section_rankings
 from easy_a.schedule.client import StaffScheduleClient
 from easy_a.schema_guard import SchemaNotCurrentError, require_sync_schema
 from easy_a.sync import sync_source
+from easy_a.sync.gate import DEFAULT_MAX_MISSING_FRACTION
 from easy_a.sync.lock import try_sweep_lock
 from easy_a.sync.runner import SweepStatus, install_stop_signal_handlers, run_loop
 from easy_a.sync.sweep import SweepOutcome, run_sweep, sanitize_error_detail
@@ -50,7 +51,6 @@ from easy_a.sync.windows import (
 )
 
 LOGGER_NAME = "easy_a.sync"
-DEFAULT_MAX_MISSING_FRACTION = 0.10
 
 EXIT_OK = 0
 EXIT_FAILED = 1
@@ -155,8 +155,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=_fraction_arg,
         default=None,
         metavar="FRACTION",
-        help="Sanity-gate override for a legitimate mass removal (default "
-        f"{DEFAULT_MAX_MISSING_FRACTION}); only with --once or --dry-run.",
+        help="Sanity-gate override for a legitimate mass removal; only with --once or --dry-run. "
+        "FRACTION is the largest share of the term you accept losing. At or below the default "
+        f"({DEFAULT_MAX_MISSING_FRACTION}) it changes only the missing sections limit. Above it, "
+        "the row floor becomes 1 - FRACTION of the last succeeded sweep, and the absent subject "
+        "limit becomes FRACTION of subjects. An empty response is always refused. It never "
+        "changes the cadence floor.",
     )
     return parser
 
@@ -381,11 +385,6 @@ def _run_single_sweep(
             print(f"refused: next sweep allowed at {earliest.isoformat()}")
             return EXIT_REFUSED
 
-    max_missing = (
-        DEFAULT_MAX_MISSING_FRACTION
-        if args.max_missing_fraction is None
-        else args.max_missing_fraction
-    )
     client = (client_factory or StaffScheduleClient)()
     try:
         outcome = run_sweep(
@@ -394,7 +393,7 @@ def _run_single_sweep(
             client=client,
             now_fn=now_fn,
             dry_run=bool(args.dry_run),
-            max_missing_fraction=max_missing,
+            max_missing_fraction=args.max_missing_fraction,
         )
     finally:
         client.close()
