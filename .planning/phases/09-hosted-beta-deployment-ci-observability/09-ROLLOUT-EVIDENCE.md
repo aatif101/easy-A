@@ -495,3 +495,12 @@ IngestRun 115 started 2026-09-30T20:38:57Z, exactly at the recorded `next_start_
 - Worker after the redeploy: `worker_started` with `last_sweep_started_at` 2026-09-30T22:54:23Z, then `sleeping` until `next_start_at` 2026-09-30T23:58:46Z, which is after the 60-minute floor from the last sweep. No early sweep.
 - `/health` ok, web 200, `/api/v1/metadata/sync-status?term=202701` reported `last_status` succeeded, `failures_last_24h` 0, `is_stale` false at 2026-09-30T23:24Z.
 - The gate-recovery playbook on main now matches the deployed code. A rehearsal of the recovery on the deployed image has not been done.
+
+## Sweeps 116 and 117 (read-only `ingest_runs`, from the final re-verification)
+
+| Sweep | Start (UTC) | Duration | Result |
+|---|---|---|---|
+| 116 | 2026-09-30 21:44 | 28.093 s | succeeded, 1 failed record (NEB 0001) |
+| 117 | 2026-09-30 22:54:23 | 20.921 s | succeeded, 0 rows updated, 1 failed record (NEB 0001) |
+
+Both ran on the old `b485efb` image. The first sweep on `046aa5d` was due about 23:58:46Z.
