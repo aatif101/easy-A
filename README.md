@@ -308,6 +308,10 @@ quality error and warning counts. Exit status is `0` when the refresh and qualit
 checks succeed, `1` when ingestion succeeds but quality errors are present, and
 `2` when an ingestion stage fails.
 
+## Hosted beta (Render)
+
+The hosted beta runs from `render.yaml` (Render Blueprint): `easy-a-api` and `easy-a-worker` share one `Dockerfile`, and `easy-a-web` is the static front end. The worker command is `python -m easy_a.sync --term 202701`. Migrations stay manual. See [docs/runbooks/hosted-beta-operations.md](docs/runbooks/hosted-beta-operations.md) for health checks, refresh and recovery, pausing the worker, latency measurement and deploy ordering.
+
 ## Data Quality
 
 Run the quality checks independently for any stored term:

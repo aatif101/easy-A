@@ -4,8 +4,11 @@
 # - Migrations are manual (see docs/runbooks/hosted-beta-operations.md). Do NOT add
 #   MIGRATION_DATABASE_URL to any service and do not run migrations at start-up.
 # - No secret values live in this file. DATABASE_URL is sync:false per service and is filled
-#   once when the Blueprint is created (env-group linkage is not used: the validator reports
-#   the group easy-a-shared as non-existent).
+#   once when the Blueprint is created. The operator confirmed on 2026-09-30 that the dashboard
+#   environment group easy-a-shared exists and holds DATABASE_URL, but `render blueprints
+#   validate` rejects `fromGroup: easy-a-shared` ("depends on non-existent group"), so the
+#   Blueprint does not use fromGroup. Copy the value from the group into each service once
+#   (api and worker) when creating the Blueprint.
 # - The public URLs are circular (the API needs the site origin, the site needs the API URL),
 #   so EASY_A_ALLOWED_FRONTEND_ORIGINS and VITE_API_BASE_URL are sync:false and are filled
 #   after the first create. VITE_* is baked in at build time, so redeploy the static site
