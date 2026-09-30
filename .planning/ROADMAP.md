@@ -503,7 +503,7 @@ to keep it running.
 
 **Requirements**: REQ-OPS-01, REQ-SYNC-01
 
-**Plans:** 16 plans (15 executed; 09-16 gap closure planned)
+**Plans:** 16/16 plans executed (09-16 gap closure complete; re-verification pending)
 
 Plans:
 **Wave 1**
@@ -544,7 +544,7 @@ Plans:
 
 **Gap closure** *(09-VERIFICATION.md CR-01; wave 1 of the gap run)*
 
-- [ ] 09-16-PLAN.md — Gate override also covers `row_floor` and `subjects_absent` (no-flag gate unchanged); runbook section 4 gate recovery that works
+- [x] 09-16-PLAN.md — Gate override also covers `row_floor` and `subjects_absent` (no-flag gate unchanged); runbook section 4 gate recovery that works
 
 ---
 

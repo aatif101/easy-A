@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_plan: 15
+current_plan: 16
 status: design_direction_selected
-stopped_at: Completed 09-15-PLAN.md
-last_updated: "2026-09-30T20:44:55.921Z"
-state_head: ae78ad8057b36b262b0ca7e0217c9f166d193670
+stopped_at: Completed 09-16-PLAN.md
+last_updated: "2026-09-30T20:58:44.641Z"
+state_head: a46b93e15c19b640db5106911ff7a6443e7777c6
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 36
-  completed_plans: 35
-  percent: 9
+  completed_plans: 36
+  percent: 64
 last_activity: 2026-09-30
-current_phase_name: hosted-beta-deployment-ci-observability
 current_phase: 9
+current_phase_name: hosted-beta-deployment-ci-observability
 last_activity_desc: Plan 09-15 complete; hosted beta live on Render, two sweeps soaked, 30 s sweep-duration gap open for operator decision
 ---
 
@@ -118,7 +118,7 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: 15
+Current Plan: 16
 Total Plans in Phase: 16
 
 ## Next action
@@ -281,7 +281,7 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Completed 09-15-PLAN.md
+**Stopped at:** Completed 09-16-PLAN.md
 Final specification review and student walkthrough remain open. See
 `.planning/sketches/001-student-experience/README.md`.
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
@@ -293,7 +293,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-09-30T20:11:03.030Z
+Last session: 2026-09-30T20:58:44.555Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
@@ -338,6 +338,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 | Phase 09 P13 | 25 min | 3 tasks | 8 files |
 | Phase 09 P14 | 25min | 3 tasks | 3 files |
 | Phase 09 P15 | 12min | 3 tasks | 5 files |
+| Phase 09 P16 | 3 min | 3 tasks | 6 files |
 
 ## Decisions
 
@@ -393,3 +394,4 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 - [Phase 09]: 09-14: Earliest Blueprint creation is 2026-09-30T06:15:46Z (dry-run start plus 60-minute floor); phase 9 code merged to main via PR #33 (5def356) after two CI-only test fixes
 - [Phase 09]: 09-15: 30 s per-sweep duration criterion recorded as an unresolved GAP (50.69 s, 37.166 s), not loosened; operator decision pending
 - [Phase 09]: 09-15: sweep-line next_start_at is the 60 min floor; jitter is on the following sleeping line (real gaps 66-69 min)
+- [Phase 09]: 09-16: gate override maps one fraction onto every size rule; above 0.10 row floor = 1 - X (exact decimal), absent-subject limit = X, zero_rows never overridable; None (no flag, worker loop) keeps the 0.10/0.90/0.02/2 defaults
