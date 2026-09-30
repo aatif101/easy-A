@@ -325,3 +325,147 @@ PASS honest-coverage (verified non-letter-grade exceptions: 284)
 | Integrity: unattributed grade rows, bucket-sum mismatches, rows at/after the term, stale cache, non-Tampa sections | PASS | 0, 0, 0, false, 0 (PASS) |
 
 Arithmetic: 3,046 + 368 + 284 = 3,698. The shift is explained by the sync (109 removals, 24 inserts, 10 new courses whose sections fall back to subject-level data) and is not a change to the grade data, which was not touched. The validator's verified non-letter-grade exception count (284) equals the inventory's `non_letter_grade` section count (284).
+
+## Soak
+
+Recorded 2026-09-30, probes between 20:04Z and 20:08Z (UTC). Everything the executor ran was read-only: `render logs` / `render deploys list`, public GETs to `https://easy-a-api.onrender.com`, and database reads inside `SET TRANSACTION READ ONLY` transactions (each reported `transaction_read_only = on`). No sweep, restart, deploy or Render setting was triggered by the executor. No connection string, pooler hostname or credential appears here. Items taken from the operator are labelled "operator-reported" and were not independently verified unless stated.
+
+### Sweeps covered
+
+Two sweeps succeeded. Sweep 3 was due at 2026-09-30T20:38:57Z and had **not** run when snapshot 2 was taken (20:05:25Z; worker logs held no `sweep_succeeded` line after 19:32:38Z). Snapshot 2 therefore covers exactly sweep 2 after snapshot 1; it does not cover sweep 3. No "later sweep" data beyond sweep 2 is claimed.
+
+| Sweep | IngestRun id | started_at (UTC) | finished_at (UTC) | status |
+|-------|--------------|------------------|-------------------|--------|
+| 1 | 113 | 2026-09-30 18:23:25.697115 | 18:24:16.387516 | succeeded |
+| 2 | 114 | 2026-09-30 19:32:01.016933 | 19:32:38.183183 | succeeded |
+
+Sweep 2 started 68 min 35 s (4,115.3 s) after sweep 1 started, outside a registration window (`in_registration_window: false`), so the "at least 60 minutes after the first" condition holds.
+
+### Sweep 2 line (`sweep_succeeded`, logged 19:32:38Z)
+
+Copied from the worker's log (operator pasted it; the orchestrator and this run re-read it from `render logs` and it matches):
+
+| Field | Value |
+|-------|-------|
+| duration_s | **37.166** |
+| bytes / content_encoding | 7,099,014 / null (uncompressed) |
+| tail_error | true (the known USF error tail, not a failure) |
+| scope | total_rows 6,641; in_scope_rows 3,704; subjects 210; course_keys 1,372; non_tampa_rows 0; graduate_rows 2,937 |
+| inserted / updated / removed / restored | 5 / 49 / 0 / 0 |
+| instructor_changes / seat_changes | 6 / 1 |
+| auto_added (3) | LDR 3363, LDR 4204, POT 4936 (the three deferred by sweep 1's per-sweep cap) |
+| unapplied_courses | NEB 0001 (no catalog heading) |
+| gate_reasons / error_kind | empty / null |
+| peak_rss_mb | 223.4 |
+| next_start_at (in the sweep line) | 2026-09-30T20:32:01.016933Z |
+
+### Database snapshot 2 (READ ONLY, 2026-09-30T20:05:25Z) reconciled against sweep 2
+
+| Item | Snapshot 1 (18:29:39Z) | Snapshot 2 (20:05:25Z) | Delta | Expected from the sweep 2 line | Match |
+|------|------------------------|------------------------|-------|--------------------------------|-------|
+| section_instructors | 4,406 | 4,417 | +11 | instructor_changes 6 + inserted 5 = 11 | yes |
+| seat_snapshots | 4,350 | 4,356 | +6 | seat_changes 1 + inserted 5 = 6 | yes |
+| sections (all) | 3,807 | 3,812 | +5 | inserted 5 | yes |
+| active 202701 sections | 3,698 | 3,703 | +5 | inserted 5, removed 0, restored 0 | yes |
+| removed 202701 sections | 109 | 109 | 0 | removed 0, restored 0 | yes |
+| section_rankings (202701) | 3,698 | 3,703 | +5 | equals the active count | yes |
+| ingest_runs | 113 | 114 | +1 | one sweep | yes |
+
+Result: **PASS, exact equality on every row.** `49 updated` sections added no instructor or seat rows beyond the 6 and 1 logged changes: the 11 new `section_instructors` rows all carry the same `observed_at` (19:32:22.591363Z, sweep 2's write time) and split into 5 first-ever rows (new sections) plus 6 name changes; unchanged sections wrote nothing. Change-only writes are demonstrated on the hosted system for this sweep (ROADMAP criterion 4: "an unchanged sweep writes no instructor or seat rows").
+
+Row growth (Open Question 6, seat_snapshots after the initial sync): 4,226 (pre-deploy) to 4,350 (sweep 1, +124, includes the catch-up) to 4,356 (sweep 2, +6). The steady-state rate at this point is 6 rows per sweep; this covers one non-catch-up sweep only and is not a projection. Growth during registration windows (5-minute cadence) is NOT MEASURED.
+
+Score-source split after sweep 2 (202701): course 3,332; subject 322; global 49 (total 3,703). Versus snapshot 1 the 5 inserted sections are 3 `subject` (the three newly auto-added courses, 1 section each) and 2 `course` (new sections in already-tracked courses). The 13 courses with active sections that are not configured targets (the 10 from sweep 1 plus LDR 3363, LDR 4204, POT 4936) have `score_source` `subject` on every section (HUM 4391 has 2, the others 1; 14 sections in all), none `course`, so no auto-added course shows own-course history (PROJECT.md D-20). Rankings rows belonging to removed sections: 0. Active sections without a ranking row: 0.
+
+The difference between the sweep's `in_scope_rows` and the active count is explained by the one unapplied course: sweep 1 3,702 in scope vs 3,698 active (4 deferred courses, each 1 section: LDR 3363, LDR 4204, POT 4936, NEB 0001) and sweep 2 3,704 in scope vs 3,703 active (NEB 0001 still unapplied). The "1 section per deferred course" part is inferred from the four-to-zero-to-one arithmetic, not read from the course pages.
+
+### failures_last_24h and freshness
+
+`GET <API>/api/v1/metadata/sync-status?term=202701` at 2026-09-30T20:05:19Z:
+
+| Field | Value |
+|-------|-------|
+| last_success_at | 2026-09-30T19:32:38.183183Z |
+| last_run_at | 2026-09-30T19:32:01.016933Z |
+| last_status | succeeded |
+| last_error_kind | null |
+| last_records_failed | 1 (NEB 0001, see below) |
+| **failures_last_24h** | **0** |
+| in_registration_window | false |
+| cadence_seconds / stale_after_seconds | 3600 / 7200 |
+| is_stale | false |
+
+The orchestrator's earlier read (19:51:48Z) agreed: succeeded, failures_last_24h 0, is_stale false, last_records_failed 1.
+
+### Soak criteria scorecard
+
+| Criterion (09-15 must_haves) | Result | Basis |
+|------------------------------|--------|-------|
+| At least two sweeps succeeded, at least 60 min apart, outside a window | PASS | IngestRuns 113 and 114; 68.6 min apart |
+| Change-only: new instructor and seat rows equal the logged changes | PASS | table above, exact |
+| Removed sections stay out of search | PASS | re-run at 2026-09-30T20:08:36Z: the API's paged search result (19 GETs, `limit=200`) has total 3,703, 3,703 distinct CRNs, equals the DB active CRN set exactly (0 in API only, 0 in DB only), and contains 0 of the 109 removed CRNs; 0 rankings rows belong to removed sections |
+| Each sweep under 30 s end to end | **GAP (not met)** | 50.69 s and 37.166 s, see next section |
+| Worker under 512 MB, target under 350 MB, no OOM restarts | PASS on the evidence available | the sweeps' own `peak_rss_mb` 193.6 and 223.4; operator-reported Render Metrics peak "under 350 MB" (no exact number given; not independently read, the CLI cannot show Metrics). `render logs --level error` for the worker returned zero lines from 18:23Z to 20:08Z, the worker's event sequence (worker_started, sweep_succeeded, sleeping, sweep_succeeded, sleeping, then the operator's restart) shows no unexplained restart, and `render deploys list` shows one deploy, so no deploy-triggered restart either. Render's own OOM event list is a dashboard view and was not read by the executor. The only restart was the operator's single one below |
+| Restart logs `worker_stopped`; new instance does not sweep immediately | PASS | see "Restart check" |
+| Students see "Updated N min ago", no stale warning | operator approved; no itemized results reported | executor did not open the web UI. The API data behind it is consistent: is_stale false, last_success_at 33 min before the probe |
+| A Staff-to-named instructor change appears on the hosted site | PASS at the API level; UI not independently viewed | see "Instructor-change spot check" |
+
+### Sweep duration: GAP against the 30 s criterion (unresolved)
+
+| Sweep | duration_s | Against "each sweep under 30 s" |
+|-------|-----------|----------------------------------|
+| 1 (full catch-up) | 50.69 | over by 20.69 s |
+| 2 (5 inserts, 49 updates, 0 removals) | 37.166 | over by 7.166 s |
+| Dry run from the workstation (reads and diffs only, 09-14) | 15.209 | not comparable (different host, nothing written) |
+
+Both hosted sweeps exceed the criterion. **This is recorded as a gap, not a pass, and the 30 s threshold was not loosened.** The operator has not decided whether to accept it. Sweep 2 was a light sweep (5 inserts, 49 updates, 6 instructor changes, 1 seat change, no removals), so write volume alone does not explain the overage. The log line gives no per-phase breakdown, so the cause is not established. Hypotheses, none tested: the 0.5 CPU Starter worker parses the 7.1 MB body more slowly than a workstation; the fetch from Render is slower than from the workstation; the per-sweep database work over the pooler adds round trips. Sweep 3 (due about 20:38:57Z) is a third data point. The 30 s figure came from the RESEARCH pitfall and the live-sync plan soak criteria, not from a user-facing requirement; whether it is the right bar is for the operator to decide (see the SUMMARY user-review list).
+
+### Restart check (assumption A1 and the restart floor)
+
+The operator restarted `easy-a-worker` once with `render restart srv-daul6tnpn0mc7384h5jg` at about 20:00:5xZ (operator-reported time; between sweeps 2 and 3). The worker logs (re-read with `render logs` for this section) show:
+
+| Time (UTC) | Event |
+|------------|-------|
+| 19:32:38 | sweep 2 `sweep_succeeded`, then `sleeping` with next_start_at 2026-09-30T20:37:58.874589Z |
+| 20:00:58 | new instance `worker_started`, `last_sweep_started_at` 2026-09-30T19:32:01.016933Z |
+| 20:00:58 | new instance `sleeping`, next_start_at 2026-09-30T20:38:57.484266Z |
+| 20:01:57.008 | `{"event": "worker_stopped"}` from the old instance (operator confirmed it was the old instance) |
+
+- **A1 confirmed:** SIGTERM reached the Python process of the old instance, which logged `worker_stopped` (20:01:57, about 59 s after the new instance started, consistent with Render's deploy/restart overlap).
+- **Restart floor held (D-01, PROJECT.md D-22(b)):** the new instance did not sweep. Its next_start_at of 20:38:57Z is 66 min 57 s after the last sweep start and later than the 20:32:01Z floor (last sweep start plus 60 min). No sweep line appears between 19:32:38 and the probe.
+- One restart only (no repeated restarts; the REQ-SYNC-01 prohibition held).
+
+### Jitter observation
+
+The operator's working note was that sweep 1's next start was +68.6 min but sweep 2's was exactly +60 min. The logs show that comparison mixes two different fields:
+
+| Sweep | `next_start_at` field inside the `sweep_succeeded` line | `next_start_at` of the following `sleeping` line |
+|-------|-----------------------------------------------------------|---------------------------------------------------|
+| 1 (start 18:23:25.697) | 19:23:25.697 (+60.00 min) | 19:32:01.017 (+68.59 min) |
+| 2 (start 19:32:01.017) | 20:32:01.017 (+60.00 min) | 20:37:58.875 (+65.96 min) |
+| after restart (last start 19:32:01.017) | n/a | 20:38:57.484 (+66.94 min) |
+
+The field in the sweep line is the floor (start plus exactly 60 min) in both sweeps. The sleep target, which is what the worker actually waits for, carries jitter every time (+8.59, +5.96 and, after the restart, +6.94 min beyond the floor). Sweep 2 actually started at 19:32:01.016933, 166 microseconds after the logged sleep target for sweep 1. Observation only: the real gap between sweeps is 66 to 69 min, longer than the nominal 60 min cadence by the jitter, still under `stale_after_seconds` 7200.
+
+### Instructor-change spot check (read-only)
+
+Sweep 2's 6 instructor changes, from `section_instructors` rows observed at 19:32:22.591363Z (snapshot query, database read), compared against the hosted API (`/api/v1/rankings/search?term=202701`, paged, `instructor` field, `instructor_provenance.freshness: current`):
+
+| CRN | Course | Change | Hosted API instructor |
+|-----|--------|--------|------------------------|
+| 13492 | RED 4943 | Staff to J. King | J. King |
+| 16962 | RED 4312 | Staff to S. Esman | S. Esman |
+| 18182 | RED 4943 | Staff to L. Kelly | L. Kelly |
+| 13490 | RED 4943 | L. Kelly to J. King | J. King |
+| 20324 | RED 4312 | J. Outlaw to S. Esman | S. Esman |
+| 20773 | INR 2002 | E. Fruehauf to Y. Hermida | Y. Hermida |
+
+The other 5 new rows are first-ever instructors for the 5 newly inserted sections (CRNs 11313, 19200, 20726, 20774, 20775). The hosted API serves the new names for all six changed sections, including three Staff-to-named changes. This was checked against the API and database only. It was not checked against the USF schedule page (that would be an extra USF request, outside D-22) and not through the web UI. Note the sweep applies what the whole-term request returned, so USF is the source of these names by construction.
+
+### Operator approval and what was not itemized
+
+The operator replied "approved" and said peak memory was under 350 MB (operator-observed in Render Metrics, no exact number). The operator did NOT itemize the web-UI checks (the "Updated N min ago" line, the absence of the stale warning, search results, removed CRN not listed) or the instructor-change spot check. They are recorded as **operator approved; no itemized results reported**. The executor's own verification is limited to the API, log and database probes above.
+
+### NEB 0001 (permanent failed record)
+
+NEB 0001 has appeared as unapplied in both sweeps: "deferred: per-sweep cap" in sweep 1, then "no catalog heading" in sweep 2 when the cap no longer applied. The sweep status is still `succeeded` with `records_failed` 1, and `failures_last_24h` counts 0, so it does not raise the failure signal. Expectation (hypothesis, only two sweeps observed): every later sweep will keep reporting one failed record for this course, because the catalog has no heading for it, unless a negative cache suppresses the retry. Students cannot find NEB 0001 sections (they are not inserted). This is for the operator to decide whether to accept, exclude the course, or fix.
