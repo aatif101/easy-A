@@ -469,3 +469,17 @@ The operator replied "approved" and said peak memory was under 350 MB (operator-
 ### NEB 0001 (permanent failed record)
 
 NEB 0001 has appeared as unapplied in both sweeps: "deferred: per-sweep cap" in sweep 1, then "no catalog heading" in sweep 2 when the cap no longer applied. The sweep status is still `succeeded` with `records_failed` 1, and `failures_last_24h` counts 0, so it does not raise the failure signal. Expectation (hypothesis, only two sweeps observed): every later sweep will keep reporting one failed record for this course, because the catalog has no heading for it, unless a negative cache suppresses the retry. Students cannot find NEB 0001 sections (they are not inserted). This is for the operator to decide whether to accept, exclude the course, or fix.
+
+### Instructor-change delta: sweep 1 breakdown (150 in the dry run and 156 in sweep 1 versus 89 in research)
+
+READ ONLY query at about 20:10Z over the `section_instructors` rows written by sweep 1 (all 180 rows share `observed_at` 2026-09-30 18:23:46.124294Z), classified by comparing each row with the section's previous row:
+
+| Class | Sweep 1 (2026-09-30) | Research diff (2026-09-29) |
+|-------|----------------------|----------------------------|
+| Staff to named | 112 | 52 |
+| named to other named | 30 | 24 |
+| named to Staff | 14 | 13 |
+| Total instructor changes | 156 (equals the sweep line) | 89 |
+| First-ever rows (new sections) | 24 (equals `inserted`) | n/a |
+
+Both diffs compare USF against the same stored 2026-09-22 data, so the extra 67 changes are a day of USF drift plus any definitional difference between the two diffs. Nearly all the growth is in Staff to named (+60); the other two classes moved by +6 and +1. Hypothesis, not tested: departments assigned instructors to Staff sections as registration nears (this matches the dry-run note), or the research diff counted differently. The cause stays unverified; the hosted database matches what USF returned, so this is an open observation and not a correctness failure.
