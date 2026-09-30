@@ -130,6 +130,7 @@ def rank_course_sections(
                 Term.banner_code == normalized_term,
                 Course.subject == normalized_subject,
                 Course.number == normalized_course_number,
+                Section.removed_at.is_(None),
             )
             .order_by(Section.crn)
         )
@@ -152,7 +153,11 @@ def _get_section_course_term(
         select(Section, Course, Term)
         .join(Course, Section.course_id == Course.id)
         .join(Term, Section.term_id == Term.id)
-        .where(Term.banner_code == term, Section.crn == crn)
+        .where(
+            Term.banner_code == term,
+            Section.crn == crn,
+            Section.removed_at.is_(None),
+        )
     ).one_or_none()
     if row is None:
         raise RankingResolutionError(f"No section found for term {term!r} and CRN {crn!r}.")
@@ -248,7 +253,9 @@ def _seat_info_for(
     )
     if latest_snapshot is not None:
         return SeatInfo(
-            **snapshot_freshness(latest_snapshot, as_of=as_of).model_dump(),
+            **snapshot_freshness(
+                latest_snapshot, as_of=as_of, verified_at=section.last_seen_at
+            ).model_dump(),
             capacity=latest_snapshot.capacity,
             enrollment=latest_snapshot.enrollment,
             seats_remaining=latest_snapshot.seats_remaining,

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import httpx
 import pytest
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, select
 from sqlalchemy.orm import Session
 
 from easy_a.db import Base
@@ -137,3 +137,151 @@ def test_live_failure_does_not_print_driver_secrets(monkeypatch, capsys):
     output = capsys.readouterr()
     assert "RuntimeError" in output.err
     assert "secret" not in output.err and "private-host" not in output.err
+
+
+def test_live_mode_reconciles_active_sections_after_removal(monkeypatch, capsys):
+    engine = create_engine("sqlite://")
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        benchmark._seed_synthetic_dataset(
+            session, term_code="202701", section_count=3, now=benchmark.datetime.now(benchmark.UTC)
+        )
+        # One section soft-removed by the sync worker; the cache is built from active only.
+        removed = session.scalars(
+            select(benchmark.Section).order_by(benchmark.Section.id).limit(1)
+        ).one()
+        removed.removed_at = benchmark.datetime.now(benchmark.UTC)
+        session.flush()
+        assert benchmark.refresh_section_rankings(session, term="202701") == 2
+        session.commit()
+    monkeypatch.setattr(benchmark, "get_engine", lambda *args: engine)
+    benchmark._run_live(term="202701", iterations=50, url=None, http_base_url=None)
+    assert "Dataset size: 2 sections (stored term)" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["https://easy-a-api.onrender.com", "https://easy-a-api.onrender.com/"],
+)
+def test_remote_origin_accepts_plain_https_origin(value):
+    assert benchmark._remote_https_origin(value) == "https://easy-a-api.onrender.com"
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        "http://easy-a-api.onrender.com",
+        "https://user:pass@easy-a-api.onrender.com",
+        "https://user@easy-a-api.onrender.com",
+        "https://easy-a-api.onrender.com/api",
+        "https://easy-a-api.onrender.com?x=1",
+        "https://easy-a-api.onrender.com/?x=1",
+        "https://easy-a-api.onrender.com#frag",
+        "https://easy-a-api.onrender.com:notaport",
+        "https://",
+        "ftp://easy-a-api.onrender.com",
+        "easy-a-api.onrender.com",
+    ],
+)
+def test_remote_origin_rejects_non_plain_https_origins(value):
+    with pytest.raises(ValueError, match="Remote target must be a plain https origin"):
+        benchmark._remote_https_origin(value)
+
+
+def test_loopback_validator_still_rejects_https_remote_origin():
+    with pytest.raises(ValueError):
+        benchmark._http_base_url("https://easy-a-api.onrender.com")
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        ["--live"],
+        ["--smoke"],
+        ["--url", "postgresql://u:p@h/db"],
+        ["--http-base-url", "http://127.0.0.1:8000"],
+        ["--iterations", "49"],
+    ],
+)
+def test_cli_rejects_remote_url_combinations(extra, monkeypatch):
+    monkeypatch.setattr(
+        benchmark, "_run_remote", lambda **kwargs: pytest.fail("remote run must not start")
+    )
+    with pytest.raises(SystemExit):
+        benchmark.main(["--remote-url", "https://easy-a-api.onrender.com", *extra])
+
+
+def test_cli_rejects_invalid_remote_origin(monkeypatch):
+    monkeypatch.setattr(
+        benchmark, "_run_remote", lambda **kwargs: pytest.fail("remote run must not start")
+    )
+    with pytest.raises(SystemExit):
+        benchmark.main(["--remote-url", "http://easy-a-api.onrender.com"])
+
+
+def test_cli_dispatches_remote_run(monkeypatch):
+    calls = []
+    monkeypatch.setattr(benchmark, "_run_remote", lambda **kwargs: calls.append(kwargs))
+    assert benchmark.main(["--remote-url", "https://easy-a-api.onrender.com/"]) == 0
+    assert calls == [
+        {"term": "202701", "iterations": 50, "base_url": "https://easy-a-api.onrender.com"}
+    ]
+
+
+def test_remote_run_reports_p95_and_sends_no_credentials(capsys):
+    seen: list[httpx.Request] = []
+
+    def handler(request):
+        seen.append(request)
+        return httpx.Response(
+            200,
+            json={
+                "items": [],
+                "total": 3783,
+                "limit": int(request.url.params["limit"]),
+                "offset": int(request.url.params["offset"]),
+            },
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        benchmark._run_remote("202701", 50, "https://easy-a-api.onrender.com", client=client)
+    output = capsys.readouterr().out
+    # 1 broad precheck + 5 warmups + 50 timed calls.
+    assert len(seen) == 56
+    assert all(r.url.scheme == "https" and r.url.host == "easy-a-api.onrender.com" for r in seen)
+    assert all("cookie" not in r.headers and "authorization" not in r.headers for r in seen)
+    assert re.search(r"^p95: \d+\.\d\dms ", output, re.MULTILINE)
+    assert re.search(r"^p50: ", output, re.MULTILINE) and re.search(r"^max: ", output, re.MULTILINE)
+    assert "Iterations: 50" in output
+    assert "no DB reconciliation" in output
+    assert "Dataset size: 3783 sections (hosted API total)" in output
+
+
+def test_remote_run_fails_on_empty_term_and_redirects():
+    def empty(request):
+        return httpx.Response(200, json={"items": [], "total": 0, "limit": 50, "offset": 0})
+
+    with (
+        httpx.Client(transport=httpx.MockTransport(empty)) as client,
+        pytest.raises(ValueError),
+    ):
+        benchmark._run_remote("202701", 50, "https://easy-a-api.onrender.com", client=client)
+
+    def redirect(request):
+        return httpx.Response(302, headers={"location": "https://evil.example/"})
+
+    with (
+        httpx.Client(transport=httpx.MockTransport(redirect)) as client,
+        pytest.raises(ValueError),
+    ):
+        benchmark._run_remote("202701", 50, "https://easy-a-api.onrender.com", client=client)
+
+
+def test_remote_failure_does_not_print_transport_details(monkeypatch, capsys):
+    def fail(**kwargs):
+        raise RuntimeError("https://secret_user:secret_password@private-host/")
+
+    monkeypatch.setattr(benchmark, "_run_remote", fail)
+    assert benchmark.main(["--remote-url", "https://easy-a-api.onrender.com"]) == 1
+    err = capsys.readouterr().err
+    assert "RuntimeError" in err and "secret" not in err and "private-host" not in err

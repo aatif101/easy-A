@@ -308,6 +308,10 @@ quality error and warning counts. Exit status is `0` when the refresh and qualit
 checks succeed, `1` when ingestion succeeds but quality errors are present, and
 `2` when an ingestion stage fails.
 
+## Hosted beta (Render)
+
+The hosted beta runs from `render.yaml` (Render Blueprint): `easy-a-api` and `easy-a-worker` share one `Dockerfile`, and `easy-a-web` is the static front end. The worker command is `python -m easy_a.sync --term 202701`. Migrations stay manual. See [docs/runbooks/hosted-beta-operations.md](docs/runbooks/hosted-beta-operations.md) for health checks, refresh and recovery, pausing the worker, latency measurement and deploy ordering.
+
 ## Data Quality
 
 Run the quality checks independently for any stored term:
@@ -689,17 +693,23 @@ notifications are not yet implemented.
 
 Ranking API and CLI `seats` objects now include `observed_at` (UTC), `freshness`, and
 `age_seconds`. Describe these as **latest observed seats**, not live availability.
-Freshness derives from the latest seat snapshot, ordered by timestamp then id:
+Freshness is judged from the verified time: the later of `Section.last_seen_at` (the last sync
+sweep that saw the section) and the latest seat snapshot (ordered by timestamp then id). Seat
+counts still come from the latest snapshot, so an unchanged section re-verified by a recent sweep
+is `fresh` even when its snapshot is old. Thresholds follow the sync cadence
+(`registration_windows.toml`, PROJECT.md D-10): stale means older than twice the cadence.
 
-| Freshness | Default age |
-| --- | --- |
-| `fresh` | At most 10 minutes |
-| `aging` | More than 10 and at most 30 minutes |
-| `stale` | More than 30 minutes |
-| `unavailable` | No usable snapshot, all seat fields null, or future timestamp |
+| Freshness | Inside a registration window | Outside every window |
+| --- | --- | --- |
+| `fresh` | At most 375 s (6.25 min) | At most 4500 s (75 min) |
+| `aging` | More than 375 s, at most 600 s | More than 4500 s, at most 7200 s |
+| `stale` | More than 600 s | More than 7200 s |
+| `unavailable` | No usable snapshot, all seat fields null, or future timestamp | same |
 
-Configure seconds with `EASY_A_SEAT_FRESH_SECONDS` (600) and
-`EASY_A_SEAT_STALE_SECONDS` (1800); require `0 <= fresh <= stale`.
+At a window boundary the larger tier of the verified time and now applies. Set both
+`EASY_A_SEAT_FRESH_SECONDS` and `EASY_A_SEAT_STALE_SECONDS` (default unset; require
+`0 <= fresh <= stale`) to replace the cadence thresholds with fixed ones; setting only one is
+ignored with a warning. Without a verified time the legacy 600/1800 s thresholds apply.
 Canonical seat fields without a snapshot remain available but have unavailable
 freshness and null age. Existing provenance `current` means the requested term,
 not recent observation. Freshness does not modify easiness, W-rate, confidence,
@@ -712,7 +722,8 @@ source currently offers those sections. Use timestamps and the refresh command's
 per-pass counts to assess recency. No deletion or inferred cancellation is performed.
 When explicitly supplied targets (as both refresh commands do), quality checks warn
 about targets missing catalog metadata, targets without stored
-sections, and seat snapshots older than the configured stale threshold. No migration
+sections, and seat data not verified within the cadence-derived stale threshold (judged from
+the section's last-seen time; removed sections are ignored). No migration
 is required. Generic `run_quality_checks(..., targets=None)` and `check_data_quality.py`
 do not load target configuration or run these registration coverage/seat freshness checks;
 they retain existing schedule and historical quality checks.

@@ -166,7 +166,11 @@ def get_current_section_historical_analytics(
     sections = (
         session.execute(
             select(Section)
-            .where(Section.term_id == term.id, Section.course_id.in_(course_ids))
+            .where(
+                Section.term_id == term.id,
+                Section.course_id.in_(course_ids),
+                Section.removed_at.is_(None),
+            )
             .order_by(Section.crn)
         )
         .scalars()
@@ -239,7 +243,11 @@ def get_term_section_historical_analytics(
     if key_by_course_id:
         for section in session.execute(
             select(Section)
-            .where(Section.term_id == term.id, Section.course_id.in_(key_by_course_id))
+            .where(
+                Section.term_id == term.id,
+                Section.course_id.in_(key_by_course_id),
+                Section.removed_at.is_(None),
+            )
             .order_by(Section.crn)
         ).scalars():
             sections_by_key.setdefault(key_by_course_id[section.course_id], []).append(section)

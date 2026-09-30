@@ -428,7 +428,9 @@ def _fetch_sections(session: Session, term: str) -> list[Any]:
         select(Section.id, Section.crn, Section.campus, Course.subject, Course.number)
         .join(Course, Section.course_id == Course.id)
         .join(Term, Section.term_id == Term.id)
-        .where(Term.banner_code == term)
+        # Active sections only: soft-removed sections (removed_at) are out of the D-21
+        # inventory. Auto-added courses' sections stay in, as listed exceptions (D-05).
+        .where(Term.banner_code == term, Section.removed_at.is_(None))
         .order_by(Course.subject, Course.number, Section.crn)
     )
     return list(session.execute(stmt).all())

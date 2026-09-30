@@ -31,7 +31,9 @@ def coverage_findings(
                         message=message,
                     )
                 )
-    sections = session.scalars(select(Section).join(Term).where(Term.banner_code == term))
+    sections = session.scalars(
+        select(Section).join(Term).where(Term.banner_code == term, Section.removed_at.is_(None))
+    )
     for section in sections:
         snapshot = session.scalar(
             select(SeatSnapshot)
@@ -39,14 +41,22 @@ def coverage_findings(
             .order_by(SeatSnapshot.observed_at.desc(), SeatSnapshot.id.desc())
             .limit(1)
         )
-        if snapshot_freshness(snapshot, as_of=as_of).freshness == SeatFreshness.stale:
+        # Judge from the verified time: change-only sweeps write a snapshot only when seats
+        # change, so last_seen_at is what shows an unchanged section was re-verified.
+        freshness = snapshot_freshness(
+            snapshot, as_of=as_of, verified_at=section.last_seen_at
+        ).freshness
+        if freshness == SeatFreshness.stale:
             findings.append(
                 QualityFinding(
                     check_id="stale_seat_observation",
                     severity=FindingSeverity.warning,
                     term=term,
                     crn=section.crn,
-                    message="Latest observed seats exceed the configured stale threshold.",
+                    message=(
+                        "Seat data has not been verified within the cadence-derived "
+                        "stale threshold."
+                    ),
                 )
             )
     return findings

@@ -10,6 +10,7 @@ import type {
   RankingMetadata,
   RankingQuery,
   RankingsSearchResponse,
+  SyncStatusLoader,
 } from "./types/rankings";
 
 vi.mock("./api/rankings", async (importOriginal) => ({
@@ -37,6 +38,25 @@ const metadata: RankingMetadata = {
 
 const resolvedMetadataLoader: MetadataLoader = async () => metadata;
 
+const wholeSecondIso = (milliseconds: number): string => new Date(milliseconds).toISOString().replace(/\.\d+Z$/, "Z");
+
+// Stub for the freshness notice: a fresh, non-status-role "Updated" line (37 min, distinct from the
+// seat rows' own ages), so status-region assertions are unchanged.
+const resolvedSyncStatusLoader: SyncStatusLoader = async (term) => ({
+  term,
+  last_success_at: wholeSecondIso(Date.now() - 37 * 60_000),
+  last_run_at: null,
+  last_status: "succeeded",
+  last_error_kind: null,
+  last_records_failed: 0,
+  failures_last_24h: 0,
+  in_registration_window: false,
+  cadence_seconds: 3600,
+  stale_after_seconds: 7200,
+  is_stale: false,
+  as_of: wholeSecondIso(Date.now()),
+});
+
 const pageFor = (
   query: RankingQuery,
   items = syntheticRankings,
@@ -50,7 +70,7 @@ const renderLoadedApp = async (
   metadataLoader: MetadataLoader = resolvedMetadataLoader,
 ) => {
   const user = userEvent.setup();
-  render(<App rankingLoader={rankingLoader} metadataLoader={metadataLoader} mockMode={false} />);
+  render(<App syncStatusLoader={resolvedSyncStatusLoader} rankingLoader={rankingLoader} metadataLoader={metadataLoader} mockMode={false} />);
   const table = await screen.findByRole("table", { name: "Ranked USF course sections" });
   return { table, user };
 };
@@ -133,7 +153,7 @@ describe("course ranking page", () => {
 
   test("renders an empty result state", async () => {
     const user = userEvent.setup();
-    render(<App rankingLoader={async (query) => pageFor(query, [], 0)} metadataLoader={resolvedMetadataLoader} />);
+    render(<App syncStatusLoader={resolvedSyncStatusLoader} rankingLoader={async (query) => pageFor(query, [], 0)} metadataLoader={resolvedMetadataLoader} />);
     await user.type(await screen.findByRole("searchbox", { name: /Course code/ }), "ENC 1101");
     expect(await screen.findByRole("heading", { name: "No sections are currently available for this search" })).toBeInTheDocument();
   });
@@ -142,7 +162,7 @@ describe("course ranking page", () => {
     const errorLoader: RankingLoader = async () => {
       throw new Error("The API could not be reached.");
     };
-    render(<App rankingLoader={errorLoader} metadataLoader={resolvedMetadataLoader} mockMode={false} />);
+    render(<App syncStatusLoader={resolvedSyncStatusLoader} rankingLoader={errorLoader} metadataLoader={resolvedMetadataLoader} mockMode={false} />);
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Rankings are unavailable");
     expect(alert).toHaveTextContent("The API could not be reached.");
@@ -193,7 +213,7 @@ describe("course ranking page", () => {
     const metadataLoader: MetadataLoader = async () => {
       throw new Error("Terms endpoint unavailable.");
     };
-    render(<App rankingLoader={rankingLoader} metadataLoader={metadataLoader} mockMode={false} />);
+    render(<App syncStatusLoader={resolvedSyncStatusLoader} rankingLoader={rankingLoader} metadataLoader={metadataLoader} mockMode={false} />);
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Metadata unavailable");
     expect(alert).toHaveTextContent("Terms endpoint unavailable.");
@@ -215,7 +235,7 @@ const pagedLoader = (total: number) => vi.fn<RankingLoader>(async (query) =>
 test.each([0, 5, 50, 51, 143, 500])("server pagination for total %s", async (total) => {
   const loader = pagedLoader(total);
   const user = userEvent.setup();
-  render(<App rankingLoader={loader} metadataLoader={resolvedMetadataLoader} mockMode={false} />);
+  render(<App syncStatusLoader={resolvedSyncStatusLoader} rankingLoader={loader} metadataLoader={resolvedMetadataLoader} mockMode={false} />);
   await waitFor(() => expect(screen.getAllByText(`Showing ${total ? 1 : 0}–${Math.min(50, total)} of ${total} sections`).length).toBeGreaterThan(0));
   expect(screen.getByRole("button", { name: "Previous" })).toHaveAttribute("aria-disabled", "true");
   if (total <= 50) expect(screen.getByRole("button", { name: "Next" })).toHaveAttribute("aria-disabled", "true");
@@ -267,7 +287,7 @@ test("recovers an empty page when data shrinks", async () => {
 test("late responses cannot replace a newer search, even if abort is ignored", async () => {
   let finishOld!: (page: RankingsSearchResponse) => void;
   const loader = vi.fn<RankingLoader>().mockImplementationOnce(() => new Promise((resolve) => { finishOld = resolve; })).mockImplementation(async (query) => pageFor(query, [largeItems[1]]));
-  render(<App rankingLoader={loader} metadataLoader={resolvedMetadataLoader} />);
+  render(<App syncStatusLoader={resolvedSyncStatusLoader} rankingLoader={loader} metadataLoader={resolvedMetadataLoader} />);
   await waitFor(() => expect(loader).toHaveBeenCalledOnce());
   fireEvent.change(screen.getByRole("searchbox"), { target: { value: "CHM2045L" } });
   await screen.findByRole("table");
@@ -303,7 +323,7 @@ test("pagination keeps keyboard focus and blocks duplicate pending requests", as
 });
 
 test("an unfiltered empty term has its own state", async () => {
-  render(<App rankingLoader={pagedLoader(0)} metadataLoader={resolvedMetadataLoader} />);
+  render(<App syncStatusLoader={resolvedSyncStatusLoader} rankingLoader={pagedLoader(0)} metadataLoader={resolvedMetadataLoader} />);
   expect(await screen.findByRole("heading", { name: "No sections available for Spring 2028" })).toBeInTheDocument();
   expect(screen.getByText("This term is listed by the API but has no searchable section data.")).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Reset filters" })).not.toBeInTheDocument();
@@ -314,7 +334,7 @@ test("coverage failure does not block server search or stale open seats", async 
   const user = userEvent.setup();
   const stale = { ...syntheticRankings[0], seats: { ...syntheticRankings[0].seats, seats_remaining: 3, freshness: "stale" as const } };
   const loader = vi.fn<RankingLoader>(async query => pageFor(query, [stale]));
-  render(<App rankingLoader={loader} metadataLoader={resolvedMetadataLoader} coverageLoader={async () => { throw new Error("offline"); }} />);
+  render(<App syncStatusLoader={resolvedSyncStatusLoader} rankingLoader={loader} metadataLoader={resolvedMetadataLoader} coverageLoader={async () => { throw new Error("offline"); }} />);
   await screen.findByRole("table");
   expect(await screen.findByText("Coverage information unavailable. You can still search sections.")).toBeVisible();
   await user.click(screen.getByLabelText("Open seats only"));
@@ -322,4 +342,11 @@ test("coverage failure does not block server search or stale open seats", async 
   const table = await screen.findByRole("table");
   expect(within(table).getByText("3 seats open")).toBeVisible();
   expect(within(table).getByText("Stale")).toBeVisible();
+});
+
+test("shows the freshness line from the sync-status loader above the course index", async () => {
+  const syncStatusLoader = vi.fn<SyncStatusLoader>(resolvedSyncStatusLoader);
+  render(<App syncStatusLoader={syncStatusLoader} rankingLoader={resolvedRankingLoader} metadataLoader={resolvedMetadataLoader} mockMode={false} />);
+  expect(await screen.findByText("Updated 37 min ago")).toBeVisible();
+  expect(syncStatusLoader).toHaveBeenCalledWith("202801", expect.any(AbortSignal));
 });

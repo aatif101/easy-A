@@ -33,3 +33,23 @@ def test_repeated_ingest_updates_sections_and_appends_history(db_session: Sessio
     # SQLite drops timezone metadata; PostgreSQL preserves the UTC-aware values.
     assert section.first_seen_at == first.replace(tzinfo=None)
     assert section.last_seen_at == second.replace(tzinfo=None)
+
+
+def test_reingest_clears_removed_at_for_sections_seen_again(db_session: Session) -> None:
+    html = (FIXTURES / "schedule_current.html").read_text(encoding="utf-8")
+    first = datetime(2026, 9, 1, 12, tzinfo=UTC)
+    second = datetime(2026, 9, 1, 13, tzinfo=UTC)
+
+    ingest_schedule_html(db_session, html, "202701", observed_at=first)
+    db_session.commit()
+    removed = db_session.scalar(select(Section).where(Section.crn == "13173"))
+    assert removed is not None
+    removed.removed_at = first
+    db_session.commit()
+
+    ingest_schedule_html(db_session, html, "202701", observed_at=second)
+    db_session.commit()
+
+    sections = db_session.scalars(select(Section)).all()
+    assert {section.crn for section in sections} == {"13173", "19410"}
+    assert all(section.removed_at is None for section in sections)

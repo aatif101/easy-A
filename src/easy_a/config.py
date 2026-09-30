@@ -33,9 +33,17 @@ class Settings(BaseSettings):
     course_targets_path: str = Field(
         default="config/course_targets.toml", validation_alias="EASY_A_COURSE_TARGETS_PATH"
     )
-    seat_fresh_seconds: int = Field(default=600, ge=0, validation_alias="EASY_A_SEAT_FRESH_SECONDS")
-    seat_stale_seconds: int = Field(
-        default=1800, ge=0, validation_alias="EASY_A_SEAT_STALE_SECONDS"
+    registration_windows_path: str = Field(
+        default="config/registration_windows.toml",
+        validation_alias="EASY_A_REGISTRATION_WINDOWS_PATH",
+    )
+    # Explicit seat-freshness overrides. Unset (the default) means the thresholds follow the sync
+    # cadence (easy_a.sync.windows.seat_thresholds); when both are set they replace it.
+    seat_fresh_seconds: int | None = Field(
+        default=None, ge=0, validation_alias="EASY_A_SEAT_FRESH_SECONDS"
+    )
+    seat_stale_seconds: int | None = Field(
+        default=None, ge=0, validation_alias="EASY_A_SEAT_STALE_SECONDS"
     )
     echo_sql: bool = Field(default=False, validation_alias="EASY_A_ECHO_SQL")
     api_host: str = Field(default="127.0.0.1", validation_alias="EASY_A_API_HOST")

@@ -7,6 +7,7 @@ import type {
   RankingSignal,
   ScoreSource,
   SectionRanking,
+  SyncStatus,
 } from "../types/rankings";
 
 // Synthetic frontend-only fixtures. These do not describe real students or sections.
@@ -309,3 +310,22 @@ export const syntheticCoverage: CourseCoverage[] = [
   { subject: "CHM", course_number: "2045L", catalog_present: true, section_count: 0, latest_observed_at: null, status: "missing" },
   { subject: "PHY", course_number: "2048", catalog_present: false, section_count: 0, latest_observed_at: null, status: "missing" },
 ];
+
+/**
+ * SYNTHETIC (mock mode only): a sync status with no successful sweep. last_success_at is
+ * deliberately null so the UI can never show a fabricated "Updated" time (REQ-SYNC-01).
+ */
+export const syntheticSyncStatus: SyncStatus = {
+  term: "202701",
+  last_success_at: null, // synthetic: never carries a timestamp
+  last_run_at: null,
+  last_status: null,
+  last_error_kind: null,
+  last_records_failed: null,
+  failures_last_24h: 0,
+  in_registration_window: false,
+  cadence_seconds: 3600,
+  stale_after_seconds: 7200,
+  is_stale: false,
+  as_of: "2027-01-01T00:00:00Z",
+};

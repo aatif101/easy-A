@@ -10,7 +10,7 @@ from pathlib import Path
 import httpx
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -445,3 +445,28 @@ def test_connection_error_yields_not_measured_exit_3(
     output = json.loads(capsys.readouterr().out)
     assert output["verdict"] == "NOT MEASURED"
     assert output["gate"] == "api_identity"
+
+
+def test_removed_section_is_excluded_from_stored_identities_and_still_passes(
+    session_factory: sessionmaker[Session],
+    api_client: TestClient,
+) -> None:
+    with session_factory() as session:
+        _seed_sections(session, count=3)
+    # The sync worker soft-removes one section; the API and rankings cache drop it.
+    with session_factory() as session:
+        removed = session.scalars(select(Section).where(Section.crn == _crn(2))).one()
+        removed.removed_at = NOW
+        session.flush()
+        refresh_section_rankings(session, term=TERM)
+        session.commit()
+
+    with session_factory() as session:
+        stored = verify.stored_identities(session, term=TERM)
+
+    scan = verify.scan_pages(api_client, TERM, 2)
+    verdict = verify.reconcile(stored, scan)
+
+    assert stored.identities == frozenset({_crn(0), _crn(1)})
+    assert scan.api_total == 2
+    assert verdict.verdict == "PASS"

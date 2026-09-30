@@ -10,12 +10,14 @@ from sqlalchemy import func, select, tuple_
 from sqlalchemy.orm import Session
 
 from easy_a.analytics.confidence import ScoreSource
+from easy_a.common.campus import SUPPORTED_CAMPUS, same_campus
 from easy_a.common.terms import normalize_banner_term_code
 from easy_a.db import get_session_factory
 from easy_a.models import Course, GradeDistribution, Section, Term
 from easy_a.rankings.cache import SectionRankingCache
 from easy_a.refresh.coverage import coverage_metadata
 from easy_a.refresh.targets import CourseTarget, load_targets
+from easy_a.sync.scope import is_undergraduate_number
 
 DEFAULT_TERM = "202701"
 DEFAULT_TARGETS = Path("config/course_targets.toml")
@@ -105,6 +107,9 @@ def assert_suffix_exact_ingest(
         if suffix_course_id is None:
             continue
 
+        # Deliberately counts ALL stored sections, including soft-removed ones (removed_at):
+        # a removed section was still ingested under the right course, so it still proves
+        # the suffix course owns its own sections. Only the guard's inputs are unchanged.
         suffix_section_count = session.scalar(
             select(func.count(Section.id))
             .join(Term, Section.term_id == Term.id)
@@ -123,33 +128,49 @@ def assert_suffix_exact_ingest(
 
 def assert_coverage_reconciled(
     session: Session, term: str, targets: tuple[CourseTarget, ...]
-) -> None:
-    """Stored Section count == coverage_metadata section-count sum == rankings-search
-    total for the term, and every distinct stored (subject, number) is a configured
-    target. Raises AssertionError with the mismatch on failure."""
+) -> list[tuple[str, str]]:
+    """Active stored Section count == coverage_metadata section-count sum + auto-added
+    active sections == rankings-search total for the term.
+
+    Only active sections (``removed_at IS NULL``) are counted. A stored course that is not a
+    configured target is legitimate only as a D-05 auto-add: every one of its active sections
+    is Tampa and its course number is undergraduate (``is_undergraduate_number`` from
+    ``easy_a.sync.scope``). Any other untargeted course (graduate, non-Tampa) raises
+    AssertionError. Returns the sorted auto-added (subject, number) keys."""
     normalized_term = normalize_banner_term_code(term)
 
     target_keys = {(target.subject, target.number) for target in targets}
-    stored_keys = set(
-        session.execute(
-            select(Course.subject, Course.number)
-            .join(Section, Section.course_id == Course.id)
-            .join(Term, Section.term_id == Term.id)
-            .where(Term.banner_code == normalized_term)
-            .distinct()
-        ).all()
-    )
-    untargeted = sorted(stored_keys - target_keys)
-    if untargeted:
+    rows = session.execute(
+        select(Course.subject, Course.number, Section.campus)
+        .join(Section, Section.course_id == Course.id)
+        .join(Term, Section.term_id == Term.id)
+        .where(Term.banner_code == normalized_term, Section.removed_at.is_(None))
+    ).all()
+
+    sections_by_key: dict[tuple[str, str], list[str | None]] = {}
+    for subject, number, campus in rows:
+        sections_by_key.setdefault((subject, number), []).append(campus)
+
+    auto_added: list[tuple[str, str]] = []
+    illegitimate: list[tuple[str, str]] = []
+    for key in sorted(set(sections_by_key) - target_keys):
+        all_tampa = all(same_campus(campus, SUPPORTED_CAMPUS) for campus in sections_by_key[key])
+        if all_tampa and is_undergraduate_number(key[1]):
+            auto_added.append(key)
+        else:
+            illegitimate.append(key)
+    if illegitimate:
         raise AssertionError(
-            f"term {normalized_term}: {len(untargeted)} stored course(s) are not present "
-            f"in the configured targets: {untargeted}."
+            f"term {normalized_term}: {len(illegitimate)} stored course(s) are not present "
+            f"in the configured targets and are not undergraduate Tampa auto-adds (D-05): "
+            f"{illegitimate}."
         )
+    auto_added_sections = sum(len(sections_by_key[key]) for key in auto_added)
 
     stored_count = session.scalar(
         select(func.count(Section.id))
         .join(Term, Section.term_id == Term.id)
-        .where(Term.banner_code == normalized_term)
+        .where(Term.banner_code == normalized_term, Section.removed_at.is_(None))
     )
     coverage_sum = sum(row.section_count for row in coverage_metadata(session, term, targets))
     rankings_total = session.scalar(
@@ -157,11 +178,14 @@ def assert_coverage_reconciled(
             SectionRankingCache.term == normalized_term
         )
     )
-    if not (stored_count == coverage_sum == rankings_total):
+    if not (stored_count == coverage_sum + auto_added_sections == rankings_total):
         raise AssertionError(
-            f"term {normalized_term}: counts disagree -- stored Section rows={stored_count}, "
-            f"coverage_metadata sum={coverage_sum}, rankings-search total={rankings_total}."
+            f"term {normalized_term}: counts disagree -- stored active Section rows="
+            f"{stored_count}, coverage_metadata sum={coverage_sum} + auto-added active "
+            f"sections={auto_added_sections} = {coverage_sum + auto_added_sections}, "
+            f"rankings-search total={rankings_total}."
         )
+    return auto_added
 
 
 @dataclass(frozen=True)
@@ -235,7 +259,9 @@ def assert_honest_coverage(session: Session, term: str) -> int:
             SectionRankingCache.course_number,
             SectionRankingCache.score_source,
             SectionRankingCache.effective_n,
-        ).where(SectionRankingCache.term == normalized_term)
+        )
+        .join(Section, Section.id == SectionRankingCache.section_id)
+        .where(SectionRankingCache.term == normalized_term, Section.removed_at.is_(None))
     ).all()
 
     course_backed_sources = {ScoreSource.course.value, ScoreSource.instructor_course.value}
@@ -293,6 +319,7 @@ def main(argv: list[str] | None = None) -> int:
 
     checks: list[tuple[str, bool, str]] = []
     verified_exceptions = 0
+    auto_added: list[tuple[str, str]] = []
     session_factory = get_session_factory()
     with session_factory() as session:
         checkers: list[tuple[str, Callable[[], object]]] = [
@@ -311,6 +338,8 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 if name == "honest-coverage" and isinstance(result, int):
                     verified_exceptions = result
+                if name == "reconciliation" and isinstance(result, list):
+                    auto_added = result
                 checks.append((name, True, ""))
 
     exit_code = 0
@@ -318,6 +347,13 @@ def main(argv: list[str] | None = None) -> int:
         if not passed:
             print(f"FAIL {name}: {detail}")
             exit_code = 1
+        elif name == "reconciliation":
+            listing = ", ".join(f"{subject} {number}" for subject, number in auto_added)
+            print(
+                f"INFO auto-added (D-05): {len(auto_added)} course(s)"
+                + (f": {listing}" if auto_added else "")
+            )
+            print(f"PASS {name}")
         elif name == "honest-coverage":
             print(f"PASS {name} (verified non-letter-grade exceptions: {verified_exceptions})")
         else:

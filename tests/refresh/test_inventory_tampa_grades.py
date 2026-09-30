@@ -164,6 +164,38 @@ def test_exception_no_rows_section_uses_subject_fallback(db_session: Session) ->
     assert result.row_count == 0
 
 
+def test_inventory_excludes_removed_sections_and_lists_auto_added_as_exception(
+    db_session: Session,
+) -> None:
+    """Phase 09 D-05/D-21: a soft-removed section is out of the inventory, and an auto-added
+    course (not a configured target, no grade rows of its own) is a listed no_rows exception
+    with an honest subject/global fallback -- never evidence-backed history."""
+    _add_grade(db_session, term_id=2, crn="80001", course_id=10, a=10, source="synthetic-1")
+    _add_section(db_session, course_id=10, crn="90001")
+    removed = _add_section(db_session, course_id=10, crn="90009")
+    removed.removed_at = NOW
+    _add_course(db_session, course_id=40, subject="MAC", number="3363")
+    _add_section(db_session, course_id=40, crn="90004")
+    db_session.commit()
+    assert refresh_section_rankings(db_session, term=TERM) == 2
+    db_session.commit()
+
+    inventory = inv.collect_inventory(db_session, TERM)
+    by_crn = {s.crn: s for s in inventory.sections}
+
+    assert set(by_crn) == {"90001", "90004"}
+    assert by_crn["90001"].state == inv.EvidenceState.evidence_backed
+    auto_added = by_crn["90004"]
+    assert auto_added.state == inv.EvidenceState.exception_no_rows
+    assert auto_added.reason_category == "no_rows"
+    assert auto_added.score_source in {"subject", "global"}
+    assert auto_added.row_count == 0
+
+    markdown = inv.render_exceptions_markdown(inventory)
+    assert "3363" in markdown
+    assert "90009" not in markdown
+
+
 def test_main_prints_snapshot_json_and_exits_nonzero_when_unclassified_present(
     db_session: Session, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

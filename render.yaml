@@ -1,0 +1,80 @@
+# Render Blueprint for the hosted beta: one API, one sync worker, one static web site.
+# Validate with: render blueprints validate render.yaml -o text
+#
+# - Migrations are manual (see docs/runbooks/hosted-beta-operations.md). Do NOT add
+#   MIGRATION_DATABASE_URL to any service and do not run migrations at start-up.
+# - No secret values live in this file. DATABASE_URL is sync:false per service and is filled
+#   once when the Blueprint is created. The operator confirmed on 2026-09-30 that the dashboard
+#   environment group easy-a-shared exists and holds DATABASE_URL, but `render blueprints
+#   validate` rejects `fromGroup: easy-a-shared` ("depends on non-existent group"), so the
+#   Blueprint does not use fromGroup. Copy the value from the group into each service once
+#   (api and worker) when creating the Blueprint.
+# - The public URLs are circular (the API needs the site origin, the site needs the API URL),
+#   so EASY_A_ALLOWED_FRONTEND_ORIGINS and VITE_API_BASE_URL are sync:false and are filled
+#   after the first create. VITE_* is baked in at build time, so redeploy the static site
+#   after setting VITE_API_BASE_URL.
+services:
+  - type: web
+    name: easy-a-api
+    runtime: docker
+    region: ohio
+    plan: starter
+    autoDeployTrigger: checksPass
+    healthCheckPath: /health
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    buildFilter:
+      paths:
+        - src/**
+        - config/**
+        - migrations/**
+        - pyproject.toml
+        - uv.lock
+        - Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: EASY_A_ALLOWED_FRONTEND_ORIGINS
+        sync: false
+
+  - type: worker
+    name: easy-a-worker
+    runtime: docker
+    region: ohio
+    plan: starter
+    autoDeployTrigger: checksPass
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: python -m easy_a.sync --term 202701
+    maxShutdownDelaySeconds: 90
+    buildFilter:
+      paths:
+        - src/**
+        - config/**
+        - pyproject.toml
+        - uv.lock
+        - Dockerfile
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+
+  - type: web
+    name: easy-a-web
+    runtime: static
+    autoDeployTrigger: checksPass
+    buildCommand: cd web && npm ci && npm run build
+    staticPublishPath: web/dist
+    buildFilter:
+      paths:
+        - web/**
+    envVars:
+      - key: VITE_USE_MOCK_DATA
+        value: "false"
+      - key: VITE_API_BASE_URL
+        sync: false
+      - key: NODE_VERSION
+        value: "24"
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html

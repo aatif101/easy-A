@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_plan: Not started
+current_plan: 14
 status: design_direction_selected
-stopped_at: Render hosting account set up; live-sync + professor-level grades planned; Phase 9 discuss/plan is next
-last_updated: "2026-09-29T00:00:00+00:00"
-state_head: db8a98a26d8acfa10c66905f3c7f8eed6a8267ac
+stopped_at: Completed 09-13-PLAN.md
+last_updated: "2026-09-30T05:07:15.613Z"
+state_head: 4d7ea79bf45e434fb33875e22e80586f57bedfab
 progress:
   total_phases: 11
   completed_phases: 7
-  total_plans: 20
-  completed_plans: 20
-  percent: 70
+  total_plans: 35
+  completed_plans: 33
+  percent: 64
 last_activity: 2026-09-29
 current_phase: 9
-current_phase_name: Hosted Beta — Deployment, CI, Observability
+current_phase_name: hosted-beta-deployment-ci-observability
 last_activity_desc: Instructor-grade feasibility investigation (read-only) and live-sync plan; ROADMAP Phase 9 scope extended, Phase 10 added
 ---
 
@@ -78,8 +78,8 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: Not started
-Total Plans in Phase: 0 (Phase 9 not yet planned)
+Current Plan: 14
+Total Plans in Phase: 15
 
 ## Next action
 
@@ -237,7 +237,7 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Student-experience sketch 001 winner is A — Student guide, selected by the user.
+**Stopped at:** Completed 09-13-PLAN.md
 Final specification review and student walkthrough remain open. See
 `.planning/sketches/001-student-experience/README.md`.
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
@@ -249,7 +249,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-09-24T19:28:54.090Z
+Last session: 2026-09-30T05:07:15.538Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
@@ -279,6 +279,19 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 | Phase 08 P03 | 53min | 2 tasks | 4 files |
 | Phase 08 P04 | 15min | 3 tasks | 4 files |
 | Phase 08 P05 | ~30min | 3 tasks | 6 files |
+| Phase 09 P01 | 2 min | 2 tasks | 4 files |
+| Phase 09 P02 | 25 min | 2 tasks | 8 files |
+| Phase 09 P03 | 12 min | 2 tasks | 8 files |
+| Phase 09 P04 | 25 min | 2 tasks | 9 files |
+| Phase 09 P05 | 8 min | 2 tasks | 8 files |
+| Phase 09 P06 | 12 min | 2 tasks | 5 files |
+| Phase 09 P07 | 4 min | 3 tasks | 12 files |
+| Phase 09 P08 | 25min | 3 tasks | 9 files |
+| Phase 09 P09 | 15 min | 2 tasks | 8 files |
+| Phase 09 P10 | 12 min | 2 tasks | 8 files |
+| Phase 09 P11 | 30 min | 2 tasks | 5 files |
+| Phase 09 P12 | 20 min | 2 tasks | 7 files |
+| Phase 09 P13 | 25 min | 3 tasks | 8 files |
 
 ## Decisions
 
@@ -307,3 +320,27 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 - [Phase 8]: [Phase 8]: [Phase 08-05]: Closed the CR-01 verification gap by deriving verdicts.integrity/d21_grade_coverage from the same mapping emitted under integrity (not a hardcoded 4-of-5 check), so rows_at_or_after_term can never print PASS while nonzero; proven end to end through main().
 - [Phase 8]: [Phase 8]: [Phase 08-05]: Fixed WR-01 by tracking a second running max (evidence_ingested_at_max) over only the rows that pass the scoring query's term_code < before_term filter, so stale_cache reflects only evidence that actually feeds the cached scores; kept WR-02's suffix-guard raise condition byte-for-byte unchanged and documented the ambiguous zero-section case as fail-closed rather than narrowing it.
 - [Phase 8]: [Phase 8]: [Phase 08-05]: Re-ran the fixed D-21 inventory and validator read-only against hosted Supabase (202701) and reproduced the 08-04 baseline exactly (PASS/PASS, 3,122/361/300, all integrity counters clean); no hosted data written, 08-D21-EXCEPTIONS.md not regenerated.
+- [Phase 09]: 09-01: mypy src stays report-only per D-12; promotion to hard gate flagged for user review (research Open Question 5)
+- [Phase 09]: 09-02: migration 0004_sync_removed_at authored and tested offline only; hosted apply stays manual in 09-14 — Carried decision: migrations stay manual; downgrade would discard removal marks
+- [Phase 09]: 09-02: removal is a reversible removed_at mark; cache rebuild deletes only section_rankings rows of removed sections — PROJECT.md D-23; history retained
+- [Phase 09]: Plan 09-03: sweep jitter is uniform in [1.0, 1.2] (never negative) so no gap breaks the D-22(b) 300 s / 3600 s floors; flagged for user review
+- [Phase 09]: Plan 09-03: first sweep of a registration window fires at local midnight, or previous start + 300 s when the previous sweep began under 300 s before midnight
+- [Phase 09]: 09-04: undergraduate scope rule lives only in is_undergraduate_number (first four chars digits, below 5000); gate thresholds compared as exact decimals; whole-term request is a separate search_term path so narrow-query validation stays strict
+- [Phase 09]: 09-05: partial seat-freshness env overrides are ignored (cadence applies) and warned once; both must be set to override
+- [Phase 09]: 09-05: unreadable registration-windows file falls back to legacy 600/1800 s freshness thresholds (never optimistic) instead of failing search
+- [Phase 09]: 09-06: /sync-status is a separate endpoint from /coverage and latency observability is structured request logs with no metrics vendor (D-07/D-08, Claude's lean, pending user review)
+- [Phase 09]: 09-06: sync-status last_status is limited to succeeded/failed and last_error_kind comes only from SYNC_ERROR_KINDS; error_message is never serialized
+- [Phase 09]: 09-07: removed_at filtered on every current-term consumer (coverage, refresh counts, analytics listings, quality); legacy ingest clears removed_at; signals/resolver.py intentionally unfiltered
+- [Phase 09]: 09-07: stale_seat_observation judged from Section.last_seen_at with cadence thresholds (7200 s stale outside registration windows)
+- [Phase 09]: 09-08: IngestRun has no summary column; sweep counts map to records_seen/inserted/updated/failed and the full summary is the returned SweepOutcome (Open Question 4)
+- [Phase 09]: 09-08: existing sections keep course_id; DB sections count as in scope for the gate and removals only when Tampa and undergraduate
+- [Phase 09]: 09-09: D-10 freshness copy ('Updated N min ago', 'Seat data may be out of date.') is Claude's lean pending user review; synthetic mode makes no request and never shows an Updated time
+- [Phase 09]: D-05 accounting: auto-added courses are derived (active 202701 section, not a configured target, all-Tampa undergraduate), never stored; validator reconciles stored_active == coverage_sum + auto_added_active_sections == rankings_total; D-21 inventory lists their sections as no_rows exceptions
+- [Phase 09]: Hosted p95 measured with benchmark --remote-url (plain https origin, no DB, no redirects, trust_env False); operator scripts count active sections only (removed_at IS NULL)
+- [Phase 09]: 09-11: CLI cadence floor is seeded from the latest IngestRun start (any status) for --once/--dry-run/loop; no bypass flag; --max-missing-fraction only with --once/--dry-run — PROJECT.md D-22(b); a restart or manual run must never sweep sooner than the tier floor
+- [Phase 09]: 09-11: SweepOutcome.extra carries removed/restored/instructor_changes/seat_changes; CLI stdout is JSON-only (non-dict log records wrapped as event=log) — Log-line contract in must_haves; one JSON line per sweep outcome
+- [Phase 09]: 09-11: repeated --dry-run is not floor-limited because a dry run records no IngestRun; runbook (09-14) must tell operators not to loop dry runs — Known limitation of the read-only dry-run design (09-08)
+- [Phase 09]: 09-12: course auto-add uses a paced (2 s), capped (10/sweep) catalog fetch per new course with a 6 h negative cache; never a schedule-derived stand-in row — A made-up edition could outrank the real one in resolve_course_id; keeps D-05 within D-09/D-20
+- [Phase 09]: 09-12: tests/sync autouse fixture gives the default course adder an offline fetch so no sync test reaches USF — Sweeps without an explicit adder use the worker singleton
+- [Phase 09]: 09-13: render.yaml keeps per-service DATABASE_URL (sync:false); env group easy-a-shared exists in the dashboard but render blueprints validate rejects fromGroup — Plan rule: switch to fromGroup only if the variant validates; it did not. Operator fills DATABASE_URL once per service at Blueprint creation.
+- [Phase 09]: 09-13: tzdata via apt in the image, no PyPI tzdata; runbook documents that --dry-run is not rate-limited because it records no IngestRun — Avoids a package-legitimacy checkpoint; dry-run behaviour verified in sweep.py.

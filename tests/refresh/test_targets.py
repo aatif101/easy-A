@@ -175,8 +175,10 @@ def test_seats_append_preserve_identity_grades_syllabus_and_score(db_session: Se
     assert syllabus.content_text == "Unchanged syllabus"
     assert before.historical_analytics == after.historical_analytics
     assert before.seats.enrollment != after.seats.enrollment
+    # Staleness is judged from the verified time against the cadence threshold (7200 s outside
+    # a registration window), so the observation must be older than two hours to be stale.
     report = run_quality_checks(
-        db_session, "202701", as_of=NOW + timedelta(hours=1), targets=config.targets
+        db_session, "202701", as_of=NOW + timedelta(hours=3), targets=config.targets
     )
     assert any(
         f.check_id == "stale_seat_observation" and f.severity == "warning" for f in report.findings

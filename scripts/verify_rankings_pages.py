@@ -96,7 +96,11 @@ class _ScanStop(Exception):
 
 
 def stored_identities(session: Session, *, term: str) -> StoredSnapshot:
-    """Read the stored (term, crn) identity set for ``term`` in one read-only session."""
+    """Read the stored (term, crn) identity set for ``term`` in one read-only session.
+
+    Active sections only (``removed_at IS NULL``): the API and the rankings cache exclude
+    sections the sync worker has soft-removed, so the reconciliation must too.
+    """
     normalized_term = normalize_banner_term_code(term)
     bind = session.get_bind()
     if getattr(getattr(bind, "dialect", None), "name", None) == "postgresql":
@@ -104,7 +108,7 @@ def stored_identities(session: Session, *, term: str) -> StoredSnapshot:
     rows = session.execute(
         select(Section.crn, Section.campus)
         .join(Term, Section.term_id == Term.id)
-        .where(Term.banner_code == normalized_term)
+        .where(Term.banner_code == normalized_term, Section.removed_at.is_(None))
     ).all()
     identities = frozenset(crn for crn, _campus in rows)
     non_tampa_count = sum(1 for _crn, campus in rows if not same_campus(campus, SUPPORTED_CAMPUS))

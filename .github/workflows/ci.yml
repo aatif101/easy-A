@@ -1,0 +1,158 @@
+name: ci
+
+# mypy is report-only per D-12: both `mypy src` and `mypy .` use continue-on-error so their
+# output is visible in the job log but never fails the workflow. `mypy src` is clean today;
+# promoting it to a hard gate (remove its continue-on-error) is pending user review.
+
+# Runs on every push to any branch and every pull request, with no path filters:
+# Render's checksPass deploy trigger refuses to deploy a commit that has zero checks.
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # Never cancel a run on main: every main commit must finish its checks.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: easy_a
+          POSTGRES_USER: easy_a
+          POSTGRES_PASSWORD: easy_a
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U easy_a -d easy_a"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      EASY_A_TEST_POSTGRES_URL: postgresql+psycopg://easy_a:easy_a@localhost:5432/easy_a
+      MIGRATION_DATABASE_URL: postgresql+psycopg://easy_a:easy_a@localhost:5432/easy_a
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install locked dependencies
+        run: uv sync --locked
+
+      - name: Ruff (hard gate)
+        run: uv run ruff check .
+
+      - name: Alembic round-trip on postgres:16
+        run: |
+          uv run alembic upgrade head
+          uv run alembic downgrade -1
+          uv run alembic upgrade head
+
+      - name: Pytest (full suite against postgres:16)
+        run: uv run pytest -q -rs 2>&1 | tee pytest-output.txt
+
+      - name: PostgreSQL integration tests must not skip
+        run: |
+          if grep -q "Set EASY_A_TEST_POSTGRES_URL" pytest-output.txt; then
+            echo "A PostgreSQL integration test was skipped; the postgres service is not being used." >&2
+            exit 1
+          fi
+          echo "No PostgreSQL integration test was skipped."
+
+      - name: mypy src (report-only, D-12)
+        continue-on-error: true
+        run: uv run mypy src
+
+      - name: mypy . (report-only, D-12)
+        continue-on-error: true
+        run: uv run mypy .
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+        working-directory: web
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+        env:
+          VITE_USE_MOCK_DATA: "false"
+          # Dummy value used only for this CI build; the Render static-site build bakes in the real URL.
+          VITE_API_BASE_URL: "https://example.onrender.com"
+
+  docker:
+    # Builds the single image on every push and PR, so Render's checksPass also covers
+    # image buildability, then proves both processes can start inside it.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Build image
+        run: docker build -t easy-a:ci .
+
+      - name: OS tz database provides America/New_York
+        run: |
+          docker run --rm easy-a:ci python -c "from zoneinfo import ZoneInfo; ZoneInfo('America/New_York'); print('zoneinfo ok')"
+
+      - name: Worker entry point starts
+        run: docker run --rm easy-a:ci python -m easy_a.sync --help
+
+      - name: API app imports
+        run: docker run --rm easy-a:ci python -c "import easy_a.api.app"
+
+      - name: Worker import stays under 150 MB RSS
+        run: |
+          docker run --rm easy-a:ci python -c "import resource, sys; import easy_a.sync.cli; mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024; print(f'ru_maxrss={mb:.1f} MB'); sys.exit(1 if mb > 150 else 0)"
+
+      - name: Container runs as a non-root user
+        run: |
+          uid="$(docker run --rm easy-a:ci id -u)"
+          echo "uid=$uid"
+          test "$uid" != "0"
+
+      - name: No .env in the image and windows config present
+        run: docker run --rm easy-a:ci sh -c 'test ! -e /app/.env && test -f /app/config/registration_windows.toml'

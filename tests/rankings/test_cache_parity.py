@@ -205,6 +205,10 @@ def test_newer_seat_snapshot_is_live_without_mutating_cached_analytics(
     cached_analytics = cache_row.historical_analytics.copy()
 
     newest_at = AS_OF - timedelta(minutes=1)
+    # Freshness is judged from the later of the snapshot and the sweep verification
+    # (Section.last_seen_at, 09-05). The fixture section is "verified" at AS_OF, which would
+    # mask the snapshot time this test asserts, so make the newer snapshot the latest signal.
+    section.last_seen_at = OBSERVED_AT
     db_session.add(
         SeatSnapshot(
             section_id=section.id,

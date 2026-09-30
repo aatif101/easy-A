@@ -6,9 +6,12 @@ representative rankings-search queries against the rewritten cache-backed search
 (Phase 03.5 Plan 02), printing p50/p95/max latency with the dataset size and environment on
 every reported number.
 
-Two run modes:
+Run modes:
 - ``--live``: read-only stored-term route diagnosis. Add ``--http-base-url`` for
   loopback HTTP measurement against an API started with the same DATABASE_URL.
+- ``--remote-url https://<host>``: hosted-API p95 (Phase 09 D-08). Times the deployed
+  ``/api/v1/rankings/search`` over HTTPS with the same representative query mix. It uses no
+  database, sends no credentials or cookies, follows no redirects and ignores proxy env.
 - ``--smoke``: seeds a small dataset on in-memory SQLite. No network, no credentials, safe to
   run in CI as a self-verification of the harness itself.
 - default: seeds the requested dataset inside a throwaway PostgreSQL schema on a real
@@ -139,6 +142,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--http-base-url", help="Loopback API served with the same DATABASE_URL as this process."
     )
+    parser.add_argument(
+        "--remote-url",
+        help=(
+            "Hosted API origin (plain https://host, no userinfo/path/query/fragment). Measures "
+            "p50/p95/max over HTTPS with no database comparison. Cannot combine with --live, "
+            "--smoke, --url or --http-base-url."
+        ),
+    )
     return parser
 
 
@@ -147,6 +158,27 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.iterations > 10000:
         parser.error("iterations must not exceed 10000")
+    if args.remote_url is not None:
+        if args.live or args.smoke or args.url or args.http_base_url:
+            parser.error(
+                "--remote-url cannot be combined with --live, --smoke, --url or --http-base-url"
+            )
+        if args.iterations < 50:
+            parser.error("--remote-url requires at least 50 iterations")
+        try:
+            args.remote_url = _remote_https_origin(args.remote_url)
+        except ValueError:
+            parser.error("Remote target must be a plain https origin")
+        try:
+            _run_remote(term=args.term, iterations=args.iterations, base_url=args.remote_url)
+        except Exception as exc:
+            # Transport exception strings can include the target and proxy details.
+            print(
+                f"Remote benchmark failed ({type(exc).__name__}); no result claimed.",
+                file=sys.stderr,
+            )
+            return 1
+        return 0
     if args.live and (args.smoke or args.iterations < 50):
         parser.error("--live requires at least 50 iterations and cannot use --smoke")
     if args.http_base_url and not args.live:
@@ -204,6 +236,30 @@ def _http_base_url(value: str) -> str:
     return value.rstrip("/")
 
 
+def _remote_https_origin(value: str) -> str:
+    """Accept only a plain https origin (no userinfo, path, query or fragment)."""
+    message = "Remote target must be a plain https origin"
+    try:
+        parsed = urlsplit(value)
+        _ = parsed.port  # Validate malformed ports without echoing the supplied URL.
+    except ValueError:
+        raise ValueError(message) from None
+    if (
+        parsed.scheme != "https"
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or "@" in parsed.netloc
+        or parsed.path not in ("", "/")
+        or parsed.query
+        or parsed.fragment
+        or "?" in value
+        or "#" in value
+    ):
+        raise ValueError(message)
+    return value.rstrip("/")
+
+
 def _query_params(term: str, query: _SearchQuery) -> dict:
     return {
         k: v
@@ -250,8 +306,13 @@ def _run_live(*, term: str, iterations: int, url: str | None, http_base_url: str
         ):
             if engine.dialect.name == "postgresql":
                 session.execute(text("SET TRANSACTION READ ONLY"))
+            # Active sections only: the sync worker soft-removes sections (removed_at), and the
+            # rankings cache is built from active sections alone (RESEARCH Pitfall 6).
             stored = session.scalar(
-                select(func.count()).select_from(Section).join(Term).where(Term.banner_code == term)
+                select(func.count())
+                .select_from(Section)
+                .join(Term)
+                .where(Term.banner_code == term, Section.removed_at.is_(None))
             )
             cached = session.scalar(
                 select(func.count())
@@ -312,6 +373,49 @@ def _run_live(*, term: str, iterations: int, url: str | None, http_base_url: str
                 )
     finally:
         engine.dispose()
+
+
+def _run_remote(
+    term: str,
+    iterations: int,
+    base_url: str,
+    client: httpx.Client | None = None,
+) -> None:
+    """Time the hosted search endpoint: 5 warmups then ``iterations`` timed calls.
+
+    No database is involved, so there is no stored-versus-served reconciliation; one broad
+    query only asserts the hosted API serves a non-empty term before timing starts.
+    """
+    owns_client = client is None
+    if client is None:
+        client = httpx.Client(timeout=60, trust_env=False, follow_redirects=False)
+    try:
+        queries = _representative_queries(iterations=iterations, subjects=list(SUBJECTS[:6]))
+        broad = _SearchQuery(None, False, None, RankingSort.course, 50, 0)
+        total = _http_search(client, base_url, term, broad).total
+        if total <= 0:
+            raise ValueError("Hosted API reports no sections for the term")
+        durations = []
+        for i, query in enumerate(queries[:5] + queries):
+            start = time.perf_counter()
+            _http_search(client, base_url, term, query)
+            elapsed = time.perf_counter() - start
+            if i >= 5:
+                durations.append(elapsed)
+    finally:
+        if owns_client:
+            client.close()
+    mode = "remote HTTPS request + body + JSON validation (no DB reconciliation)"
+    host = urlsplit(base_url).hostname
+    print(f"UTC: {datetime.now(UTC).isoformat()}; term={term}; warmup=5; mode={mode}")
+    _print_latency(
+        durations=durations,
+        dataset_size=total,
+        dataset="hosted API total",
+        mode=mode,
+        environment_line=f"Environment: hosted HTTPS API, host={host}",
+        environment=f"hosted HTTPS API ({host})",
+    )
 
 
 def _run_smoke(*, term: str, iterations: int, sections: int) -> None:
@@ -569,10 +673,6 @@ def _report(
 ) -> None:
     if not durations:
         raise RuntimeError("No search iterations were measured.")
-    sorted_durations = sorted(durations)
-    p50 = _percentile(sorted_durations, 0.50)
-    p95 = _percentile(sorted_durations, 0.95)
-    p_max = sorted_durations[-1]
     dialect = engine.dialect.name
     resolved = engine.url
     pooler = dialect == "postgresql" and (
@@ -581,9 +681,32 @@ def _report(
     environment = _environment_label(dialect=dialect, url=resolved).replace(
         "synthetic test fixture", dataset
     )
+    _print_latency(
+        durations=durations,
+        dataset_size=dataset_size,
+        dataset=dataset,
+        mode=mode,
+        environment_line=f"Environment: dialect={dialect}, pooler={pooler}, {environment}",
+        environment=environment,
+    )
+
+
+def _print_latency(
+    *,
+    durations: list[float],
+    dataset_size: int,
+    dataset: str,
+    mode: str,
+    environment_line: str,
+    environment: str,
+) -> None:
+    sorted_durations = sorted(durations)
+    p50 = _percentile(sorted_durations, 0.50)
+    p95 = _percentile(sorted_durations, 0.95)
+    p_max = sorted_durations[-1]
 
     print(f"Dataset size: {dataset_size} sections ({dataset}); mode={mode}")
-    print(f"Environment: dialect={dialect}, pooler={pooler}, {environment}")
+    print(environment_line)
     print(f"Iterations: {len(durations)}")
     print(
         f"p50: {p50 * 1000:.2f}ms "

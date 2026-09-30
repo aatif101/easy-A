@@ -1,4 +1,4 @@
-import { syntheticCoverage, syntheticRankings } from "../fixtures/rankings";
+import { syntheticCoverage, syntheticRankings, syntheticSyncStatus } from "../fixtures/rankings";
 import type {
   CoverageLoader,
   CourseCoverage,
@@ -11,6 +11,8 @@ import type {
   RankingsSearchResponse,
   SectionRanking,
   SubjectMetadata,
+  SyncStatus,
+  SyncStatusLoader,
   TermMetadata,
 } from "../types/rankings";
 
@@ -173,4 +175,11 @@ export const fetchCoverage: CoverageLoader = async (term, signal) => {
   const url = endpointUrl("/api/v1/metadata/coverage");
   url.searchParams.set("term", term);
   return fetchJson<CourseCoverage[]>(url, signal);
+};
+
+export const fetchSyncStatus: SyncStatusLoader = async (term, signal) => {
+  if (isUsingMockData) return { ...syntheticSyncStatus, term };
+  const url = endpointUrl("/api/v1/metadata/sync-status");
+  url.searchParams.set("term", term);
+  return fetchJson<SyncStatus>(url, signal);
 };

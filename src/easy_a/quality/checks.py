@@ -79,7 +79,7 @@ def run_quality_checks(
     section_course_rows = session.execute(
         select(Section, Course)
         .join(Course, Section.course_id == Course.id)
-        .where(Section.term_id == term_row.id)
+        .where(Section.term_id == term_row.id, Section.removed_at.is_(None))
         .order_by(Section.crn, Section.id)
     ).all()
     section_course_pairs = [(row[0], row[1]) for row in section_course_rows]
@@ -313,7 +313,7 @@ def _check_seats(
     snapshots = session.execute(
         select(SeatSnapshot, Section.crn)
         .join(Section, SeatSnapshot.section_id == Section.id)
-        .where(Section.term_id == term.id)
+        .where(Section.term_id == term.id, Section.removed_at.is_(None))
         .order_by(Section.crn, SeatSnapshot.observed_at, SeatSnapshot.id)
     ).all()
     section_ids_with_snapshots = {snapshot.section_id for snapshot, _ in snapshots}

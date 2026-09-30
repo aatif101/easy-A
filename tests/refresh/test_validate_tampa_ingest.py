@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import nullcontext
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -192,12 +193,15 @@ def test_assert_coverage_reconciled_passes_on_honest_dataset(db_session: Session
     v.assert_coverage_reconciled(db_session, TERM, targets)
 
 
-def test_assert_coverage_reconciled_raises_on_untargeted_course(db_session: Session) -> None:
+def test_assert_coverage_reconciled_auto_adds_untargeted_undergraduate_tampa_course(
+    db_session: Session,
+) -> None:
+    """2045L is stored but not a configured target. It is an undergraduate Tampa course, so
+    since Phase 09 (D-05) it is an allowed auto-add rather than a failure; before Phase 09
+    this exact layout raised."""
     _seed_honest_dataset(db_session)
-    # 2045L is stored but not a configured target -- the 5-vs-10-vs-1402 style discrepancy.
     targets = (CourseTarget(subject="CHM", number="2045"),)
-    with pytest.raises(AssertionError, match="2045L"):
-        v.assert_coverage_reconciled(db_session, TERM, targets)
+    assert v.assert_coverage_reconciled(db_session, TERM, targets) == [("CHM", "2045L")]
 
 
 # --- assert_honest_coverage ---------------------------------------------------------
@@ -320,3 +324,135 @@ def test_assert_honest_coverage_raises_on_instructor_course_zero_even_with_non_l
 
     with pytest.raises(AssertionError, match="40004"):
         v.assert_honest_coverage(db_session, TERM)
+
+
+# --- Phase 09: D-05 auto-added courses and removed sections ---------------------------
+
+BASE_TARGETS = (
+    CourseTarget(subject="CHM", number="2045"),
+    CourseTarget(subject="CHM", number="2045L"),
+)
+
+
+def _write_targets(tmp_path: Path, targets: tuple[CourseTarget, ...]) -> Path:
+    body = "".join(
+        f'[[targets]]\nsubject = "{t.subject}"\nnumber = "{t.number}"\n' for t in targets
+    )
+    path = tmp_path / "targets.toml"
+    path.write_text(
+        'catalog_edition = "2026-2027"\n'
+        'catalog_url_template = "https://example.edu/{subject}/{number}"\n' + body
+    )
+    return path
+
+
+def _add_auto_added_course(
+    session: Session, *, number: str = "3363", campus: str = "Tampa", crn: str = "50001"
+) -> tuple[Course, Section]:
+    course = _add_course(session, "AAA", number, course_id=3001)
+    section = _add_section(session, course_id=course.id, crn=crn, campus=campus)
+    _add_ranking(session, section=section, course=course, score_source="global", effective_n=0.0)
+    session.commit()
+    return course, section
+
+
+def test_auto_added_undergraduate_tampa_course_passes_and_main_prints_info_line(
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    _seed_honest_dataset(db_session)
+    _add_auto_added_course(db_session)
+
+    assert v.assert_coverage_reconciled(db_session, TERM, BASE_TARGETS) == [("AAA", "3363")]
+
+    monkeypatch.setattr(v, "get_session_factory", lambda: lambda: nullcontext(db_session))
+    assert v.main(["--targets", str(_write_targets(tmp_path, BASE_TARGETS))]) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert "INFO auto-added (D-05): 1 course(s): AAA 3363" in lines
+    assert lines.index("INFO auto-added (D-05): 1 course(s): AAA 3363") + 1 == lines.index(
+        "PASS reconciliation"
+    )
+
+
+def test_main_prints_zero_auto_added_when_every_course_is_targeted(
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    _seed_honest_dataset(db_session)
+    monkeypatch.setattr(v, "get_session_factory", lambda: lambda: nullcontext(db_session))
+    assert v.main(["--targets", str(_write_targets(tmp_path, BASE_TARGETS))]) == 0
+    assert "INFO auto-added (D-05): 0 course(s)" in capsys.readouterr().out.splitlines()
+
+
+def test_untargeted_graduate_course_fails_reconciliation(db_session: Session) -> None:
+    _seed_honest_dataset(db_session)
+    _add_auto_added_course(db_session, number="6000")
+    with pytest.raises(AssertionError, match="6000"):
+        v.assert_coverage_reconciled(db_session, TERM, BASE_TARGETS)
+
+
+def test_untargeted_non_tampa_course_fails_reconciliation(db_session: Session) -> None:
+    _seed_honest_dataset(db_session)
+    _add_auto_added_course(db_session, number="3363", campus="St. Petersburg")
+    with pytest.raises(AssertionError, match="3363"):
+        v.assert_coverage_reconciled(db_session, TERM, BASE_TARGETS)
+
+
+def test_reconciliation_mismatch_names_all_four_numbers(db_session: Session) -> None:
+    _seed_honest_dataset(db_session)
+    course, _section = _add_auto_added_course(db_session)
+    # Drop the auto-added course's cache row: served total no longer matches stored.
+    db_session.execute(
+        SectionRankingCache.__table__.delete().where(SectionRankingCache.crn == "50001")
+    )
+    db_session.commit()
+    with pytest.raises(AssertionError) as excinfo:
+        v.assert_coverage_reconciled(db_session, TERM, BASE_TARGETS)
+    message = str(excinfo.value)
+    assert "stored active Section rows=4" in message
+    assert "coverage_metadata sum=3" in message
+    assert "auto-added active sections=1" in message
+    assert "rankings-search total=3" in message
+    assert course.subject == "AAA"
+
+
+def test_removed_sections_are_excluded_from_every_count(db_session: Session) -> None:
+    base, _suffix = _seed_honest_dataset(db_session)
+    # A removed section on a targeted course, and a removed section of an untargeted
+    # graduate course: neither has a cache row (the cache is built from active sections).
+    removed_base = _add_section(db_session, course_id=base.id, crn="30009")
+    grad = _add_course(db_session, "AAA", "6000", course_id=3002)
+    removed_grad = _add_section(db_session, course_id=grad.id, crn="50009")
+    removed_base.removed_at = NOW
+    removed_grad.removed_at = NOW
+    db_session.commit()
+
+    assert v.assert_coverage_reconciled(db_session, TERM, BASE_TARGETS) == []
+    assert v.assert_honest_coverage(db_session, TERM) == 0
+
+
+def test_removed_section_with_stale_dishonest_cache_row_is_not_scanned_by_honest_coverage(
+    db_session: Session,
+) -> None:
+    course = _add_course(db_session, "AAA", "3363", course_id=3003)
+    removed = _add_section(db_session, course_id=course.id, crn="50002")
+    _add_ranking(db_session, section=removed, course=course, score_source="course", effective_n=0.0)
+    removed.removed_at = NOW
+    db_session.commit()
+    assert v.assert_honest_coverage(db_session, TERM) == 0
+
+
+def test_suffix_exact_still_counts_removed_sections(db_session: Session) -> None:
+    """A removed section was still ingested under the right course, so a suffix course whose
+    only section is soft-removed does not trip the leak guard (raise condition unchanged)."""
+    base, suffix = _seed_honest_dataset(db_session)
+    only_suffix = db_session.scalar(select(Section).where(Section.crn == "30003"))
+    assert only_suffix is not None
+    only_suffix.removed_at = NOW
+    db_session.commit()
+    assert base.id and suffix.id
+    v.assert_suffix_exact_ingest(db_session, TERM, [PAIR])

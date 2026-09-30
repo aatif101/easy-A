@@ -198,3 +198,22 @@ test("explicit mock coverage includes missing and observed examples", async () =
   expect(result.some(item => item.catalog_present && item.status === "missing")).toBe(true);
   expect(fetchMock).not.toHaveBeenCalled();
 });
+
+test("sync status is requested from the API with the term query parameter", async () => {
+  vi.stubEnv("VITE_API_BASE_URL", "https://api.example.test");
+  const payload = { term: "202701", last_success_at: "2027-01-15T11:56:00Z", is_stale: false, stale_after_seconds: 7200 };
+  const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify(payload)));
+  vi.stubGlobal("fetch", fetchMock);
+  const { fetchSyncStatus } = await import("./rankings");
+  expect(await fetchSyncStatus("202701")).toEqual(payload);
+  expect(String(fetchMock.mock.calls[0][0])).toBe("https://api.example.test/api/v1/metadata/sync-status?term=202701");
+});
+
+test("explicit mock sync status is synthetic and never carries a success time", async () => {
+  vi.stubEnv("VITE_USE_MOCK_DATA", "true");
+  const fetchMock = vi.fn();
+  vi.stubGlobal("fetch", fetchMock);
+  const { fetchSyncStatus } = await import("./rankings");
+  expect((await fetchSyncStatus("202701")).last_success_at).toBeNull();
+  expect(fetchMock).not.toHaveBeenCalled();
+});
