@@ -183,6 +183,10 @@ Sections USF lists as cancelled (`secondary_status` `U` or `C`, about 359 underg
 4. After the first restart, confirm the old worker's log ends with the `worker_stopped` line; then confirm `/health` and section 1.
 5. After the first Blueprint create, fill `EASY_A_ALLOWED_FRONTEND_ORIGINS` (exact static-site origin: scheme and host, no trailing slash) and `VITE_API_BASE_URL`, then redeploy the static site (`VITE_*` is baked in at build time).
 
+## 14. Historical instructor backfill (Phase 10)
+
+The one-off historical instructor backfill (`scripts/backfill_historical_sections.py`) is an operator-run command, not a worker feature, and it is not part of `render.yaml` or the image. It uses the same sweep advisory lock as the worker: `--apply`, `--rollback` and `--rebuild-only` take the lock first and exit `2` with nothing written while a sweep is running, so run them between sweeps and retry on exit 2. `--rollback` and `--rebuild-only` make no USF request at all; `--dry-run` and `--apply` make one whole-term request per requested term (D-22(e)). The full procedure, the D-04 review, verification and rollback are in [historical-instructor-backfill.md](historical-instructor-backfill.md).
+
 ## Run Log
 
 | Date (UTC) | Operator | Action | Command / setting | Result | Justification |

@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, delete, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -24,13 +24,20 @@ from easy_a.db import Base
 from easy_a.models import (
     Course,
     GradeDistribution,
+    SeatSnapshot,
     Section,
     SectionInstructor,
     SectionRankingCache,
+    Syllabus,
     Term,
 )
 from easy_a.rankings.cache import refresh_section_rankings
 from easy_a.rankings.diff import RankingDiff, diff_score_rows
+from easy_a.schedule.backfill import (
+    BACKFILL_SOURCE,
+    delete_backfilled_sections,
+    select_rollback_sections,
+)
 from easy_a.schedule.backfill_cli import main
 from easy_a.schedule.client import StaffScheduleClient
 from tests.schedule.test_backfill import client_for, run
@@ -488,3 +495,280 @@ def test_a_failed_guard_in_apply_takes_no_lock_and_writes_nothing(
     assert report["error_kind"] == "guard"
     assert "applied" not in report
     assert_nothing_written(session_factory, counts_before, scores_before)
+
+
+# --- Task 3: rollback and rebuild-only -----------------------------------------------------------
+
+
+def undo_args(mode: str, *extra: str) -> list[str]:
+    return [mode, "--rebuild-term", LIVE_TERM, *extra]
+
+
+def run_undo(
+    argv: list[str],
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+) -> tuple[int, dict[str, Any]]:
+    """Run an undo mode with a client factory that fails the test if a request is prepared."""
+    return run(argv, session_factory, forbidden_client, capsys)
+
+
+def apply_seed(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+) -> tuple[dict[str, int], dict[str, tuple[Any, ...]]]:
+    """Seed, apply the backfill, and return the table counts and stored scores from before it."""
+    client_factory = historical_client(session_factory)
+    counts_before = table_counts(session_factory)
+    scores_before = stored_scores(session_factory)
+    code, _ = run(apply_args(), session_factory, client_factory, capsys)
+    assert code == 0
+    assert stored_scores(session_factory)[LIVE_OU_CRN][1] == "instructor_course"
+    return counts_before, scores_before
+
+
+def section_id(session: Session, crn: str, term: str = "202408") -> int:
+    return session.scalars(
+        select(Section.id)
+        .join(Term, Section.term_id == Term.id)
+        .where(Term.banner_code == term, Section.crn == crn)
+    ).one()
+
+
+def test_rollback_without_yes_previews_and_writes_nothing(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    apply_seed(session_factory, capsys)
+    counts_applied = table_counts(session_factory)
+    scores_applied = stored_scores(session_factory)
+
+    code, report = run_undo(undo_args("--rollback"), session_factory, capsys)
+
+    assert code == 0
+    assert report["mode"] == "rollback"
+    assert report["preview"] is True
+    assert report["written"] is False
+    assert report["terms"]["202408"] == {"eligible_sections": 2, "ineligible_sections": 0}
+    assert report["terms"]["202501"] == {"eligible_sections": 0, "ineligible_sections": 0}
+    assert report["deleted_sections"] == 2  # what the commit would delete
+    assert report["applied"]["transitions"] == {"instructor_course->course": 1}
+    assert table_counts(session_factory) == counts_applied
+    assert stored_scores(session_factory) == scores_applied
+
+
+def test_rollback_yes_restores_the_pre_apply_state_except_the_ingest_run(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    counts_before, scores_before = apply_seed(session_factory, capsys)
+
+    code, report = run_undo(undo_args("--rollback", "--yes"), session_factory, capsys)
+
+    assert code == 0
+    assert report["preview"] is False
+    assert report["written"] is True
+    assert report["deleted_sections"] == 2
+    counts_after = table_counts(session_factory)
+    assert counts_after["IngestRun"] == 1
+    assert {**counts_after, "IngestRun": 0} == counts_before
+    assert stored_scores(session_factory) == scores_before
+    assert stored_scores(session_factory)[LIVE_OU_CRN][1] == "course"
+    with session_factory() as session:
+        assert session.scalars(select(Section.crn).join(Term).where(Term.id == 2)).all() == []
+
+
+@pytest.mark.parametrize(
+    "reason", ["seat_snapshot", "syllabus", "other_instructor", "no_instructor"]
+)
+def test_a_historical_section_with_other_data_is_ineligible_and_kept(
+    reason: str,
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    apply_seed(session_factory, capsys)
+    with session_factory.begin() as session:
+        ou_id = section_id(session, OU_CRN)
+        if reason == "seat_snapshot":
+            session.add(SeatSnapshot(section_id=ou_id, observed_at=SEEDED_AT, capacity=30))
+        elif reason == "syllabus":
+            session.add(
+                Syllabus(
+                    document_id="doc-1",
+                    section_id=ou_id,
+                    term_id=2,
+                    crn=OU_CRN,
+                    course_id=10,
+                    section_number="001",
+                    title="Syllabus",
+                    view_url="https://example.invalid/syllabus",
+                    content_html="<p>x</p>",
+                    content_text="x",
+                    content_hash="0" * 64,
+                )
+            )
+        elif reason == "other_instructor":
+            session.add(
+                SectionInstructor(
+                    section_id=ou_id,
+                    name_raw="Z. Else",
+                    name_normalized=None,
+                    source="usf_schedule_sync",
+                    observed_at=SEEDED_AT,
+                )
+            )
+        else:
+            session.execute(delete(SectionInstructor).where(SectionInstructor.section_id == ou_id))
+
+    code, preview = run_undo(undo_args("--rollback"), session_factory, capsys)
+    assert code == 0
+    assert preview["terms"]["202408"] == {"eligible_sections": 1, "ineligible_sections": 1}
+
+    code, report = run_undo(undo_args("--rollback", "--yes"), session_factory, capsys)
+
+    assert code == 0
+    assert report["deleted_sections"] == 1
+    with session_factory() as session:
+        remaining = session.scalars(select(Section.crn).where(Section.term_id == 2)).all()
+        assert remaining == [OU_CRN]
+        # No orphaned instructor rows are left behind for the deleted section.
+        live_ids = select(Section.id)
+        orphans = session.scalars(
+            select(SectionInstructor.id).where(SectionInstructor.section_id.not_in(live_ids))
+        ).all()
+        assert orphans == []
+
+
+def test_live_term_sections_are_never_eligible(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    apply_seed(session_factory, capsys)
+    with session_factory.begin() as session:
+        live_id = section_id(session, LIVE_OU_CRN, LIVE_TERM)
+        # Adversarial: a live section whose only instructor row claims the backfill as its source.
+        session.execute(delete(SectionInstructor).where(SectionInstructor.section_id == live_id))
+        session.add(
+            SectionInstructor(
+                section_id=live_id,
+                name_raw="X. Ou",
+                name_normalized=None,
+                source=BACKFILL_SOURCE,
+                observed_at=SEEDED_AT,
+            )
+        )
+
+    with session_factory() as session:
+        selection = select_rollback_sections(session, [LIVE_TERM, "202408"])
+        assert live_id not in selection.section_ids
+        assert set(selection.eligible_by_term) == {"202408"}
+        assert select_rollback_sections(session, [LIVE_TERM]).section_ids == ()
+
+    with session_factory.begin() as session:
+        # Even handed its id, the delete cannot touch a live-term section.
+        assert delete_backfilled_sections(session, [live_id]) == 0
+
+    code, _ = run_undo(undo_args("--rollback", "--yes"), session_factory, capsys)
+    assert code == 0
+    with session_factory() as session:
+        crns = session.scalars(select(Section.crn).where(Section.term_id == 1)).all()
+        assert sorted(crns) == [LIVE_OU_CRN, LIVE_OTHER_CRN]
+
+
+def test_rebuild_only_rebuilds_the_cache_with_no_request_and_no_data_write(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    apply_seed(session_factory, capsys)
+    scores_applied = stored_scores(session_factory)
+    with session_factory.begin() as session:
+        row = session.scalars(
+            select(SectionRankingCache).where(SectionRankingCache.crn == LIVE_OU_CRN)
+        ).one()
+        row.easiness_score = row.easiness_score - 7.0  # a stale cache, as after a scoring change
+    counts_before = table_counts(session_factory)
+    assert stored_scores(session_factory) != scores_applied
+
+    code, report = run_undo(undo_args("--rebuild-only"), session_factory, capsys)
+
+    assert code == 0
+    assert report["mode"] == "rebuild_only"
+    assert report["written"] is True
+    assert "terms" not in report
+    assert report["applied"]["changed"] == 1
+    assert report["applied"]["gated"] is False
+    assert table_counts(session_factory) == counts_before
+    assert stored_scores(session_factory) == scores_applied
+
+
+@pytest.mark.parametrize("flags", [["--rollback", "--yes"], ["--rebuild-only"]])
+def test_busy_sweep_lock_stops_rollback_and_rebuild_only(
+    flags: list[str],
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    apply_seed(session_factory, capsys)
+    counts_applied = table_counts(session_factory)
+    scores_applied = stored_scores(session_factory)
+    monkeypatch.setattr("easy_a.schedule.backfill_cli.try_sweep_lock", lambda session: False)
+
+    code, report = run_undo(undo_args(*flags), session_factory, capsys)
+
+    assert code == 2
+    assert report["status"] == "busy"
+    assert report["written"] is False
+    assert_nothing_written(session_factory, counts_applied, scores_applied)
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [
+        ["--dry-run", "--apply"],
+        ["--apply", "--rollback"],
+        ["--rollback", "--rebuild-only"],
+        ["--dry-run", "--rebuild-only"],
+    ],
+)
+def test_modes_are_mutually_exclusive(
+    argv: list[str],
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    code = main(
+        [*argv, "--rebuild-term", LIVE_TERM],
+        session_factory=session_factory,
+        client_factory=forbidden_client,
+    )
+    assert code == 2
+    assert capsys.readouterr().out == ""
+
+
+@pytest.mark.parametrize(
+    "argv",
+    [["--rollback"], ["--rebuild-only"], ["--rollback", "--yes"], ["--dry-run", "--yes"]],
+)
+def test_undo_modes_need_rebuild_term_and_yes_needs_rollback(
+    argv: list[str],
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    if "--dry-run" in argv:
+        argv = [*argv, "--rebuild-term", LIVE_TERM]
+    code = main(argv, session_factory=session_factory, client_factory=forbidden_client)
+    assert code == 2
+    assert capsys.readouterr().out == ""
+
+
+def test_help_lists_the_rollout_flags(capsys: pytest.CaptureFixture[str]) -> None:
+    assert main(["--help"]) == 0
+    text = capsys.readouterr().out
+    for flag in (
+        "--what-if-term",
+        "--rebuild-term",
+        "--expect-inserted",
+        "--rollback",
+        "--rebuild-only",
+        "--yes",
+    ):
+        assert flag in text

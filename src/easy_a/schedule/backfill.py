@@ -17,7 +17,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from sqlalchemy import insert, select, update
+from sqlalchemy import and_, delete, exists, insert, select, update
 from sqlalchemy.orm import Session
 
 from easy_a.common.campus import SUPPORTED_CAMPUS, same_campus
@@ -28,7 +28,16 @@ from easy_a.common.instructors import (
     is_usable_instructor,
 )
 from easy_a.common.terms import normalize_banner_term_code
-from easy_a.models import Course, GradeDistribution, Section, SectionInstructor, Term
+from easy_a.models import (
+    Course,
+    GradeDistribution,
+    SeatSnapshot,
+    Section,
+    SectionInstructor,
+    SectionRankingCache,
+    Syllabus,
+    Term,
+)
 from easy_a.schedule.ingest import _section_values
 from easy_a.schedule.normalize import NormalizedSection
 
@@ -374,3 +383,82 @@ def write_term_backfill(
         instructor_rows_added=len(new_items) + instructor_changes,
         instructor_changes=instructor_changes,
     )
+
+
+@dataclass(frozen=True)
+class RollbackSelection:
+    """Which historical sections a rollback would delete, and how many it keeps, per term."""
+
+    section_ids: tuple[int, ...]
+    eligible_by_term: Mapping[str, int]
+    ineligible_by_term: Mapping[str, int]
+
+
+def select_rollback_sections(session: Session, terms: Iterable[str]) -> RollbackSelection:
+    """Backfilled sections that are safe to delete, restricted to the five historical terms.
+
+    A section is eligible only when it has no seat snapshot, no syllabus row pointing at it, at
+    least one instructor row, and every instructor row came from this backfill. Everything else
+    in an allowlisted term is counted as ineligible and kept. Terms outside the allowlist (the
+    live 202701 term above all) are never selected, whatever rows they carry (T-10-20).
+    """
+    wanted = tuple(dict.fromkeys(term for term in terms if term in HISTORICAL_GRADE_TERMS))
+    eligible_by_term = dict.fromkeys(wanted, 0)
+    ineligible_by_term = dict.fromkeys(wanted, 0)
+    if not wanted:
+        return RollbackSelection((), eligible_by_term, ineligible_by_term)
+
+    has_snapshot = exists().where(SeatSnapshot.section_id == Section.id)
+    has_syllabus = exists().where(Syllabus.section_id == Section.id)
+    has_instructor = exists().where(SectionInstructor.section_id == Section.id)
+    has_other_source = exists().where(
+        SectionInstructor.section_id == Section.id,
+        SectionInstructor.source != BACKFILL_SOURCE,
+    )
+    is_eligible = and_(~has_snapshot, ~has_syllabus, has_instructor, ~has_other_source)
+    rows = session.execute(
+        select(Section.id, Term.banner_code, is_eligible)
+        .join(Term, Section.term_id == Term.id)
+        .where(Term.banner_code.in_(wanted))
+        .order_by(Section.id)
+    ).all()
+
+    section_ids: list[int] = []
+    for section_id, banner_code, eligible in rows:
+        if eligible:
+            section_ids.append(section_id)
+            eligible_by_term[banner_code] += 1
+        else:
+            ineligible_by_term[banner_code] += 1
+    return RollbackSelection(tuple(section_ids), eligible_by_term, ineligible_by_term)
+
+
+def delete_backfilled_sections(session: Session, section_ids: Sequence[int]) -> int:
+    """Delete the given sections with their instructor rows and any derived cache rows.
+
+    Children are deleted explicitly first, in chunks: SQLite tests do not enforce ON DELETE
+    CASCADE and PostgreSQL does, so an explicit order behaves the same on both. The section
+    delete is also restricted to the historical terms, so it cannot touch a live-term section
+    even if handed its id. The caller owns the transaction.
+    """
+    historical_term_ids = select(Term.id).where(Term.banner_code.in_(HISTORICAL_GRADE_TERMS))
+    deleted = 0
+    for chunk in _chunks(sorted(set(section_ids))):
+        session.execute(
+            delete(SectionInstructor)
+            .where(SectionInstructor.section_id.in_(chunk))
+            .execution_options(synchronize_session=False)
+        )
+        session.execute(
+            delete(SectionRankingCache)
+            .where(SectionRankingCache.section_id.in_(chunk))
+            .execution_options(synchronize_session=False)
+        )
+        result = session.execute(
+            delete(Section)
+            .where(Section.id.in_(chunk), Section.term_id.in_(historical_term_ids))
+            .execution_options(synchronize_session=False)
+        )
+        deleted += int(getattr(result, "rowcount", 0) or 0)
+    session.flush()
+    return deleted

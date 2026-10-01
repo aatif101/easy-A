@@ -8,6 +8,11 @@ Render worker and accepts only the five historical grade terms.
 Exit codes: 0 success or dry run; 1 refused or failed with nothing written; 2 argparse usage error,
 or (apply) the sweep lock is held by a live sweep and nothing was written.
 
+``--rollback`` previews (always rolled back) or, with ``--yes``, commits the deletion of backfilled
+sections that carry no seat snapshot, syllabus link or other-source instructor row, plus a cache
+rebuild. ``--rebuild-only`` rebuilds one term's cache with no data write. Neither makes a USF
+request, and both take the sweep lock first and need ``--rebuild-term``.
+
 ``--apply`` needs ``--rebuild-term``: it takes the sweep advisory lock first, writes the backfill,
 rebuilds that term's section_rankings in the same transaction and commits only when the
 course-level invariant holds and any ``--expect-inserted`` count matches (D-04, D-07).
@@ -57,9 +62,11 @@ from easy_a.schedule.backfill import (
     TermSelection,
     WriteCounts,
     backfill_ingest_source,
+    delete_backfilled_sections,
     load_grade_keys,
     resolve_course_ids,
     select_backfill_rows,
+    select_rollback_sections,
     validate_selection,
     write_term_backfill,
 )
@@ -155,12 +162,29 @@ def build_parser() -> argparse.ArgumentParser:
         help="Write inside one transaction that is always rolled back, then print counts.",
     )
     mode.add_argument("--apply", action="store_true", help="Write the rows and commit.")
+    mode.add_argument(
+        "--rollback",
+        action="store_true",
+        help="Preview (always rolled back), or with --yes commit, deleting backfilled sections "
+        "that have no seat snapshot, syllabus link or other-source instructor row; no USF request.",
+    )
+    mode.add_argument(
+        "--rebuild-only",
+        action="store_true",
+        help="Rebuild --rebuild-term's section_rankings under the sweep lock; no USF request and "
+        "no data write (the undo for a scoring revert).",
+    )
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help="With --rollback: commit the deletion instead of only previewing it.",
+    )
     parser.add_argument(
         "--rebuild-term",
         type=_live_term,
         default=None,
-        help="Live term whose section_rankings cache --apply rebuilds in the same transaction "
-        "(required with --apply).",
+        help="Live term whose section_rankings cache is rebuilt in the same transaction "
+        "(required with --apply, --rollback and --rebuild-only).",
     )
     parser.add_argument(
         "--expect-inserted",
@@ -237,10 +261,15 @@ def main(
 
 def _check_mode_arguments(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
     """Cross-argument rules argparse cannot express: exit 2 before any work or request."""
-    if args.apply and args.rebuild_term is None:
-        parser.error("--apply requires --rebuild-term (the live term whose cache is rebuilt)")
+    if (args.apply or args.rollback or args.rebuild_only) and args.rebuild_term is None:
+        parser.error(
+            "--apply, --rollback and --rebuild-only require --rebuild-term "
+            "(the live term whose cache is rebuilt)"
+        )
     if args.expect_inserted is not None and not args.apply:
         parser.error("--expect-inserted only applies to --apply")
+    if args.yes and not args.rollback:
+        parser.error("--yes only applies to --rollback")
 
 
 def _scrub(text: str) -> str:
@@ -291,6 +320,9 @@ def _run(
     now_fn: NowFn,
     sleep: SleepFn,
 ) -> int:
+    if args.rollback or args.rebuild_only:
+        return _run_undo(args, session_factory=session_factory)
+
     terms: list[str] = list(dict.fromkeys(args.terms))
     dry_run = bool(args.dry_run)
     run_started = now_fn()
@@ -424,11 +456,15 @@ class Applied:
     diff: RankingDiff
     inserted: int
     expected_inserted: int | None
+    gated: bool = True
+    """False for the undo modes: the diff is reported, but it never blocks an undo."""
 
     @property
     def gate_failures(self) -> list[str]:
         """Reasons the transaction must roll back (T-10-19): empty means it may commit."""
         failures: list[str] = []
+        if not self.gated:
+            return failures
         if not self.diff.course_level_invariant:
             failures.append("course_level_invariant")
         if self.expected_inserted is not None and self.expected_inserted != self.inserted:
@@ -440,6 +476,7 @@ class Applied:
         output.update(
             rebuild_term=self.rebuild_term,
             rows_rebuilt=self.rows_rebuilt,
+            gated=self.gated,
             gate_failures=self.gate_failures,
             verdicts={
                 "course_level_invariant": "PASS" if self.diff.course_level_invariant else "FAIL"
@@ -461,6 +498,7 @@ def _rebuild_and_diff(
     *,
     inserted: int,
     expected_inserted: int | None,
+    gated: bool = True,
 ) -> Applied:
     """Rebuild the term's cache in the caller's transaction and diff it against the stored rows."""
     rows_rebuilt = refresh_section_rankings(session, term=term)
@@ -471,7 +509,64 @@ def _rebuild_and_diff(
         diff=diff_score_rows(stored_before, stored_after),
         inserted=inserted,
         expected_inserted=expected_inserted,
+        gated=gated,
     )
+
+
+def _run_undo(args: argparse.Namespace, *, session_factory: SessionFactory) -> int:
+    """--rollback and --rebuild-only: no USF request, the sweep lock first, then a cache rebuild.
+
+    --rebuild-only changes only the derived cache. --rollback also deletes the eligible backfilled
+    sections; without --yes it does all of it and rolls back, so the preview is the real thing.
+    """
+    terms: list[str] = list(dict.fromkeys(args.terms))
+    commit = bool(args.rebuild_only or args.yes)
+    session = session_factory()
+    try:
+        if not try_sweep_lock(session):
+            session.rollback()
+            return _emit(args, _busy_report(), EXIT_BUSY)
+        stored_before = stored_score_rows(session, args.rebuild_term)
+        report: dict[str, Any] = {"status": "succeeded"}
+        if args.rollback:
+            selection = select_rollback_sections(session, terms)
+            deleted = delete_backfilled_sections(session, selection.section_ids)
+            report.update(
+                preview=not args.yes,
+                deleted_sections=deleted,
+                terms={
+                    term: {
+                        "eligible_sections": selection.eligible_by_term.get(term, 0),
+                        "ineligible_sections": selection.ineligible_by_term.get(term, 0),
+                    }
+                    for term in terms
+                },
+            )
+        applied = _rebuild_and_diff(
+            session,
+            args.rebuild_term,
+            stored_before,
+            inserted=0,
+            expected_inserted=None,
+            gated=False,
+        )
+        if commit:
+            session.commit()
+        else:
+            session.rollback()
+    except SQLAlchemyError as exc:
+        session.rollback()
+        return _emit(args, _failure("database", detail=str(exc)), EXIT_FAILED)
+    except BaseException:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+
+    report["written"] = commit
+    full = {**report, "applied": applied.to_dict(include_changes=True)}
+    report["applied"] = applied.to_dict(include_changes=False)
+    return _emit(args, report, EXIT_OK, file_report=full)
 
 
 @dataclass(frozen=True)
@@ -621,6 +716,14 @@ def _report(
     return report
 
 
+def _mode_name(args: argparse.Namespace) -> str:
+    if args.rollback:
+        return "rollback"
+    if args.rebuild_only:
+        return "rebuild_only"
+    return "dry_run" if args.dry_run else "apply"
+
+
 def _redact(text: str) -> str:
     return _URL_RE.sub("[redacted-url]", text)
 
@@ -633,7 +736,7 @@ def _emit(
     file_report: dict[str, Any] | None = None,
 ) -> int:
     """Print one JSON line; --report-json gets ``file_report`` (the full detail) when given."""
-    mode = "dry_run" if args.dry_run else "apply"
+    mode = _mode_name(args)
     # Defence in depth: nothing URL-shaped may reach stdout or the report file.
     print(_redact(json.dumps({"mode": mode, **report}, sort_keys=True)))
     if args.report_json is not None:
