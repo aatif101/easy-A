@@ -2,7 +2,9 @@
 
 Dated evidence for the pre-merge half of the Phase 10 rollout. No connection strings, hostnames or credentials appear in this file. Every hosted database statement below ran inside a READ ONLY transaction (`SET TRANSACTION READ ONLY`; `transaction_read_only` confirmed `on`). No USF request had been made when Task 1 closed; Task 2 sections are appended below as they are run.
 
-**STATUS (2026-10-01, after dry run 2): the second five-term dry run (the one the user authorised) completed all five requests and the full what-if, but exited 1 with guard `unmatched_fraction` in all five terms (10.1% to 38.9% of graded CRNs missing from USF against a 2% limit), and `pairs_match_reference` FAIL (2,788 pairs against 3,216). Nothing was written (row counts identical). It was not rerun and no narrower query was tried (D-22e). The D-04 decision is awaiting the operator; see "Five-term dry run 2 (D-07)" and "D-04 what-if diff". Earlier status, kept for the record: Task 1 parity gate RESOLVED (exit 0 after the 1e-9 tolerance, commit cef0d5c); dry run 1 failed at 202505 with a parse guard and was repaired (commit 7e29a8c).**
+**STATUS (2026-10-01, after dry run 3): the third five-term dry run (all-campus request, the one the user authorised after 10-GAP-05) FAILED to complete: `error_kind` `parse` at term 202601, a schedule time cell holding two to-be-announced components that the row normaliser rejects (2 rows, both on a campus the backfill excludes). No what-if, no per-term report and no guard result was produced; nothing was written (row counts identical). It was not rerun and no code was changed (D-22e). See "Five-term dry run 3 (D-07)" at the end. The D-04 decision cannot be taken on dry run 3 evidence. The status below is the earlier one, kept for the record.**
+
+**EARLIER STATUS (2026-10-01, after dry run 2): the second five-term dry run (the one the user authorised) completed all five requests and the full what-if, but exited 1 with guard `unmatched_fraction` in all five terms (10.1% to 38.9% of graded CRNs missing from USF against a 2% limit), and `pairs_match_reference` FAIL (2,788 pairs against 3,216). Nothing was written (row counts identical). It was not rerun and no narrower query was tried (D-22e). The D-04 decision is awaiting the operator; see "Five-term dry run 2 (D-07)" and "D-04 what-if diff". Earlier status, kept for the record: Task 1 parity gate RESOLVED (exit 0 after the 1e-9 tolerance, commit cef0d5c); dry run 1 failed at 202505 with a parse guard and was repaired (commit 7e29a8c).**
 
 ## Pre-merge gates
 
@@ -299,4 +301,43 @@ Top 25 changes by absolute delta (all are `course` -> `instructor_course`; CRN, 
 
 Resulting 202701 `instructor_course` sections: **616** (none before the backfill). Sanity against the research's 751 sections at n >= 30 including 131 labs (as of 2026-09-28): 751 less 131 labs is 620, and 616 is close; labs stay at course level (9 of the 616 carry an L suffix in the course number). The lower count is consistent with the shortfall in joined pairs above.
 
-`10-WHATIF-DIFF.json` holds the full object plus the `changes` list (616 entries, derived numbers only, no instructor names, no "://").
+`10-WHATIF-DIFF.json` holds the full object plus the `changes` list (616 entries, derived numbers only, no instructor names, no "://"). It is the dry run 2 object: dry run 3 overwrote it with its short failure payload and that overwrite was reverted (`git checkout` of that one file), so the committed file stays the last complete what-if (computed with the superseded campus=T request).
+
+## Five-term dry run 3 (D-07), all-campus request
+
+The single run the user authorised after the campus fix (commits `a49e33a`, `097c95a`; notes 10-GAP-04, 10-GAP-05). Command, run exactly once and not rerun: `uv run python scripts/backfill_historical_sections.py --dry-run --report-json .planning/phases/10-professor-level-grades/10-WHATIF-DIFF.json --save-failed-response .planning/phases/10-professor-level-grades/failed-responses/dry-run-3.html`. Start 2026-10-01T20:24:07Z, end 2026-10-01T20:27:37Z (210 s wall clock for the requests that ran, with the 30 s inter-term pause). Pre-run read-only check at 2026-10-01T20:24:02Z: `report_ranking_diff.py --term 202701` exit 0 (identical true, course_level_invariant true, changed 0, 3,706 of 3,706, no USF request).
+
+**Exit code 1. `status` failed, `error_kind` `parse`, `failed_term` `202601`, `written` false.** Diagnostics fingerprint (the whole payload, sanitized): error text `Invalid schedule time range` on a time cell consisting of two to-be-announced placeholders separated by a space (the shape `TBA TBA`, a row with two meeting components both unscheduled); `data_row_count`, `tail_error` and lost-rows diagnostics were not emitted because this is a normalisation error, not the lost-rows guard. `saved_response`: saved, 10,756,455 bytes, written to the git-ignored `failed-responses/dry-run-3.html` (mode 0600; never committed or quoted). The report carries no per-term section, no `fetch_seconds`, no `response_bytes` for the terms that came before, no what-if and no `guard_failures`: a parse failure aborts the run before any of them is built. The terms run in ascending order, so 202408, 202501, 202505 and 202508 were fetched and parsed before 202601 failed (inferred from the failure term; not reported). The only size figure available is the 202601 page: **10.76 MB for the all-campus response, under the 25 MB `WHOLE_TERM_MAX_BYTES` cap, no fetch size or timeout error.** The GAP-05 estimate (3 to 14 MB per page) held for this page.
+
+Offline read of the saved 202601 page only (the repo's own parser, no USF request, no database connection; counts only):
+
+| Measure | Value |
+|---------|------:|
+| data rows / rows parsed by the row parser | 9,969 / 9,969 (lost-rows guard would pass) |
+| `Tampa` | 6,703 (the same count as the earlier `campus=T` request) |
+| `Off-campus - Tampa` | 1,958 |
+| `St. Petersburg` | 646 |
+| `Off-campus - Sarasota-Manatee` | 253 |
+| `Sarasota-Manatee` | 195 |
+| `Off-campus - St. Petersburg` | 175 |
+| `Off Campus Special Programs` | 39 (not on the allow-list, not one of the four known labels: would be listed under `unknown_campus_labels` if graded) |
+| rows whose time cell the normaliser rejects | 2, both `Sarasota-Manatee`, both the two-placeholder shape |
+| USF error tail marker present | yes (the usual one, as in the 202505 page) |
+
+Reading: the all-campus request itself worked (the page parses to 9,969 rows, 1,958 of them `Off-campus - Tampa`). The failure is a separate, new defect: `parse_whole_term` normalises every fetched row before the campus allow-list is applied, so a row on an excluded campus can abort the run, and `_parse_time_range` accepts a lone `TBA` or `ARR` but not two components that are both unscheduled. The two rows would be dropped by the campus gate anyway. Other terms' pages may contain the same shape or others (the four earlier terms did not fail, and no saved copy of them exists). No code was changed and nothing was retried (D-22e); a fix needs a decision and then a fourth dry run needs its own authorisation.
+
+### Row counts before/after (dry run 3)
+
+Read-only transactions (`SET TRANSACTION READ ONLY`, `on`). Identical, so nothing was written (T-10-21).
+
+| Table | Before (2026-10-01T20:23:55Z) | After (2026-10-01T20:28:38Z) |
+|-------|------------------------------|------------------------------|
+| sections (all terms; all are 202701) | 3,815 | 3,815 |
+| section_instructors | 4,436 | 4,436 |
+| seat_snapshots | 4,376 | 4,376 |
+| section_rankings (all rows; all 202701) | 3,706 | 3,706 |
+| ingest_runs | 136 | 136 |
+
+### D-04 and the join re-measure
+
+Not available from dry run 3: no what-if was computed, no pairs figure exists, no `would-insert` value, no `rows_by_campus` per term (other than the offline 202601 counts above), and the 633 non-"Other" previously unmatched CRNs were not checked. The dry run 2 figures above remain the last complete ones and are superseded by the request change. There is no `--expect-inserted` proposal. D-04 is not decided and nothing here approves a go-live.
