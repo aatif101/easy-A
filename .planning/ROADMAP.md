@@ -579,7 +579,7 @@ history, wherever the evidence supports it.
 
 **Requirements**: REQ-PROF-01
 
-**Plans:** 6/9 plans executed (tracer-first; Wave 1 ×4 parallel → Wave 2 ×2 → Wave 3 → Wave 4 → Wave 5). D-24 approved 2026-09-30 (CONTEXT D-01).
+**Plans:** 7/9 plans executed (tracer-first; Wave 1 ×4 parallel → Wave 2 ×2 → Wave 3 → Wave 4 → Wave 5). D-24 approved 2026-09-30 (CONTEXT D-01).
 
 Plans:
 **Wave 1**
@@ -596,7 +596,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 10-07-PLAN.md — Rollout 1: hosted code-only parity, lab vocabulary, the single five-term dry run, D-04 go/no-go checkpoint
+- [x] 10-07-PLAN.md — Rollout 1: hosted code-only parity, lab vocabulary, the single five-term dry run, D-04 go/no-go checkpoint
 
 **Wave 4** *(blocked on Wave 3)*
 
