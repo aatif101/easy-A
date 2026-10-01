@@ -34,7 +34,7 @@ Read, in this order:
 
 1. **Per-term counts** under `terms.<term>`: `fetched_rows` (rows USF returned), `rows_by_campus` (every fetched row by schedule campus label), `campus_allowed_rows` (fetched rows on the Tampa allow-list, graded or not), `grade_crns` (graded CRNs stored for the term), `to_write` (graded sections that will be stored), `inserted` and `updated` (what apply would do), `instructor_rows_added`, `response_bytes`. `to_write` plus the skipped counts (`non_tampa`, `grade_course_unattributed`, `course_key_mismatch`, `uncataloged`) accounts for every graded row; `not_graded` rows are ignored on purpose. `non_tampa_by_label` splits `non_tampa` by campus label and `unknown_campus_labels` lists the labels in it that are neither on the allow-list nor a known non-Tampa label; read both before approving (a label you do not recognise needs a decision, it is never silently kept). Top-level `request` shows the campus parameter and the allow-list used, and `fetch_seconds` the time per term request.
 2. **`unmatched_grade_crns` and `unmatched_fraction`**: graded CRNs USF no longer lists. Above 2 % the run stops with `guard_failures: ["unmatched_fraction"]` and exit 1. Do not raise `--max-unmatched-fraction` to get past it without understanding why the CRNs are missing.
-3. **`guard_failures`**: `zero_rows` (USF returned no rows), `unmatched_fraction`, `duplicate_crn`. Any entry means exit 1 and a stop. A failed apply writes nothing.
+3. **`guard_failures`**: `zero_rows` (USF returned no rows), `unmatched_fraction`, `duplicate_crn`, `row_normalisation_failures` (a row on an allowed campus could not be normalised; section 1c). Any entry means exit 1 and a stop. A failed apply writes nothing. `row_normalisation_failures` (count), `row_failures` (up to 10, each `position`, `campus`, `field`, `shape`) and `row_failures_omitted` are in every term's report; the count is `0` and the list empty on a clean term.
 4. **`section_type_histogram` and `delivery_method_histogram`**: expect mostly `Class Lecture`. Check that `Laboratory` appears with the exact spelling the lab rule matches. A new or unfamiliar type name is a finding to report before applying, because only the exact normalized value `laboratory` is treated as a lab (D-13).
 5. **`staff_or_blank`**: sections whose instructor is "Staff" or blank. They are stored but make no instructor pair.
 6. **`what_if.verdicts`**:
@@ -86,7 +86,7 @@ Only counts, positions, fixed labels and a digits-only CRN are reported: no URLs
 uv run python scripts/backfill_historical_sections.py --terms 202505 --dry-run --save-failed-response .planning/phases/10-professor-level-grades/failed-responses/202505.html --report-json <path>
 ```
 
-The report then carries `saved_response` (`saved`, `path`, `bytes`; or `saved: false` and an exception name if the write failed, which never hides the parse failure). Inspect the suspect block locally, for example by counting `<tr` blocks to `block_index` after the header row. Each rerun is a new whole-term request per term, so only rerun with a reason.
+The report then carries `saved_response` (`saved`, `path`, `bytes`; or `saved: false` and an exception name if the write failed, which never hides the parse failure). Inspect the suspect block locally, for example by counting `<tr` blocks to `block_index` after the header row. Each rerun is a new whole-term request per term, so only rerun with a reason. To diagnose a failure in any term offline, without a rerun, save every response as it arrives with `--save-responses` and replay it (section 1c).
 
 **Known USF quirk: unterminated anchors in a note cell (Phase 10 gap 03).** The 202505 response held one legitimate 24-cell section whose note cell contained a hand-typed link: a non-breaking space inside the `<a` tag, a curly-quote `href`, and a closing `</a` that never reached its `>`. The HTML parser read that broken end tag as running on into `</td>`, left the anchor open, and nested the remaining cells inside it, so the row came back with 8 direct cells (`8/24 cells`, `24 td tags vs 8 direct cells` in the fingerprint) and the guard refused the term. `parse_whole_term` now repairs this before counting and parsing, for the live sync and the backfill alike: inside each row block it closes a `</a` and a `<a ...` that have no `>` before the next `<`, by inserting a `>` and changing nothing else. The guard condition is unchanged, so every other lost-row shape (23 or 25 cells, placeholder rows, a missing `</tr>`, a nested table) is still refused. If the fingerprint of a failing row still reads `td tags vs direct cells` with no nested table, look for another unterminated tag in its note cell.
 
@@ -102,13 +102,47 @@ The report then carries `saved_response` (`saved`, `path`, `bytes`; or `saved: f
 
 **Live term blind spot (separate follow-up, not changed here).** The live sync still requests `campus=T` and its scope filter keeps only the exact label `Tampa`, so it has the same blind spot for the live term. That is a product coverage question under D-22(a) and D-06/D-07, tracked in `10-GAP-05-CAMPUS-FIX.md`, and is not part of this runbook.
 
+### 1c. Campus gate before normalisation, quarantined rows, saving and replay (Phase 10 gap 06)
+
+Dry run 3 (2026-10-01) failed at 202601 because two rows on `Sarasota-Manatee` (a campus the backfill excludes) carried a time cell of two unscheduled placeholders (`TBA TBA`), which the row normaliser rejected, and the run aborted before it produced any report. Three changes (`10-GAP-06-PARSE-ORDER-TBA.md`) make that class of failure impossible to repeat blindly:
+
+**The allow-list is applied before normalisation (backfill only).** A fetched row whose campus label is not on the allow-list (`{Tampa, Off-campus - Tampa}`) is never normalised, so whatever its cells hold it cannot abort the run. It is still counted exactly as before in `fetched_rows`, `rows_by_campus`, `non_tampa`, `non_tampa_by_label`, `unknown_campus_labels` and in the unmatched-CRN guard (a CRN present only under an excluded label is still "fetched"); counts per term are identical to the previous order for every row that did normalise. The live sync is unchanged: it still normalises every row it fetches, first, and still fails closed on a bad row.
+
+**Normaliser: an all-placeholder time cell is no time.** A time cell of several components that are all `TBA` or `ARR` (`TBA TBA`, `ARR TBA`) now normalises to no start and no end, like a lone `TBA` and like several clock ranges. Anything else is unchanged: `TBA` mixed with a non-range time (`TBA 8:00am`), an unknown token (`TBA TBD`, `TBA xyz`), punctuation-joined placeholders (`TBA, TBA`) and impossible clocks are still rejected. This function is shared with the live sync, the narrow-search ingest and the resolver, so a live row with `TBA TBA` now stores no time instead of failing the sweep.
+
+**Quarantine and the `row_normalisation_failures` guard.** A row on an allowed campus that still fails normalisation no longer aborts the run before any report. It is set aside and the rest of the term is computed, so the report and the what-if are produced, but the term fails the guard `row_normalisation_failures`: a dry run exits 1 after reporting and `--apply` refuses and writes nothing. Strictness for data that would be written is unchanged; only "abort before any report" is gone. Each quarantined row is reported as:
+
+| Field | Meaning |
+|---|---|
+| `position` | 0-based among the response's data rows (the unit the lost-rows guard counts) |
+| `campus` | the schedule campus label (an allowed label by construction) |
+| `field` | the failing cell: `time`, `capacity`, `enrollment`, `seats_remaining`, `wait_seats_available`, or `validation:<field>` |
+| `shape` | a fixed-vocabulary fingerprint, no cell text: for `time`, one symbol per component (`R` clock range, `P` `TBA`/`ARR`, `?` anything else, space-separated, capped at 8 with a trailing `+`, so `? ?` is two unrecognised tokens); `non_integer` for a number cell; `invalid_value` for a validation error |
+
+At most 10 rows are listed (`row_failures_omitted` is the rest); `row_normalisation_failures` is always the full count. Quarantined rows count in `fetched_rows`, `rows_by_campus` and `campus_allowed_rows` and are never written. To read the row, replay the saved page (below) and look at the data row at `position`. Do not widen the normaliser to get past a failure without a decision; a new unscheduled shape is a finding to report.
+
+**Save every response.** `--save-responses DIR` (dry run and apply; off by default) writes each fetched whole-term response to `DIR/<term>.html` the moment it arrives (decoded text, mode `0600`, an existing file's mode is reset to `0600`), so a later failure in any term can be diagnosed offline. The path rules are the same as `--save-failed-response`: outside the repository, or under the git-ignored `.planning/phases/10-professor-level-grades/failed-responses/`; any other path inside the repository is refused with exit 2 before any request. The files name instructors: never commit, copy into a tracked directory or quote them. The report gets a `saved_responses` object (per term `saved`, `path`, `bytes`; `saved: false` with an exception name if a write failed, which never stops the run). Pages that arrived before a later term failed stay saved.
+
+```bash
+uv run python scripts/backfill_historical_sections.py --dry-run --report-json <path> \
+  --save-responses .planning/phases/10-professor-level-grades/failed-responses/run4
+```
+
+**Replay with zero USF requests.** `--from-saved DIR` (dry run only) reads `DIR/<term>.html` for each term in `--terms` instead of requesting USF, and runs the identical parse, allow-list gate, quarantine, selection, guards and what-if. It builds no HTTP client and calls no `client_factory`, so it makes no network request at all; `--pause-seconds` is irrelevant. `request` in the report reads `{"source": "saved_responses", "requests_made": 0, ...}` and `fetch_seconds` is `0` per term. The database access is the same read-only what-if as any dry run (inside a transaction that is always rolled back). It is refused (exit 2, nothing done) with `--apply`, `--rollback`, `--rebuild-only`, `--save-responses` and `--save-failed-response`. Use `--terms` to replay a subset of the saved terms; a requested term with no `DIR/<term>.html` fails closed with `error_kind` `saved_response_missing` and exit 1.
+
+```bash
+uv run python scripts/backfill_historical_sections.py --dry-run --from-saved <DIR> --terms 202601 --report-json <path>
+```
+
+A replay of a page saved from a real run reproduces that run's per-term counts and what-if exactly (a test pins this); only `request` and `fetch_seconds` differ. A replay is a diagnostic aid and a rehearsal: an `--apply` always makes its own fresh requests and the D-04 review is of a real dry run.
+
 ## 2. D-04 review
 
 The project owner approves the diff; the agent or operator who ran the dry run does not. Review the report against D-04: which sections change score and rank and by how much, and confirmation that course-level scores are unchanged.
 
 Approve only when all of these hold:
 
-- Exit code `0`, `guard_failures` empty for every term, and `unmatched_fraction` small and explained.
+- Exit code `0`, `guard_failures` empty for every term (including `row_normalisation_failures`), and `unmatched_fraction` small and explained.
 - `code_only_parity` `PASS` and `course_level_invariant` `PASS`.
 - Every transition is `course->instructor_course`, and the size of `abs_delta` and the `top_changes` are acceptable to the owner.
 - `pairs_match_reference` `PASS`, or every delta in `what_if.pairs.deltas` is explained and accepted in writing.
@@ -131,7 +165,7 @@ Exit codes:
 | Code | Meaning |
 |---|---|
 | `0` | Committed. Sections, instructors, ingest rows and the rebuilt cache are live together. |
-| `1` | Nothing was written. A fetch or guard failed (`error_kind` `usf_http`, `usf_timeout`, `usf_response`, `parse`, `guard`, `database`), the course-level invariant failed (`error_kind` `course_level_invariant`), or the inserted count differed from `--expect-inserted` (`error_kind` `expect_inserted`; `applied.expect_inserted` shows the expected and actual numbers). |
+| `1` | Nothing was written. A fetch or guard failed (`error_kind` `usf_http`, `usf_timeout`, `usf_response`, `parse`, `guard` including a `row_normalisation_failures` term guard, `database`), the course-level invariant failed (`error_kind` `course_level_invariant`), or the inserted count differed from `--expect-inserted` (`error_kind` `expect_inserted`; `applied.expect_inserted` shows the expected and actual numbers). |
 | `2` | Nothing was written. Either a usage error (for example `--rebuild-term` missing), or `status` `busy`: a live sweep holds the sweep lock. |
 
 A count mismatch means the data changed since the review. Do not edit `--expect-inserted` to match: run a new dry run and review it again.
