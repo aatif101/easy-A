@@ -503,7 +503,7 @@ to keep it running.
 
 **Requirements**: REQ-OPS-01, REQ-SYNC-01
 
-**Plans:** 16/16 plans executed (09-16 gap closure complete; re-verification pending)
+**Plans:** 16/16 plans complete (09-16 gap closure complete; re-verification pending)
 
 Plans:
 **Wave 1**
@@ -638,7 +638,7 @@ rewrite is planned or approved.
 | 6 — MVP1-P3 all-Tampa ingestion | ✓ Complete | 100% |
 | 7 — MVP1-P4 full-scale perf (p95 < 1.5s) | ✓ Complete | 100% |
 | 8 — MVP1-P5 MVP-1 verification | Complete    | 100% |
-| 9 — Hosted beta + live schedule sync | In Progress| 0% |
+| 9 — Hosted beta + live schedule sync | Complete    | 0% |
 | 10 — Professor-level grades | ○ Planned 2026-09-28 | 0% |
 
 ---
