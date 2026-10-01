@@ -153,3 +153,13 @@ Read-only transactions (`SET TRANSACTION READ ONLY`, confirmed `on`). Counts are
 | ingest_runs | 133 | 133 |
 
 Note: `sections` includes removed rows (3,814 total vs 3,705 active/ranked 202701 sections).
+
+## Dry run 1 diagnosis and fix
+
+The diagnostic dry run for term 202505 (with the saved-response option from 10-GAP-02) named the dropped row: data row `#486` of 2,175, a legitimate 24-cell section that parsed as `8/24` cells. Cause: its notes cell holds a hand-typed anchor with a non-breaking space in the start tag and a closing `</a` that never reaches its `>`, which left an anchor open and nested the remaining 16 cells inside it. The saved page is local only (git-ignored, mode 0600) and is not quoted here.
+
+Decision "repair-anchor": a narrow, offline repair of cut-off anchor tags inside each row block before the guard counts and parses rows (commit `7e29a8c`, see `10-GAP-03-ANCHOR-REPAIR.md`). The guard condition is unchanged and every other lost-row shape is still refused.
+
+Offline validation against the saved page (no USF request, no database connection): 2175 of 2175 rows parsed with the guard passing, at three chunkings; the 2174 rows that parsed before are identical after; one row newly parsed. 34 row blocks were touched by the repair (one failing row, 33 harmless cut-off closes). Gates after the change: `uv run pytest -q` 941 passed, 4 skipped, 1 xfailed; ruff and mypy clean.
+
+The five-term dry run has NOT been rerun; it needs an explicit go-ahead, and this note does not authorise it. The Task 1 and Task 2 statuses above are unchanged until it is rerun.
