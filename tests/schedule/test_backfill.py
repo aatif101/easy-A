@@ -40,7 +40,7 @@ from easy_a.schedule.backfill import (
     select_backfill_rows,
     write_term_backfill,
 )
-from easy_a.schedule.backfill_cli import main
+from easy_a.schedule.backfill_cli import FAILED_RESPONSE_DIR, REPO_ROOT, _failed_response_path, main
 from easy_a.schedule.client import StaffScheduleClient
 from easy_a.sync import courses as courses_module
 from easy_a.sync.courses import CatalogSettings, CourseAdder
@@ -865,3 +865,221 @@ def test_backfill_is_isolated_from_the_live_sync_and_the_worker() -> None:
     assert json.loads(result.stdout.strip().splitlines()[-1]) == []
     for name in ("render.yaml", "Dockerfile"):
         assert "backfill" not in (root / name).read_text().lower()
+
+
+# --- gap 02: parse-guard diagnostics and the opt-in local save of the failing response -----------
+
+
+def _short_row_client(
+    session_factory: sessionmaker[Session],
+) -> tuple[Callable[[], StaffScheduleClient], str]:
+    """A fake USF whose 202408 response has one 23-cell graded row (the lost-rows guard trips)."""
+    rows = graded_rows(session_factory)
+    html = build_whole_term_html(rows, error_tail=False, malformed_crns=[rows[1].crn])
+    client, _ = usf_client(handler=per_term_handler({"202408": html}))
+    return (lambda: client), html
+
+
+def test_a_lost_rows_failure_reports_sanitized_diagnostics(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    client_factory, _ = _short_row_client(session_factory)
+    before = table_counts(session_factory)
+
+    code, report = run(["--terms", "202408", "--dry-run"], session_factory, client_factory, capsys)
+
+    assert code == 1
+    assert report["error_kind"] == "parse"
+    assert report["failed_term"] == "202408"
+    assert report["written"] is False
+    assert "Parsed 1 rows from 2 data rows" in report["error"]
+    diag = report["parse_diagnostics"]
+    assert (diag["expected_rows"], diag["parsed_rows"]) == (2, 1)
+    (row,) = diag["suspect_rows"]
+    assert (row["position"], row["cell_count"], row["crn"]) == (1, 23, "89034")
+    assert "missing FEES" in row["fingerprint"]
+    assert "saved_response" not in report
+    assert table_counts(session_factory) == before
+
+
+def test_the_diagnostics_never_leak_instructor_names_or_urls(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    rows = graded_rows(session_factory, instructor="Ada Lovelace")
+    html = build_whole_term_html(rows, error_tail=False, malformed_crns=[rows[0].crn])
+    html = html.replace("Ada Lovelace", '<a href="https://leak.example/a">Ada Lovelace</a>')
+    client, _ = usf_client(handler=per_term_handler({"202408": html}))
+    report_file = tmp_path / "report.json"
+
+    code, report = run(
+        ["--terms", "202408", "--dry-run", "--report-json", str(report_file)],
+        session_factory,
+        lambda: client,
+        capsys,
+    )
+
+    assert code == 1
+    assert report["parse_diagnostics"]["suspect_rows"][0]["position"] == 0
+    for blob in (json.dumps(report), report_file.read_text(encoding="utf-8")):
+        for forbidden in ("Ada", "Lovelace", "leak", "://", "href", "<td"):
+            assert forbidden not in blob, forbidden
+
+
+def test_save_failed_response_writes_the_raw_response_only_on_a_parse_failure(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    client_factory, html = _short_row_client(session_factory)
+    saved = tmp_path / "out" / "202408.html"
+
+    code, report = run(
+        ["--terms", "202408", "--dry-run", "--save-failed-response", str(saved)],
+        session_factory,
+        client_factory,
+        capsys,
+    )
+
+    assert code == 1
+    assert saved.read_text(encoding="utf-8") == html
+    assert saved.stat().st_mode & 0o777 == 0o600
+    assert report["saved_response"] == {
+        "saved": True,
+        "path": str(saved.resolve()),
+        "bytes": len(html.encode("utf-8")),
+    }
+    assert "Rothstein" not in json.dumps(report)  # the file has names; the report never does
+    assert "parse_diagnostics" in report
+
+
+def test_save_failed_response_writes_nothing_when_the_response_parses(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    client_factory, _ = client_for({"202408": graded_rows(session_factory)})
+    saved = tmp_path / "202408.html"
+
+    code, report = run(
+        ["--terms", "202408", "--dry-run", "--save-failed-response", str(saved)],
+        session_factory,
+        client_factory,
+        capsys,
+    )
+
+    assert code == 0
+    assert not saved.exists()
+    assert list(tmp_path.iterdir()) == []
+    assert "saved_response" not in report
+
+
+def test_the_response_is_not_saved_without_the_option_or_for_a_non_parse_failure(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    client_factory, _ = _short_row_client(session_factory)
+    code, report = run(["--terms", "202408", "--dry-run"], session_factory, client_factory, capsys)
+    assert code == 1
+    assert "saved_response" not in report
+    assert list(tmp_path.iterdir()) == []
+
+    saved = tmp_path / "202408.html"
+    down, _ = usf_client("", status_code=503)
+    code, report = run(
+        ["--terms", "202408", "--dry-run", "--save-failed-response", str(saved)],
+        session_factory,
+        lambda: down,
+        capsys,
+    )
+    assert code == 1
+    assert report["error_kind"] == "usf_http"
+    assert not saved.exists()
+    assert "saved_response" not in report and "parse_diagnostics" not in report
+
+
+def test_a_save_error_is_reported_and_never_masks_the_parse_failure(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    client_factory, _ = _short_row_client(session_factory)
+    blocker = tmp_path / "blocker"
+    blocker.write_text("a file where a directory is needed")
+
+    code, report = run(
+        ["--terms", "202408", "--dry-run", "--save-failed-response", str(blocker / "x.html")],
+        session_factory,
+        client_factory,
+        capsys,
+    )
+
+    assert code == 1
+    assert report["error_kind"] == "parse"
+    assert report["saved_response"]["saved"] is False
+    assert "path" not in report["saved_response"]
+    assert report["parse_diagnostics"]["suspect_rows"][0]["position"] == 1
+
+
+def test_save_failed_response_refuses_tracked_repository_paths_and_directories(
+    session_factory: sessionmaker[Session],
+    tmp_path: Path,
+) -> None:
+    def forbidden() -> StaffScheduleClient:
+        raise AssertionError("a refused path must not reach USF")
+
+    for refused in (
+        REPO_ROOT / "docs" / "failed.html",
+        REPO_ROOT / "failed.html",
+        REPO_ROOT / ".planning" / "failed.html",
+        tmp_path,
+    ):
+        code = main(
+            ["--terms", "202408", "--dry-run", "--save-failed-response", str(refused)],
+            session_factory=session_factory,
+            client_factory=forbidden,
+        )
+        assert code == 2, refused
+    assert not (REPO_ROOT / "docs" / "failed.html").exists()
+
+
+def test_save_failed_response_accepts_the_ignored_directory_and_outside_paths(
+    tmp_path: Path,
+) -> None:
+    assert _failed_response_path(str(FAILED_RESPONSE_DIR / "202505.html")) == (
+        FAILED_RESPONSE_DIR / "202505.html"
+    )
+    assert _failed_response_path(str(tmp_path / "x.html")) == (tmp_path / "x.html").resolve()
+
+
+def test_save_failed_response_is_refused_for_modes_that_make_no_request(
+    session_factory: sessionmaker[Session],
+    tmp_path: Path,
+) -> None:
+    code = main(
+        ["--rollback", "--rebuild-term", "202701", "--save-failed-response", str(tmp_path / "x")],
+        session_factory=session_factory,
+    )
+    assert code == 2
+
+
+def test_the_failed_response_directory_is_git_ignored() -> None:
+    probe = FAILED_RESPONSE_DIR / "202505.html"
+    result = subprocess.run(
+        ["git", "check-ignore", "--quiet", str(probe)],
+        cwd=REPO_ROOT,
+        check=False,
+        capture_output=True,
+    )
+    assert result.returncode == 0, "the failed-response directory must be git-ignored"
+    tracked = subprocess.run(
+        ["git", "ls-files", "--", str(FAILED_RESPONSE_DIR)],
+        cwd=REPO_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert tracked.stdout.strip() == ""

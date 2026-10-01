@@ -22,6 +22,12 @@ apply, inside a transaction that is always rolled back: whether the new code alo
 stored ranking cache, the stored-versus-after-backfill ranking diff, and the instructor-pair join
 re-measure against the 2026-09-28 report.
 
+A parse-guard failure (``error_kind`` ``parse``) carries ``parse_diagnostics``: expected versus
+parsed row counts and, per suspect row (capped), its 0-based position among data rows, cell count
+and a structural fingerprint, never cell text. ``--save-failed-response PATH`` (off by default; dry
+run and apply only) also keeps the raw failing response in a local, git-ignored file, written only
+on a parse failure.
+
 One request per term, never retried, and no URL (request or database) is ever printed: stdout is a
 single JSON object of counts.
 """
@@ -30,6 +36,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import time
 from collections.abc import Callable
@@ -74,6 +81,7 @@ from easy_a.schedule.client import StaffScheduleClient, WholeTermResponseError
 from easy_a.schedule.parser import ScheduleParseError
 from easy_a.sync.fetch import FetchedTerm, fetch_whole_term
 from easy_a.sync.lock import try_sweep_lock
+from easy_a.sync.parse_diagnostics import LostRowsError
 
 EXIT_OK = 0
 EXIT_FAILED = 1
@@ -85,6 +93,12 @@ DEFAULT_MAX_UNMATCHED_FRACTION = 0.02
 DEFAULT_WHAT_IF_TERM = "202701"
 
 ERROR_DETAIL_LIMIT = 200
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+FAILED_RESPONSE_DIR = (
+    REPO_ROOT / ".planning" / "phases" / "10-professor-level-grades" / "failed-responses"
+)
+"""The only place inside the repository ``--save-failed-response`` may write; it is git-ignored."""
 _URL_RE = re.compile(r"[a-z][a-z0-9+.-]*://\S*", re.I)
 
 SessionFactory = sessionmaker[Session]
@@ -135,6 +149,26 @@ def _non_negative_int(value: str) -> int:
     if number < 0:
         raise argparse.ArgumentTypeError("must not be negative")
     return number
+
+
+def _failed_response_path(value: str) -> Path:
+    """A local file for the raw failing response. It must never be committable.
+
+    Anywhere outside the repository is fine. Inside it, only the git-ignored
+    ``FAILED_RESPONSE_DIR`` is accepted, so the saved HTML (which names instructors) cannot land in
+    a tracked directory.
+    """
+    path = Path(value).expanduser().resolve()
+    if path.is_dir():
+        raise argparse.ArgumentTypeError("must be a file path, not a directory")
+    in_repo = (REPO_ROOT / "pyproject.toml").is_file() and path.is_relative_to(REPO_ROOT)
+    if in_repo and not path.is_relative_to(FAILED_RESPONSE_DIR):
+        raise argparse.ArgumentTypeError(
+            "inside the repository only the git-ignored "
+            f"{FAILED_RESPONSE_DIR.relative_to(REPO_ROOT)}/ is allowed; "
+            "otherwise choose a path outside the repository"
+        )
+    return path
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -214,6 +248,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Stop when more than this fraction of a term's grade CRNs is missing from USF.",
     )
     parser.add_argument(
+        "--save-failed-response",
+        type=_failed_response_path,
+        default=None,
+        metavar="PATH",
+        help="With --dry-run or --apply: if a term's response fails the parse guard, save the raw "
+        "response (decoded text, mode 0600) to this local file for diagnosis. Off by default; "
+        "written only on a parse failure. Must be outside the repository or under the "
+        "git-ignored .planning/phases/10-professor-level-grades/failed-responses/.",
+    )
+    parser.add_argument(
         "--report-json",
         type=Path,
         default=None,
@@ -270,6 +314,8 @@ def _check_mode_arguments(parser: argparse.ArgumentParser, args: argparse.Namesp
         parser.error("--expect-inserted only applies to --apply")
     if args.yes and not args.rollback:
         parser.error("--yes only applies to --rollback")
+    if args.save_failed_response is not None and not (args.dry_run or args.apply):
+        parser.error("--save-failed-response only applies to --dry-run and --apply")
 
 
 def _scrub(text: str) -> str:
@@ -290,13 +336,61 @@ def _fetch_error_kind(exc: Exception) -> str | None:
     return None
 
 
-def _failure(kind: str, *, term: str | None = None, detail: str | None = None) -> dict[str, Any]:
+def _failure(
+    kind: str,
+    *,
+    term: str | None = None,
+    detail: str | None = None,
+    extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     report: dict[str, Any] = {"status": "failed", "error_kind": kind, "written": False}
     if term is not None:
         report["failed_term"] = term
     if detail:
         report["error"] = _scrub(detail)
+    if extra:
+        report.update(extra)
     return report
+
+
+class _ResponseSaver:
+    """Writes the raw failing response to one local file, only when called (a parse failure)."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.attempted = False
+        self.bytes_written = 0
+        self.error: str | None = None
+
+    def __call__(self, html: str) -> None:
+        self.attempted = True
+        try:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            data = html.encode("utf-8", errors="replace")
+            fd = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "wb") as handle:
+                handle.write(data)
+            self.bytes_written = len(data)
+        except OSError as exc:
+            # Never let a save problem mask the parse failure it was meant to help diagnose.
+            self.error = type(exc).__name__
+
+    def report(self) -> dict[str, Any] | None:
+        if not self.attempted:
+            return None
+        if self.error is not None:
+            return {"saved": False, "error": self.error}
+        return {"saved": True, "path": str(self.path), "bytes": self.bytes_written}
+
+
+def _failure_extras(exc: Exception, saver: _ResponseSaver | None) -> dict[str, Any]:
+    """Structured, sanitized parse diagnostics and the save outcome for a failed fetch."""
+    extras: dict[str, Any] = {}
+    if isinstance(exc, LostRowsError):
+        extras["parse_diagnostics"] = exc.diagnostics.to_dict()
+    if saver is not None and (saved := saver.report()) is not None:
+        extras["saved_response"] = saved
+    return extras
 
 
 def _guard_failures(selection: TermSelection, max_unmatched_fraction: float) -> list[str]:
@@ -338,17 +432,23 @@ def _run(
     # retried, never narrowed: the first failure stops the run with nothing written (D-22 d/e).
     fetched: dict[str, FetchedTerm] = {}
     client = (client_factory or StaffScheduleClient)()
+    saver = _ResponseSaver(args.save_failed_response) if args.save_failed_response else None
     try:
         for index, term in enumerate(terms):
             if index > 0:
                 sleep(args.pause_seconds)
             try:
-                fetched[term] = fetch_whole_term(client, term, now_fn=now_fn)
+                fetched[term] = fetch_whole_term(
+                    client, term, now_fn=now_fn, on_parse_failure=saver
+                )
             except Exception as exc:
                 kind = _fetch_error_kind(exc)
                 if kind is None:
                     raise
-                return _emit(args, _failure(kind, term=term, detail=str(exc)), EXIT_FAILED)
+                failure = _failure(
+                    kind, term=term, detail=str(exc), extra=_failure_extras(exc, saver)
+                )
+                return _emit(args, failure, EXIT_FAILED)
     finally:
         client.close()
 

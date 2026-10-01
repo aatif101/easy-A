@@ -11,7 +11,7 @@ Production holds grade rows for five historical terms but no `sections` or `sect
 - **Same lock as the worker (D-22(c)):** `--apply`, `--rollback` and `--rebuild-only` take the sweep advisory lock before anything else. If a live sweep holds it, they exit `2` with nothing written; wait a minute and retry.
 - **Nothing is committed by a dry run.** The what-if runs inside a transaction that is always rolled back.
 - **No requests in undo modes.** `--rollback` and `--rebuild-only` never contact USF.
-- Output is counts only: no URLs, no instructor names.
+- Output is counts only: no URLs, no instructor names. A parse failure adds structural diagnostics (section 1a), still without any cell text.
 
 ## Preconditions
 
@@ -54,6 +54,38 @@ Read, in this order:
 | Pairs with effective n >= 15 | 2,829 |
 
 `pairs_match_reference` is `PASS` only when all four match; `what_if.pairs.deltas` shows measured minus reference for every number. A `FAIL` does not change the exit code, but it blocks the go-live review (section 2) until the difference is explained.
+
+### 1a. When a term fails the parse guard
+
+`error_kind` `parse` with `error` starting `Parsed N rows from M data rows; refusing a response that silently lost rows.` means the lost-rows guard (the same fail-closed guard the live sweep uses) found a different number of parsed rows than `<tr>` blocks holding `<td>` cells. Nothing was written, the run stopped at that term, and later terms were not requested (no retry, per D-22(e)). The guard itself is unchanged; the report now says where to look.
+
+`parse_diagnostics` (also appended in short form to `error`):
+
+| Field | Meaning |
+|---|---|
+| `expected_rows`, `parsed_rows`, `difference` | The two counts from the error message. `difference > 0`: rows dropped; `< 0`: a block swallowed a neighbour. |
+| `suspect_total`, `suspect_rows_omitted` | Rows that did not parse to exactly one row when parsed alone, and how many fell past the cap (10 are listed). |
+| `suspect_rows[].position` | 0-based among **data rows** (blocks with a `<td>`), the unit the guard counts. Row `#2174` is the 2,175th data row. |
+| `suspect_rows[].block_index` | 0-based among **all** `<tr>` blocks after the header row; use it to find the row in a saved response. |
+| `cell_count` | Direct `<td>` children, which must equal the 24 expected headers or the parser skips the row. |
+| `td_tag_count` | Every `<td` tag in the block. More than `cell_count` means cells nested deeper (a nested table). |
+| `nested_table`, `colspan_cells` | A `<table>` inside the block; cells with `colspan` or `rowspan`. |
+| `isolated_rows` | Rows the parser returned for the block alone: `0` dropped, `2+` the block swallowed the next row (missing `</tr>`). |
+| `cell_shape` | One character per direct cell: `.` empty, `d` digits only, `a` anything else (capped at 40, `+` marks truncation). Structure only. |
+| `crn`, `crn_shape` | The CRN cell if it is purely digits; otherwise `null` with `absent`, `empty` or `non_numeric_<n>_chars`. |
+| `fingerprint` | A one-line reading: for example `missing FEES` (23 cells), `1 spanning cells, crn absent` (a colspan placeholder or banner row), `nested table`, `block holds 2 rows`. |
+| `mismatched_chunks[]` | The 250-row chunks whose data-row and parsed counts differ (`first_position`, `data_rows`, `parsed_rows`). If `suspect_rows` is empty the mismatch depends on chunk context; look in these windows. |
+| `inspection_failed` | `true` if the diagnostic pass itself failed; the counts and chunks are still valid. |
+
+Only counts, positions, fixed labels and a digits-only CRN are reported: no URLs, instructor names, titles or raw HTML.
+
+**Keeping the raw response.** Add `--save-failed-response PATH` to the dry run or apply. It is off by default and the file is written only when a term's response fails the parse guard (the lost-rows guard, a missing header row, or an unparseable subject/course cell); a successful run and every other failure kind write nothing. The text is saved as decoded, with mode `0600`. The file names instructors, so it must never be committed: `PATH` must be outside the repository, or under `.planning/phases/10-professor-level-grades/failed-responses/`, which is git-ignored. Any other path inside the repository is refused with exit 2 before any request.
+
+```bash
+uv run python scripts/backfill_historical_sections.py --terms 202505 --dry-run --save-failed-response .planning/phases/10-professor-level-grades/failed-responses/202505.html --report-json <path>
+```
+
+The report then carries `saved_response` (`saved`, `path`, `bytes`; or `saved: false` and an exception name if the write failed, which never hides the parse failure). Inspect the suspect block locally, for example by counting `<tr` blocks to `block_index` after the header row. Each rerun is a new whole-term request per term, so only rerun with a reason.
 
 ## 2. D-04 review
 
