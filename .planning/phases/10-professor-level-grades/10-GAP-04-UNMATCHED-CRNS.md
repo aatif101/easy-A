@@ -139,3 +139,30 @@ If H1 holds, the live sync (`campus=T`) and the Sprint 5 Tampa-only cleanup also
 - Hosted queries (all READ ONLY): grade rows by term, campus, source, CRN length; the grade rows of the five terms (CRN, course key, section number, suffix, totals); 202701 section campus and type distributions. Nothing was written.
 - Offline: `parse_whole_term` over the git-ignored saved 202505 page (never quoted or committed).
 - Not done, by instruction: any USF request, any backfill CLI run, any code change.
+
+## Confirmation probe (2026-10-01)
+
+One USF request, authorized by the user ("confirm-with-one-request"): term 202505, subject ENC, campus blank, made with the project's `StaffScheduleClient.search(ScheduleSearchQuery(...))` and `parse_schedule_html` (default user agent, single request, no retry, no backfill CLI). The grade side was read in a `SET TRANSACTION READ ONLY` transaction. The response was kept only in the session scratchpad (outside the repo). Counts only; no URLs, names or row text.
+
+| Measure | Result |
+|---------|-------:|
+| Rows in the response | 77 |
+| Campus label `Off-campus - Tampa` | 46 |
+| Campus label `Tampa` | 9 |
+| Campus label `Off-campus - Sarasota-Manatee` | 14 |
+| Campus label `Off-campus - St. Petersburg` | 4 |
+| Campus label `St. Petersburg` | 4 |
+| Graded ENC CRNs of 202505 present in the response | 42 of 42 |
+| ...labelled `Tampa` | 5 |
+| ...labelled `Off-campus - Tampa` | 37 |
+| Graded ENC CRNs present in the saved whole-term `campus=T` page | 5 of 42 |
+| Whole-term-unmatched ENC grade CRNs | 37 |
+| ...present in this response, labelled `Off-campus - Tampa` | 37 |
+| ...present, labelled `Tampa` | 0 |
+| ...absent | 0 |
+
+The suffix-`O` question: all 37 unmatched ENC CRNs have grade suffix `O` and all 37 are labelled `Off-campus - Tampa`; every `Off-campus - Tampa` row in the response (46 of 46) has schedule type "Other"; the 5 matched graded CRNs are the `Tampa`-labelled class lectures.
+
+**Verdict: H1 confirmed for ENC in 202505.** Every unmatched graded ENC CRN appears under the label `Off-campus - Tampa` in an all-campus response, none under `Tampa` (so no sign of the `campus=T` response being incomplete, H2) and none is absent. The 5 CRNs that matched the whole-term page are exactly the `Tampa`-labelled ones.
+
+Limits of this probe: one subject in one term, and every unmatched ENC CRN is suffix `O`, so the non-`O` residue noted in section 4 (C/L/I, including labs; 68 of 181 in 202505) is still not checked by this evidence. The 14 `Off-campus - Sarasota-Manatee` rows and the St. Petersburg rows are not graded Tampa CRNs and would remain `non_tampa` under the Step 2 allow-list.
