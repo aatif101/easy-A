@@ -212,3 +212,11 @@ export const formatGradeCount = (n: number): string => {
 };
 
 export const formatTermCount = (k: number): string => (k === 1 ? "1 term" : `${k} terms`);
+
+const UNNAMED_INSTRUCTOR_LABELS = ["Staff", "Ambiguous / unavailable", "Unknown"];
+
+/** True only for a real named person; Staff, ambiguous and unknown sections are never pinned (D-11). */
+export const isNamedInstructor = (ranking: SectionRanking): boolean => {
+  if (UNNAMED_INSTRUCTOR_LABELS.includes(instructorLabel(ranking))) return false;
+  return ranking.instructor?.trim().toLowerCase() !== "staff";
+};
