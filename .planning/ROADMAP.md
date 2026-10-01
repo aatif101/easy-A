@@ -579,6 +579,33 @@ history, wherever the evidence supports it.
 
 **Requirements**: REQ-PROF-01
 
+**Plans:** 7/9 plans executed (tracer-first; Wave 1 ×4 parallel → Wave 2 ×2 → Wave 3 → Wave 4 → Wave 5). D-24 approved 2026-09-30 (CONTEXT D-01).
+
+Plans:
+**Wave 1**
+
+- [x] 10-01-PLAN.md — D-24 retune (min n 30, instructor grade prior 30) through the whole-term cache; Laboratory rule in both instructor query paths; D-24 approved in PROJECT.md + README methodology
+- [x] 10-02-PLAN.md — One-off historical backfill CLI: five whole-term requests, grade-backed rows only, idempotent change-only writes, rolled-back dry run, fail-closed guards
+- [x] 10-03-PLAN.md — Read-only D-04 ranking diff (stored vs recomputed, course-level invariant) and the join re-measure against the 2026-09-28 report
+- [x] 10-04-PLAN.md — InstructorBreakdown block in RankingDetails per the UI-SPEC (all states, locked copy, 8 test hooks)
+
+**Wave 2** *(blocked on Wave 1)*
+
+- [x] 10-05-PLAN.md — Breakdown builder in both ranking paths, embedded in historical_analytics (no migration), contract-exact API, consistency invariant
+- [x] 10-06-PLAN.md — Backfill what-if dry run (D-04 diff + re-measure), atomic apply + cache rebuild under the sweep lock, rollback and rebuild-only, operator runbook
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [x] 10-07-PLAN.md — Rollout 1: hosted code-only parity, lab vocabulary, the single five-term dry run, D-04 go/no-go checkpoint
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 10-08-PLAN.md — Rollout 2: merge with green CI, operator-run apply with --expect-inserted, post-apply verification (re-measure, D-21, quality, p95)
+
+**Wave 5** *(blocked on Wave 4)*
+
+- [ ] 10-09-PLAN.md — Deployed-UI check with queued visual UAT (incl. UI-SPEC backstops); STATE/ROADMAP/REQUIREMENTS facts
+
 ---
 
 ## Backlog — candidate later phases
@@ -639,7 +666,7 @@ rewrite is planned or approved.
 | 7 — MVP1-P4 full-scale perf (p95 < 1.5s) | ✓ Complete | 100% |
 | 8 — MVP1-P5 MVP-1 verification | Complete    | 100% |
 | 9 — Hosted beta + live schedule sync | Complete    | 0% |
-| 10 — Professor-level grades | ○ Planned 2026-09-28 | 0% |
+| 10 — Professor-level grades | In Progress| 0% |
 
 ---
 

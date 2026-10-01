@@ -45,6 +45,39 @@ export interface RankingSignal {
   evidence: string;
 }
 
+export type InstructorBreakdownStatus = "ready" | "lab_section" | "no_instructor_history";
+
+/** One instructor's observed grade history for a course (mirrors the 10-05 API contract). */
+export interface InstructorHistoryRow {
+  name: string;
+  /** Raw share of A among A-F letter grades, 0-1. */
+  a_share: number;
+  /** The denominator shown as "{n} grades". */
+  effective_n: number;
+  term_count: number;
+  /** Banner term codes such as "202501". */
+  first_term: string;
+  last_term: string;
+  /** Shrunk easiness score; null when the instructor is not scored. */
+  easiness_score: number | null;
+  scored: boolean;
+  is_current: boolean;
+}
+
+export interface InstructorBreakdown {
+  status: InstructorBreakdownStatus;
+  /** Server-sorted: current first, then effective_n desc, then name asc. */
+  instructors: InstructorHistoryRow[];
+  /** The section's named instructor, or null for Staff, blank or ambiguous. */
+  current_instructor: string | null;
+  current_instructor_has_history: boolean;
+  /** Instructors under the collapse cutoff, excluding the current one. */
+  other_instructor_count: number;
+  scoring_min_effective_n: number;
+  collapse_min_effective_n: number;
+  provenance: RankingProvenance;
+}
+
 export interface HistoricalAnalytics {
   easiness_score: number;
   smoothed_withdrawal_rate: number;
@@ -59,6 +92,8 @@ export interface HistoricalAnalytics {
   term_count: number;
   mapped_instructor_section_count: number;
   provenance: RankingProvenance;
+  /** Optional so older payloads and fixtures stay valid. */
+  instructor_breakdown?: InstructorBreakdown | null;
 }
 
 export interface SectionRanking {

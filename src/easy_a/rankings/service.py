@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -17,6 +18,8 @@ from easy_a.models import Course, CourseAttribute, SeatSnapshot, Section, Term
 from easy_a.rankings.models import (
     GenEdAttribute,
     HistoricalAnalyticsSummary,
+    InstructorBreakdown,
+    InstructorHistoryRow,
     ModalityInfo,
     RankingFreshness,
     RankingProvenance,
@@ -28,6 +31,10 @@ from easy_a.schedule.freshness import snapshot_freshness
 from easy_a.schedule.normalize import DELIVERY_METHOD_LABELS
 from easy_a.signals.models import ResolvedSignalSet, SignalSourceKind
 from easy_a.signals.resolver import resolve_section_signals
+
+if TYPE_CHECKING:
+    # Runtime import is lazy (circular via easy_a.models); see _historical_analytics_for_section.
+    from easy_a.analytics.queries import InstructorBreakdownResult, SectionHistoricalAnalytics
 
 
 class RankingResolutionError(ValueError):
@@ -62,16 +69,18 @@ def rank_section(
         as_of=as_of,
     )
     gened_attributes = _gened_attributes_for(session, course)
-    analytics_stats = _historical_stats_for_section(
+    analytics_row = _historical_analytics_for_section(
         session,
         term_code=term_row.banner_code,
         crn=section.crn,
         course=course,
         config=config,
     )
+    analytics_stats = analytics_row.stats
     historical_analytics = _historical_summary(
         analytics_stats,
         before_term_code=term_row.banner_code,
+        instructor_breakdown=analytics_row.instructor_breakdown,
     )
     resolved_signals = resolve_section_signals(
         session,
@@ -345,14 +354,14 @@ def _gened_provenance(
     )
 
 
-def _historical_stats_for_section(
+def _historical_analytics_for_section(
     session: Session,
     *,
     term_code: str,
     crn: str,
     course: Course,
     config: ScoreConfig | None,
-) -> HistoricalOutcomeStats:
+) -> SectionHistoricalAnalytics:
     # Imported lazily to avoid a circular import (see easy_a.rankings.cache):
     # easy_a.models imports the rankings package, and easy_a.analytics.queries
     # imports easy_a.models.
@@ -367,9 +376,47 @@ def _historical_stats_for_section(
     )
     for row in analytics_rows:
         if row.crn == crn:
-            return row.stats
+            return row
     raise RankingResolutionError(
         f"No historical analytics row found for term {term_code!r} and CRN {crn!r}."
+    )
+
+
+def _instructor_breakdown_model(
+    breakdown: InstructorBreakdownResult,
+    *,
+    before_term_code: str,
+) -> InstructorBreakdown:
+    return InstructorBreakdown(
+        status=breakdown.status.value,
+        instructors=tuple(
+            InstructorHistoryRow(
+                name=row.name,
+                a_share=row.a_share,
+                effective_n=row.effective_n,
+                term_count=row.term_count,
+                first_term=row.first_term,
+                last_term=row.last_term,
+                easiness_score=row.easiness_score,
+                scored=row.scored,
+                is_current=row.is_current,
+            )
+            for row in breakdown.instructors
+        ),
+        current_instructor=breakdown.current_instructor,
+        current_instructor_has_history=breakdown.current_instructor_has_history,
+        other_instructor_count=breakdown.other_instructor_count,
+        scoring_min_effective_n=breakdown.scoring_min_effective_n,
+        collapse_min_effective_n=breakdown.collapse_min_effective_n,
+        provenance=RankingProvenance(
+            freshness=RankingFreshness.historical,
+            source="grade_distributions+section_instructors",
+            source_term=None,
+            detail=(
+                f"instructor-level history from terms before {before_term_code}; "
+                "laboratory sections excluded; USF lists one instructor per section"
+            ),
+        ),
     )
 
 
@@ -377,6 +424,7 @@ def _historical_summary(
     stats: HistoricalOutcomeStats,
     *,
     before_term_code: str,
+    instructor_breakdown: InstructorBreakdownResult | None = None,
 ) -> HistoricalAnalyticsSummary:
     return HistoricalAnalyticsSummary(
         easiness_score=stats.easiness_score,
@@ -396,6 +444,11 @@ def _historical_summary(
             source="grade_distributions",
             source_term=None,
             detail=f"computed from terms before {before_term_code}; non-grade data is excluded",
+        ),
+        instructor_breakdown=(
+            _instructor_breakdown_model(instructor_breakdown, before_term_code=before_term_code)
+            if instructor_breakdown is not None
+            else None
         ),
     )
 

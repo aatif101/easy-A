@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -65,6 +66,33 @@ class RankingSignal(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class InstructorHistoryRow(BaseModel):
+    name: str
+    a_share: float
+    effective_n: float
+    term_count: int
+    first_term: str
+    last_term: str
+    easiness_score: float | None
+    scored: bool
+    is_current: bool
+
+    model_config = ConfigDict(frozen=True)
+
+
+class InstructorBreakdown(BaseModel):
+    status: Literal["ready", "lab_section", "no_instructor_history"]
+    instructors: tuple[InstructorHistoryRow, ...]
+    current_instructor: str | None
+    current_instructor_has_history: bool
+    other_instructor_count: int
+    scoring_min_effective_n: float
+    collapse_min_effective_n: float
+    provenance: RankingProvenance
+
+    model_config = ConfigDict(frozen=True)
+
+
 class HistoricalAnalyticsSummary(BaseModel):
     easiness_score: float
     smoothed_withdrawal_rate: float
@@ -79,6 +107,7 @@ class HistoricalAnalyticsSummary(BaseModel):
     term_count: int
     mapped_instructor_section_count: int
     provenance: RankingProvenance
+    instructor_breakdown: InstructorBreakdown | None = None
 
     model_config = ConfigDict(frozen=True)
 

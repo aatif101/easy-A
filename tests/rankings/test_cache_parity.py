@@ -5,10 +5,12 @@ from importlib.util import find_spec
 from inspect import signature
 from typing import Any
 
+import pytest
 from sqlalchemy import event, inspect, select
 from sqlalchemy.orm import Session
 
 from easy_a.analytics.confidence import ConfidenceLabel, PriorLevel, ScoreSource
+from easy_a.analytics.scoring import ScoreConfig
 from easy_a.models import (
     Course,
     CourseAttribute,
@@ -20,6 +22,7 @@ from easy_a.models import (
 )
 from easy_a.rankings.models import SectionRanking
 from easy_a.rankings.service import rank_section
+from tests.analytics.test_queries import RECENCY_CONFIG, seed_breakdown_branches
 
 AS_OF = datetime(2026, 9, 20, 12, tzinfo=UTC)
 OBSERVED_AT = AS_OF - timedelta(minutes=5)
@@ -85,6 +88,63 @@ def test_cached_rankings_match_on_demand_for_history_and_global_fallback(
     assert fallback_ranking.historical_analytics.effective_n == 0
     assert fallback_ranking.instructor is None
     assert fallback_ranking.instructor_provenance.freshness.value == "unavailable"
+
+
+@pytest.mark.parametrize("config", [None, RECENCY_CONFIG], ids=["unweighted", "recency"])
+def test_cached_rankings_match_on_demand_including_instructor_breakdown(
+    db_session: Session,
+    config: ScoreConfig | None,
+) -> None:
+    _SectionRankingCache, hydrate_ranking, refresh_section_rankings = _cache_api()
+    seed_breakdown_branches(db_session)
+
+    assert refresh_section_rankings(db_session, term="202701", config=config) == 7
+    db_session.commit()
+
+    cached_rows = db_session.scalars(
+        select(_SectionRankingCache).order_by(_SectionRankingCache.crn)
+    ).all()
+    assert [row.crn for row in cached_rows] == [f"7100{index}" for index in range(1, 8)]
+    statuses = {}
+    for cache_row in cached_rows:
+        cached = hydrate_ranking(db_session, cache_row, as_of=AS_OF)
+        on_demand = rank_section(
+            db_session,
+            term="202701",
+            crn=cache_row.crn,
+            config=config,
+            as_of=AS_OF,
+        )
+        _assert_non_seat_parity(cached, on_demand)
+        assert (
+            cached.historical_analytics.instructor_breakdown
+            == on_demand.historical_analytics.instructor_breakdown
+        )
+        breakdown = cached.historical_analytics.instructor_breakdown
+        statuses[cache_row.crn] = None if breakdown is None else breakdown.status
+
+    # The seed exercises ready, lab, Staff-current and fallback (null) breakdowns.
+    assert statuses["71001"] == "ready"
+    assert statuses["71004"] == "ready"
+    assert statuses["71005"] == "lab_section"
+    assert statuses["71007"] is None
+
+
+def test_old_cache_rows_without_a_breakdown_key_load_as_null(db_session: Session) -> None:
+    SectionRankingCache, hydrate_ranking, refresh_section_rankings = _cache_api()
+    seed_breakdown_branches(db_session)
+    refresh_section_rankings(db_session, term="202701")
+    db_session.commit()
+    cache_row = db_session.scalars(
+        select(SectionRankingCache).where(SectionRankingCache.crn == "71001")
+    ).one()
+    legacy = dict(cache_row.historical_analytics)
+    del legacy["instructor_breakdown"]
+    cache_row.historical_analytics = legacy
+
+    ranking = hydrate_ranking(db_session, cache_row, as_of=AS_OF)
+
+    assert ranking.historical_analytics.instructor_breakdown is None
 
 
 def test_score_source_confidence_and_prior_branches_match_on_demand(

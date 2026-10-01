@@ -552,6 +552,81 @@ def _add_section(
     )
 
 
+def test_search_embeds_instructor_breakdown_with_exact_contract_keys(
+    api_client: TestClient,
+    api_session_factory: sessionmaker[Session],
+) -> None:
+    with api_session_factory() as session:
+        _seed_search_data(session)
+        # Real instructor history for MAC 1105 (course 10) and a course with no history at all.
+        _add_section(
+            session,
+            term_id=2,
+            crn="85001",
+            course_id=10,
+            instructor="Dr. Hist",
+            delivery_method="CL",
+            seats_remaining=None,
+        )
+        _add_grade(session, term_id=2, crn="85001", course_id=10, a=30, b=20, c=10, d=5, f=5)
+        session.add(
+            Course(
+                id=13,
+                subject="PHY",
+                number="2048",
+                title="Physics",
+                catalog_edition="2026-2027",
+            )
+        )
+        session.flush()
+        _add_section(
+            session,
+            term_id=1,
+            crn="73001",
+            course_id=13,
+            instructor="Dr. New",
+            delivery_method="CL",
+            seats_remaining=3,
+        )
+        session.flush()
+        refresh_section_rankings(session, term="202701")
+        session.commit()
+
+    response = api_client.get("/api/v1/rankings/search?term=202701")
+
+    assert response.status_code == 200
+    items = {item["crn"]: item for item in response.json()["items"]}
+    breakdown = items["70001"]["historical_analytics"]["instructor_breakdown"]
+    assert set(breakdown) == {
+        "status",
+        "instructors",
+        "current_instructor",
+        "current_instructor_has_history",
+        "other_instructor_count",
+        "scoring_min_effective_n",
+        "collapse_min_effective_n",
+        "provenance",
+    }
+    assert breakdown["status"] == "ready"
+    assert breakdown["current_instructor"] is None  # Staff section: rows are display-only
+    assert set(breakdown["instructors"][0]) == {
+        "name",
+        "a_share",
+        "effective_n",
+        "term_count",
+        "first_term",
+        "last_term",
+        "easiness_score",
+        "scored",
+        "is_current",
+    }
+    assert breakdown["instructors"][0]["name"] == "Dr. Hist"
+    # A global-fallback item carries an explicit null, never an instructor claim (D-20).
+    fallback = items["73001"]
+    assert fallback["score_source"] == "global"
+    assert fallback["historical_analytics"]["instructor_breakdown"] is None
+
+
 def test_seat_freshness_and_coverage_api(
     api_client: TestClient,
     api_session_factory: sessionmaker[Session],

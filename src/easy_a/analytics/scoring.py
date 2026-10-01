@@ -17,10 +17,11 @@ from easy_a.analytics.grades import (
 )
 
 DEFAULT_GRADE_PRIOR_STRENGTH = 60.0
+DEFAULT_INSTRUCTOR_PRIOR_STRENGTH = 30.0
 DEFAULT_WITHDRAWAL_PRIOR_STRENGTH = 60.0
 DEFAULT_GRADE_WEIGHT = 0.80
 DEFAULT_NON_WITHDRAWAL_WEIGHT = 0.20
-DEFAULT_INSTRUCTOR_COURSE_MIN_EFFECTIVE_N = 60.0
+DEFAULT_INSTRUCTOR_COURSE_MIN_EFFECTIVE_N = 30.0
 DEFAULT_GLOBAL_GRADE_FAVORABILITY_PRIOR = 0.75
 DEFAULT_GLOBAL_WITHDRAWAL_RATE_PRIOR = 0.10
 
@@ -28,6 +29,7 @@ DEFAULT_GLOBAL_WITHDRAWAL_RATE_PRIOR = 0.10
 @dataclass(frozen=True)
 class ScoreConfig:
     grade_prior_strength: float = DEFAULT_GRADE_PRIOR_STRENGTH
+    instructor_prior_strength: float = DEFAULT_INSTRUCTOR_PRIOR_STRENGTH
     withdrawal_prior_strength: float = DEFAULT_WITHDRAWAL_PRIOR_STRENGTH
     grade_weight: float = DEFAULT_GRADE_WEIGHT
     non_withdrawal_weight: float = DEFAULT_NON_WITHDRAWAL_WEIGHT
@@ -107,12 +109,18 @@ def compute_historical_outcome_stats(
     score_config = config or ScoreConfig()
     grade_raw = grade_favorability(aggregate.weighted_counts)
     withdrawal_raw = withdrawal_rate(aggregate.weighted_counts)
+    grade_prior_strength = (
+        score_config.instructor_prior_strength
+        if score_source is ScoreSource.instructor_course
+        else score_config.grade_prior_strength
+    )
     grade_smoothed = bayesian_smooth(
         observed=grade_raw,
         n=aggregate.effective_grade_n,
         prior=grade_prior,
-        prior_strength=score_config.grade_prior_strength,
+        prior_strength=grade_prior_strength,
     )
+    # D-24 retunes only the instructor grade prior; withdrawal strength is unchanged at every level.
     withdrawal_smoothed = bayesian_smooth(
         observed=withdrawal_raw,
         n=aggregate.effective_withdrawal_n,
