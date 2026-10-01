@@ -7,6 +7,11 @@ Render worker and accepts only the five historical grade terms.
 
 Exit codes: 0 success or dry run; 1 refused or failed with nothing written; 2 argparse usage error.
 
+``--dry-run`` also reports the D-04 what-if (PROJECT.md D-04, D-07) from the same write path as
+apply, inside a transaction that is always rolled back: whether the new code alone reproduces the
+stored ranking cache, the stored-versus-after-backfill ranking diff, and the instructor-pair join
+re-measure against the 2026-09-28 report.
+
 One request per term, never retried, and no URL (request or database) is ever printed: stdout is a
 single JSON object of counts.
 """
@@ -18,6 +23,7 @@ import json
 import re
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -26,10 +32,19 @@ import httpx
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
+from easy_a.analytics.pair_coverage import PairCoverage, measure_instructor_pairs
+from easy_a.analytics.scoring import ScoreConfig
 from easy_a.common.lookups import ensure_term
 from easy_a.config import DatabaseConfigError
 from easy_a.db import get_engine, get_session_factory
 from easy_a.models import IngestRun
+from easy_a.rankings.diff import (
+    RankingDiff,
+    ScoreRow,
+    computed_score_rows,
+    diff_score_rows,
+    stored_score_rows,
+)
 from easy_a.schedule.backfill import (
     HISTORICAL_GRADE_TERMS,
     BackfillGuardError,
@@ -52,6 +67,7 @@ EXIT_FAILED = 1
 DEFAULT_PAUSE_SECONDS = 30.0
 MIN_PAUSE_SECONDS = 10.0
 DEFAULT_MAX_UNMATCHED_FRACTION = 0.02
+DEFAULT_WHAT_IF_TERM = "202701"
 
 ERROR_DETAIL_LIMIT = 200
 _URL_RE = re.compile(r"[a-z][a-z0-9+.-]*://\S*", re.I)
@@ -84,6 +100,18 @@ def _fraction(value: str) -> float:
     return fraction
 
 
+def _live_term(value: str) -> str:
+    """A six-digit Banner term that is not one of the historical backfill terms."""
+    term = value.strip()
+    if not (len(term) == 6 and term.isdigit()):
+        raise argparse.ArgumentTypeError(f"{value!r} is not a six-digit term code")
+    if term in HISTORICAL_GRADE_TERMS:
+        raise argparse.ArgumentTypeError(
+            f"{term} is a historical backfill term; name the live term instead"
+        )
+    return term
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="backfill_historical_sections",
@@ -109,6 +137,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Write inside one transaction that is always rolled back, then print counts.",
     )
     mode.add_argument("--apply", action="store_true", help="Write the rows and commit.")
+    parser.add_argument(
+        "--what-if-term",
+        type=_live_term,
+        default=DEFAULT_WHAT_IF_TERM,
+        help="Live term whose ranking cache the --dry-run what-if is computed for "
+        f"(default {DEFAULT_WHAT_IF_TERM}).",
+    )
     parser.add_argument(
         "--pause-seconds",
         type=_pause_seconds,
@@ -260,9 +295,14 @@ def _run(
     )
 
     writes: dict[str, WriteCounts] = {}
+    what_if: WhatIf | None = None
     if can_write:
         session = session_factory()
         try:
+            before: _WhatIfBefore | None = None
+            if dry_run:
+                # Read before any backfill write: the stored cache and the new code's recomputation.
+                before = _what_if_before(session, args.what_if_term)
             for term in terms:
                 term_row = ensure_term(session, term)
                 writes[term] = write_term_backfill(
@@ -274,6 +314,8 @@ def _run(
                 if not dry_run:
                     run = _ingest_run(term, selections[term], writes[term], run_started, now_fn())
                     session.add(run)
+            if before is not None:
+                what_if = _what_if_after(session, args.what_if_term, before)
             if dry_run:
                 session.rollback()
             else:
@@ -287,8 +329,68 @@ def _run(
         finally:
             session.close()
 
-    report = _report(args, selections, writes, guards)
-    return _emit(args, report, EXIT_FAILED if guard_failed else EXIT_OK)
+    failed = guard_failed or (what_if is not None and not what_if.gate_passed)
+    report = _report(args, selections, writes, guards, what_if, include_changes=False)
+    file_report = _report(args, selections, writes, guards, what_if, include_changes=True)
+    return _emit(args, report, EXIT_FAILED if failed else EXIT_OK, file_report=file_report)
+
+
+@dataclass(frozen=True)
+class _WhatIfBefore:
+    stored: dict[str, ScoreRow]
+    computed: dict[str, ScoreRow]
+
+
+@dataclass(frozen=True)
+class WhatIf:
+    """The D-04 what-if of one dry run: code-only parity, the ranking diff and the pair join."""
+
+    term: str
+    code_only_parity: RankingDiff
+    ranking_diff: RankingDiff
+    pairs: PairCoverage
+
+    @property
+    def verdicts(self) -> dict[str, str]:
+        def verdict(passed: bool) -> str:
+            return "PASS" if passed else "FAIL"
+
+        return {
+            "code_only_parity": verdict(self.code_only_parity.identical),
+            "course_level_invariant": verdict(self.ranking_diff.course_level_invariant),
+            "pairs_match_reference": verdict(self.pairs.matches_reference),
+        }
+
+    @property
+    def gate_passed(self) -> bool:
+        """Exit-code gate: parity and the course-level invariant. The pairs verdict only reports."""
+        return self.code_only_parity.identical and self.ranking_diff.course_level_invariant
+
+    def to_dict(self, *, include_changes: bool) -> dict[str, Any]:
+        return {
+            "term": self.term,
+            "code_only_parity": self.code_only_parity.to_dict(include_changes=include_changes),
+            "ranking_diff": self.ranking_diff.to_dict(include_changes=include_changes),
+            "pairs": self.pairs.to_dict(),
+            "verdicts": self.verdicts,
+        }
+
+
+def _what_if_before(session: Session, term: str) -> _WhatIfBefore:
+    return _WhatIfBefore(
+        stored=stored_score_rows(session, term),
+        computed=computed_score_rows(session, term, ScoreConfig()),
+    )
+
+
+def _what_if_after(session: Session, term: str, before: _WhatIfBefore) -> WhatIf:
+    after_computed = computed_score_rows(session, term, ScoreConfig())
+    return WhatIf(
+        term=term,
+        code_only_parity=diff_score_rows(before.stored, before.computed),
+        ranking_diff=diff_score_rows(before.stored, after_computed),
+        pairs=measure_instructor_pairs(session, before_term=term),
+    )
 
 
 def _ingest_run(
@@ -346,28 +448,45 @@ def _report(
     selections: dict[str, TermSelection],
     writes: dict[str, WriteCounts],
     guards: dict[str, list[str]],
+    what_if: WhatIf | None,
+    *,
+    include_changes: bool,
 ) -> dict[str, Any]:
-    failed = any(guards.values())
+    guard_failed = any(guards.values())
+    what_if_failed = what_if is not None and not what_if.gate_passed
     report: dict[str, Any] = {
-        "status": "failed" if failed else "succeeded",
+        "status": "failed" if guard_failed or what_if_failed else "succeeded",
         "written": bool(writes) and not args.dry_run,
         "terms": {
             term: _term_report(selection, writes.get(term), guards[term])
             for term, selection in selections.items()
         },
     }
-    if failed:
+    if what_if is not None:
+        report["what_if"] = what_if.to_dict(include_changes=include_changes)
+    if guard_failed:
         report["error_kind"] = "guard"
+    elif what_if_failed:
+        report["error_kind"] = "what_if"
     return report
 
 
-def _emit(args: argparse.Namespace, report: dict[str, Any], exit_code: int) -> int:
-    full = {"mode": "dry_run" if args.dry_run else "apply", **report}
-    # Defence in depth: nothing URL-shaped may reach stdout or the report file.
-    line = _URL_RE.sub("[redacted-url]", json.dumps(full, sort_keys=True))
-    print(line)
-    if args.report_json is not None:
-        pretty = _URL_RE.sub("[redacted-url]", json.dumps(full, indent=2, sort_keys=True))
-        args.report_json.write_text(pretty + "\n")
-    return exit_code
+def _redact(text: str) -> str:
+    return _URL_RE.sub("[redacted-url]", text)
 
+
+def _emit(
+    args: argparse.Namespace,
+    report: dict[str, Any],
+    exit_code: int,
+    *,
+    file_report: dict[str, Any] | None = None,
+) -> int:
+    """Print one JSON line; --report-json gets ``file_report`` (the full detail) when given."""
+    mode = "dry_run" if args.dry_run else "apply"
+    # Defence in depth: nothing URL-shaped may reach stdout or the report file.
+    print(_redact(json.dumps({"mode": mode, **report}, sort_keys=True)))
+    if args.report_json is not None:
+        full = {"mode": mode, **(file_report if file_report is not None else report)}
+        args.report_json.write_text(_redact(json.dumps(full, indent=2, sort_keys=True)) + "\n")
+    return exit_code

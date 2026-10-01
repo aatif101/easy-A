@@ -778,7 +778,12 @@ def test_report_json_matches_stdout(
         capsys,
     )
 
-    assert json.loads(target.read_text()) == report
+    # The file adds the per-section changes lists the one-line stdout summary leaves out.
+    on_disk = json.loads(target.read_text())
+    for diff in on_disk["what_if"].values():
+        if isinstance(diff, dict):
+            diff.pop("changes", None)
+    assert on_disk == report
 
 
 def test_backfill_is_isolated_from_the_live_sync_and_the_worker() -> None:
