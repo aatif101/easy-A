@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_plan: Not started
+current_plan: 2
 status: design_direction_selected
-stopped_at: Phase 10 UI-SPEC approved
-last_updated: "2026-10-01T01:15:19.136Z"
-state_head: 7e613e41f173060f5b02e2e5c6f5b68daca2171e
+stopped_at: Completed 10-01-PLAN.md
+last_updated: "2026-10-01T05:46:37.793Z"
+state_head: efe7f25ce5d53acb91109d3ee5e7e066a08932df
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 45
-  completed_plans: 36
-  percent: 18
+  completed_plans: 37
+  percent: 64
 last_activity: 2026-09-30
-current_phase_name: professor-level-grades
 current_phase: 10
+current_phase_name: Professor-level grades
 last_activity_desc: Plan 09-15 complete; hosted beta live on Render, two sweeps soaked, 30 s sweep-duration gap open for operator decision
 ---
 
@@ -118,7 +118,7 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: Not started
+Current Plan: 2
 Total Plans in Phase: 9
 
 ## Next action
@@ -129,7 +129,7 @@ sweep on the CR-01 fix image succeeded (2026-09-30T23:58:46Z, about 26 s). Still
 warnings WR-01..WR-08 / IN-01..IN-04 (WR-03, the cadence-floor race during worker overlap, is worth fixing
 before Spring 2027 registration), NEB 0001 (fails every sweep), and the optional gate-recovery rehearsal
 (`09-UAT.md` test 5). **Next: Phase 10 (professor-level grades)** via `/gsd-discuss-phase 10`;
-D-24 (instructor-course scoring retune) still needs explicit user approval at Phase 10 planning.
+D-24 (instructor-course scoring retune) was approved 2026-09-30. **Phase 10 status (2026-10-01): plan 10-01 complete** (retune + Laboratory rule in code, tests and docs, branch `phase-10-prof-grades`; 720 Python tests passed, 4 skipped); next is the remaining Phase 10 plans (10-02 backfill CLI first).
 
 **Earlier (2026-09-28): live schedule sync, then professor-level grades — planned.** Branch `codex/live-sync-plan` from verified `origin/main` `db8a98a`.
 - Investigation (read-only; hosted DB not written): `.planning/research/instructor-grade-feasibility-2026-09-28.md`.
@@ -246,7 +246,7 @@ are in `.planning/ARCHIVE.md`. They describe the earlier local beta DB and are n
 - D-20: a global-prior fallback (`effective_n = 0`) is **not** course history — never present it as such
 - D-04 / D-19: term/CRN/source dedup; never commit raw grade export files
 - D-08 / D-09: bounded, narrow USF requests; no scraping/crawling. D-22 is the scoped exception for the live sync worker and the five-term historical backfill
-- D-23: live sync ships first inside Phase 9; D-24 (instructor-course scoring retune) is pending approval
+- D-23: live sync ships first inside Phase 9; D-24 (instructor-course scoring retune) is approved (2026-09-30) and implemented in 10-01; it goes live only after the Phase 10 D-04 diff review
 - D-10: verify `origin/main` by fetch; do not check out/merge an unverified local `main`
 - Note: the D-18 "broader launch coverage is deferred" decision is **superseded** — full Tampa
   breadth is now the MVP-1 goal (see PROJECT.md). Email alerts (D-16) and RMP (D-17, = MVP 2) stay deferred.
@@ -284,11 +284,11 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Phase 10 UI-SPEC approved
+**Stopped at:** Completed 10-01-PLAN.md
 Final specification review and student walkthrough remain open. See
 `.planning/sketches/001-student-experience/README.md`.
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
-**Resume file:** .planning/phases/10-professor-level-grades/10-UI-SPEC.md
+**Resume file:** None
 
 Earlier session: 2026-09-23. Phase 07 execution ran across three sessions. Codex (Windows clone)
 completed the 07-01 benchmarks and baseline. A Claude Code WSL session fetched that branch,
@@ -296,7 +296,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-10-01T00:34:52.665Z
+Last session: 2026-10-01T05:46:37.697Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
@@ -342,6 +342,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 | Phase 09 P14 | 25min | 3 tasks | 3 files |
 | Phase 09 P15 | 12min | 3 tasks | 5 files |
 | Phase 09 P16 | 3 min | 3 tasks | 6 files |
+| Phase 10 P01 | 25 min | 3 tasks | 7 files |
 
 ## Decisions
 
@@ -398,3 +399,5 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 - [Phase 09]: 09-15: 30 s per-sweep duration criterion recorded as an unresolved GAP (50.69 s, 37.166 s), not loosened; operator decision pending
 - [Phase 09]: 09-15: sweep-line next_start_at is the 60 min floor; jitter is on the following sleeping line (real gaps 66-69 min)
 - [Phase 09]: 09-16: gate override maps one fraction onto every size rule; above 0.10 row floor = 1 - X (exact decimal), absent-subject limit = X, zero_rows never overridable; None (no flag, worker loop) keeps the 0.10/0.90/0.02/2 defaults
+- [Phase 10]: 10-01: instructor_prior_strength (30) applies to grade favorability only; withdrawal prior stays 60 at every level — Literal reading of PROJECT.md D-24; keeps the D-02 amendment minimal
+- [Phase 10]: 10-01: Laboratory rule lives in common/section_types.py with exact normalized match on 'laboratory'; vocabulary confirmed against hosted data in 10-07 — Combined and unknown types stay included; single home for the D-13 rule
