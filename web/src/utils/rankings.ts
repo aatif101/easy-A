@@ -191,3 +191,24 @@ export const signalSourceLabel = (ranking: SectionRanking): string => {
   }
   return "Current syllabus";
 };
+
+const TERM_SEASONS: Record<string, string> = { "01": "Spr", "05": "Sum", "08": "Fall" };
+
+/** "202501" -> "Spr 25". Unknown suffix or a non-six-digit code fails closed to the raw code. */
+export const formatTermShort = (code: string): string => {
+  if (!/^\d{6}$/.test(code)) return code;
+  const season = TERM_SEASONS[code.slice(4)];
+  if (!season) return code;
+  return `${season} ${code.slice(2, 4)}`;
+};
+
+/** A single label when both ends match, otherwise "first\u2013last". */
+export const formatTermRange = (first: string, last: string): string =>
+  first === last ? formatTermShort(first) : `${formatTermShort(first)}\u2013${formatTermShort(last)}`;
+
+export const formatGradeCount = (n: number): string => {
+  const rounded = Math.round(n);
+  return rounded === 1 ? "1 grade" : `${rounded} grades`;
+};
+
+export const formatTermCount = (k: number): string => (k === 1 ? "1 term" : `${k} terms`);

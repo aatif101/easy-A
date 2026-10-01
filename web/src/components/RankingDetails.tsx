@@ -8,11 +8,13 @@ import {
   signalSourceLabel,
 } from "../utils/rankings";
 import { ConfidenceBadge, SeatBadge } from "./Badges";
+import { InstructorBreakdown } from "./InstructorBreakdown";
 
 export function RankingDetails({ ranking, id }: { ranking: SectionRanking; id: string }) {
   const signalSource = signalSourceLabel(ranking);
   const historicalSignals = ranking.signal_provenance.freshness === "historical";
   const evidence = describeEvidence(ranking);
+  const instructorBreakdown = ranking.historical_analytics.instructor_breakdown;
 
   return (
     <section id={id} aria-label={`Details for ${ranking.subject} ${ranking.course_number} CRN ${ranking.crn}`} className="detail-panel">
@@ -36,6 +38,9 @@ export function RankingDetails({ ranking, id }: { ranking: SectionRanking; id: s
         <div><dt>Confidence</dt><dd><ConfidenceBadge value={ranking.confidence_label} />{ranking.confidence_label === "low" && evidence.scope === "course_history" ? <span className="mt-1 block text-xs font-semibold text-amber-900">Based on limited historical data.</span> : null}</dd></div>
         <div><dt>Score source</dt><dd>{evidence.sourceLabel}</dd></div>
       </dl>
+      {evidence.scope === "course_history" && instructorBreakdown ? (
+        <InstructorBreakdown ranking={ranking} breakdown={instructorBreakdown} id={id} />
+      ) : null}
       <section className="mt-5 rounded-md border border-rule p-3" aria-label="Seat observation details">
         <SeatBadge ranking={ranking} />
         {ranking.seats.enrollment !== null || ranking.seats.capacity !== null ? (
