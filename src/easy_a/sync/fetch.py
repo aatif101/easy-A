@@ -30,6 +30,13 @@ _HEADER_RE = re.compile(r"<tr[^>]*>\s*(?:<th.*?</th>\s*)+</tr>", re.S | re.I)
 _ROW_RE = re.compile(r"<tr[^>]*>.*?</tr>", re.S | re.I)
 _TD_RE = re.compile(r"<td", re.I)
 
+# USF note cells occasionally hold hand-typed anchors with an unterminated tag. libxml2 reads a
+# ``</a`` that never reaches its ``>`` as one end tag that runs on into the next ``</td>``, so the
+# cell close is swallowed and the row collapses to a handful of direct cells. Both patterns stop at
+# the next ``<`` (never at a ``>``), so a well-formed anchor never matches.
+_UNTERMINATED_END_A_RE = re.compile(r"</a(?=<|\s[^<>]*<)", re.I)
+_UNTERMINATED_START_A_RE = re.compile(r"(<a\s[^<>]*)(?=<)", re.I)
+
 
 @dataclass(frozen=True)
 class WholeTermParse:
@@ -48,6 +55,18 @@ class FetchedTerm:
     elapsed_seconds: float
     parse: WholeTermParse
     fetched_at: datetime
+
+
+def repair_unterminated_anchors(block: str) -> str:
+    """Close an anchor tag that is cut off by the next tag, inside one ``<tr>`` block.
+
+    Repairs only two shapes: a ``</a`` that has no ``>`` before the next ``<`` and a ``<a ...``
+    that has no ``>`` before the next ``<``. It adds a ``>`` and nothing else, never removes or
+    reorders text, and leaves well-formed anchors byte-for-byte unchanged. It runs before the
+    guard counts and parses rows, and the guard condition itself is unchanged.
+    """
+    block = _UNTERMINATED_END_A_RE.sub("</a>", block)
+    return _UNTERMINATED_START_A_RE.sub(r"\1>", block)
 
 
 def parse_whole_term(html: str, *, chunk_rows: int = DEFAULT_CHUNK_ROWS) -> WholeTermParse:
@@ -69,7 +88,7 @@ def parse_whole_term(html: str, *, chunk_rows: int = DEFAULT_CHUNK_ROWS) -> Whol
     chunk_first_block = 0
     chunk_first_position = 0
     for block_index, match in enumerate(_ROW_RE.finditer(body)):
-        block = match.group(0)
+        block = repair_unterminated_anchors(match.group(0))
         if _TD_RE.search(block):
             data_row_count += 1
         buffer.append(block)
@@ -123,7 +142,7 @@ def _data_blocks(body: str) -> Iterator[tuple[int, int, str]]:
     """``(block_index, position, html)`` for each data row, as the guard counts them."""
     position = 0
     for block_index, match in enumerate(_ROW_RE.finditer(body)):
-        block = match.group(0)
+        block = repair_unterminated_anchors(match.group(0))
         if _TD_RE.search(block):
             yield block_index, position, block
             position += 1
