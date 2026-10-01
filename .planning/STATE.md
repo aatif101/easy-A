@@ -1,15 +1,15 @@
 ---
 gsd_state_version: "1.0"
-current_plan: 3
+current_plan: 4
 status: design_direction_selected
-stopped_at: Completed 10-02-PLAN.md
-last_updated: "2026-10-01T05:54:50.573Z"
-state_head: a6d30c1560ee423dc5c998a4cde23ad595db3216
+stopped_at: Completed 10-03-PLAN.md
+last_updated: "2026-10-01T06:00:54.719Z"
+state_head: 4fcbc73848e00a7aabafa7f0591ce16b88b3a39a
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 45
-  completed_plans: 38
+  completed_plans: 39
   percent: 64
 last_activity: 2026-09-30
 current_phase: 10
@@ -118,7 +118,7 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: 3
+Current Plan: 4
 Total Plans in Phase: 9
 
 ## Next action
@@ -129,7 +129,7 @@ sweep on the CR-01 fix image succeeded (2026-09-30T23:58:46Z, about 26 s). Still
 warnings WR-01..WR-08 / IN-01..IN-04 (WR-03, the cadence-floor race during worker overlap, is worth fixing
 before Spring 2027 registration), NEB 0001 (fails every sweep), and the optional gate-recovery rehearsal
 (`09-UAT.md` test 5). **Next: Phase 10 (professor-level grades)** via `/gsd-discuss-phase 10`;
-D-24 (instructor-course scoring retune) was approved 2026-09-30. **Phase 10 status (2026-10-01): plan 10-01 complete** (retune + Laboratory rule in code, tests and docs, branch `phase-10-prof-grades`; 720 Python tests passed, 4 skipped); **plan 10-02 complete** (historical backfill CLI `scripts/backfill_historical_sections.py`, tested only against a fake USF client; no live run yet, the operator run is plan 10-08; 742 Python tests passed, 4 skipped); next is the remaining Phase 10 plans (10-03, 10-04, 10-05 in Wave 1).
+D-24 (instructor-course scoring retune) was approved 2026-09-30. **Phase 10 status (2026-10-01): plan 10-01 complete** (retune + Laboratory rule in code, tests and docs, branch `phase-10-prof-grades`; 720 Python tests passed, 4 skipped); **plan 10-02 complete** (historical backfill CLI `scripts/backfill_historical_sections.py`, tested only against a fake USF client; no live run yet, the operator run is plan 10-08; 742 Python tests passed, 4 skipped); **plan 10-03 complete** (read-only D-04 ranking diff `scripts/report_ranking_diff.py` and join re-measure `scripts/measure_instructor_pairs.py`, tested on seeded SQLite only; no hosted run yet, those are 10-07 and 10-08; 783 Python tests passed, 4 skipped); next is the remaining Phase 10 plans (10-04, 10-05 in Wave 1).
 
 **Earlier (2026-09-28): live schedule sync, then professor-level grades — planned.** Branch `codex/live-sync-plan` from verified `origin/main` `db8a98a`.
 - Investigation (read-only; hosted DB not written): `.planning/research/instructor-grade-feasibility-2026-09-28.md`.
@@ -284,7 +284,7 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Completed 10-02-PLAN.md
+**Stopped at:** Completed 10-03-PLAN.md
 Final specification review and student walkthrough remain open. See
 `.planning/sketches/001-student-experience/README.md`.
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
@@ -296,7 +296,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-10-01T05:54:50.492Z
+Last session: 2026-10-01T06:00:54.639Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
@@ -344,6 +344,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 | Phase 09 P16 | 3 min | 3 tasks | 6 files |
 | Phase 10 P01 | 25 min | 3 tasks | 7 files |
 | Phase 10 P02 | 20 min | 2 tasks | 5 files |
+| Phase 10 P03 | 12 min | 2 tasks | 6 files |
 
 ## Decisions
 
@@ -403,3 +404,4 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 - [Phase 10]: 10-01: instructor_prior_strength (30) applies to grade favorability only; withdrawal prior stays 60 at every level — Literal reading of PROJECT.md D-24; keeps the D-02 amendment minimal
 - [Phase 10]: 10-01: Laboratory rule lives in common/section_types.py with exact normalized match on 'laboratory'; vocabulary confirmed against hosted data in 10-07 — Combined and unknown types stay included; single home for the D-13 rule
 - [Phase 10]: 10-02: backfill writes via Core executemany plus one id read, change-only, never seat snapshots or removed_at; a failed guard never writes in --apply — ORM unit of work issued one INSERT per row (81 vs 21 statements for 40 vs 10 rows); D-07 idempotence and D-05 isolation
+- [Phase 10]: 10-03: ranking diff counts a mapped_instructor_section_count-only change as informational, never a gate failure; pair effective_n is min(sum A-F, sum total) with recency off — The backfill raises the mapped count on course-level rows without moving any score; the pair definition matches the 2026-09-28 research
