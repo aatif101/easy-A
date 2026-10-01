@@ -123,10 +123,13 @@ Total Plans in Phase: 16
 
 ## Next action
 
-**Current (2026-09-30): Phase 9 plans 1-15 are executed; the hosted beta is live.** What remains
-is operator review of the open items (30 s sweep-duration gap, NEB 0001, instructor-change delta,
-D-07..D-13 leans; list in `09-15-SUMMARY.md`), phase verification, and sweep 3 (due 20:38:57Z,
-not yet observed). Then Phase 10 (professor-level grades; D-24 still needs explicit approval).
+**Current (2026-10-01): Phase 9 is COMPLETE** (verification `passed`, UAT 4 passed + 1 optional deferred
+follow-up, security 58/58 closed; PR #33 and #35 merged, hosted beta live on `046aa5d`). The first hosted
+sweep on the CR-01 fix image succeeded (2026-09-30T23:58:46Z, about 26 s). Still open by decision: review
+warnings WR-01..WR-08 / IN-01..IN-04 (WR-03, the cadence-floor race during worker overlap, is worth fixing
+before Spring 2027 registration), NEB 0001 (fails every sweep), and the optional gate-recovery rehearsal
+(`09-UAT.md` test 5). **Next: Phase 10 (professor-level grades)** via `/gsd-discuss-phase 10`;
+D-24 (instructor-course scoring retune) still needs explicit user approval at Phase 10 planning.
 
 **Earlier (2026-09-28): live schedule sync, then professor-level grades — planned.** Branch `codex/live-sync-plan` from verified `origin/main` `db8a98a`.
 - Investigation (read-only; hosted DB not written): `.planning/research/instructor-grade-feasibility-2026-09-28.md`.
