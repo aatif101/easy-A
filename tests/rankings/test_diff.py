@@ -25,7 +25,9 @@ from easy_a.models import (
 )
 from easy_a.rankings.cache import refresh_section_rankings
 from easy_a.rankings.diff import (
+    FLOAT_SCORE_FIELDS,
     SCORE_FIELDS,
+    SCORE_TOLERANCE,
     ScoreRow,
     computed_score_rows,
     diff_score_rows,
@@ -272,6 +274,141 @@ def test_to_dict_omits_changes_unless_requested() -> None:
     json.dumps(full)
 
 
+# --- float tolerance (Phase 10 gap fix) ------------------------------------------------------
+
+_WITHIN = SCORE_TOLERANCE / 10  # 1e-10: float noise
+_BEYOND = SCORE_TOLERANCE * 2  # 2e-9: a real difference
+
+
+def test_tolerance_is_a_named_one_nano_constant_on_the_two_float_fields() -> None:
+    assert SCORE_TOLERANCE == 1e-9
+    assert FLOAT_SCORE_FIELDS == ("easiness_score", "smoothed_withdrawal_rate")
+    assert set(FLOAT_SCORE_FIELDS) <= set(SCORE_FIELDS)
+
+
+@pytest.mark.parametrize("field", ["easiness", "withdrawal"])
+@pytest.mark.parametrize("sign", [1, -1])
+def test_float_noise_within_tolerance_is_identical_and_reported(field: str, sign: int) -> None:
+    base = 70.0 if field == "easiness" else 0.1
+    before = _rows(_row("1"), _row("2", easiness=60.0))
+    after = _rows(_row("1", **{field: base + sign * _WITHIN}), _row("2", easiness=60.0))
+
+    diff = diff_score_rows(before, after)
+
+    assert diff.identical
+    assert diff.course_level_invariant
+    assert diff.changed == 0
+    assert diff.changes == ()
+    assert diff.course_level_violations == ()
+    assert diff.transitions == {}
+    assert diff.float_noise_count == 1
+    assert diff.float_noise_max_abs_delta == pytest.approx(_WITHIN, rel=1e-3)
+    noise = diff.to_dict()["float_noise"]
+    assert noise["tolerance"] == SCORE_TOLERANCE
+    assert noise["count"] == 1
+    assert noise["max_abs_delta"] == pytest.approx(_WITHIN, rel=1e-3)
+
+
+def test_float_noise_exactly_at_the_tolerance_is_still_noise() -> None:
+    before = _rows(_row("1", easiness=0.0))
+    after = _rows(_row("1", easiness=SCORE_TOLERANCE))
+
+    diff = diff_score_rows(before, after)
+
+    assert diff.identical
+    assert diff.float_noise_count == 1
+
+
+@pytest.mark.parametrize("field", ["easiness", "withdrawal"])
+@pytest.mark.parametrize("sign", [1, -1])
+def test_difference_just_beyond_tolerance_is_a_real_change(field: str, sign: int) -> None:
+    base = 70.0 if field == "easiness" else 0.1
+    before = _rows(_row("1"), _row("2", easiness=60.0))
+    after = _rows(_row("1", **{field: base + sign * _BEYOND}), _row("2", easiness=60.0))
+
+    diff = diff_score_rows(before, after)
+
+    assert not diff.identical
+    assert not diff.course_level_invariant
+    assert diff.changed == 1
+    assert [record["crn"] for record in diff.course_level_violations] == ["1"]
+    assert diff.course_level_violations[0]["changed_fields"] == [
+        "easiness_score" if field == "easiness" else "smoothed_withdrawal_rate"
+    ]
+    assert diff.float_noise_count == 0
+    assert diff.float_noise_max_abs_delta == 0.0
+
+
+def test_noise_on_one_float_field_does_not_hide_a_real_change_on_the_other() -> None:
+    before = _rows(_row("1"))
+    after = _rows(_row("1", easiness=70.0 + _WITHIN, withdrawal=0.1 + _BEYOND))
+
+    diff = diff_score_rows(before, after)
+
+    assert not diff.identical
+    assert diff.changed == 1
+    assert diff.changes[0]["changed_fields"] == ["smoothed_withdrawal_rate"]
+    assert diff.float_noise_count == 1  # the easiness noise is still counted, not hidden
+
+
+def test_noise_count_is_per_section_and_max_spans_both_fields() -> None:
+    before = _rows(_row("1"), _row("2", easiness=60.0), _row("3", easiness=50.0))
+    after = _rows(
+        _row("1", easiness=70.0 + 1e-12, withdrawal=0.1 + 5e-10),
+        _row("2", easiness=60.0 - 3e-11),
+        _row("3", easiness=50.0),
+    )
+
+    diff = diff_score_rows(before, after)
+
+    assert diff.identical
+    assert diff.float_noise_count == 2
+    assert diff.float_noise_max_abs_delta == pytest.approx(5e-10, rel=1e-3)
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"effective_n": 100.0 + _WITHIN},  # effective_n is a count: exact, never tolerant
+        {"label": "medium"},
+        {"source": "subject"},
+    ],
+)
+def test_non_float_fields_stay_exact_even_for_tiny_differences(overrides: dict[str, Any]) -> None:
+    diff = diff_score_rows(_rows(_row("1")), _rows(_row("1", **overrides)))
+
+    assert not diff.identical
+    assert not diff.course_level_invariant
+    assert diff.changed == 1
+
+
+def test_nan_score_is_never_treated_as_noise() -> None:
+    diff = diff_score_rows(_rows(_row("1")), _rows(_row("1", easiness=float("nan"))))
+
+    assert not diff.identical
+    assert diff.changed == 1
+
+
+def test_a_rank_flip_from_float_noise_alone_is_not_identical() -> None:
+    before = _rows(_row("1", easiness=70.0), _row("2", easiness=70.0 - _WITHIN))
+    after = _rows(_row("1", easiness=70.0 - _WITHIN), _row("2", easiness=70.0))
+
+    diff = diff_score_rows(before, after)
+
+    assert diff.changed == 0
+    assert diff.rank_shift["max"] == 1.0
+    assert not diff.identical
+
+
+def test_missing_and_extra_crns_still_fail_with_only_noise_elsewhere() -> None:
+    diff = diff_score_rows(
+        _rows(_row("1"), _row("2")), _rows(_row("1", easiness=70.0 + _WITHIN), _row("3"))
+    )
+
+    assert not diff.identical
+    assert not diff.course_level_invariant
+
+
 # --- database-backed tests -------------------------------------------------------------------
 
 
@@ -431,6 +568,15 @@ def test_editing_a_stored_course_level_row_is_reported(file_engine: Engine) -> N
     assert diff.top_changes[0]["delta"] == pytest.approx(-1.5)
 
 
+def _tamper_stored_easiness(engine: Engine, crn: str, delta: float) -> None:
+    with Session(engine) as session:
+        cache_row = session.scalars(
+            select(SectionRankingCache).where(SectionRankingCache.crn == crn)
+        ).one()
+        cache_row.easiness_score = cache_row.easiness_score + delta
+        session.commit()
+
+
 def _run_main(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
@@ -485,6 +631,66 @@ def test_script_exit_0_on_fresh_cache_then_1_after_mutation(
     assert "changes" not in payload
     full = json.loads(report_path.read_text(encoding="utf-8"))
     assert [record["crn"] for record in full["changes"]] == ["70001"]
+
+
+def test_script_exit_0_when_stored_cache_differs_only_by_float_noise(
+    file_engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with Session(file_engine) as session:
+        _seed_term(session)
+    _tamper_stored_easiness(file_engine, "70001", 1e-12)
+
+    code, out = _run_main(monkeypatch, capsys, file_engine, "--term", "202701")
+    payload = json.loads(out)
+
+    assert code == 0
+    assert payload["verdicts"] == {"identical": "PASS", "course_level_invariant": "PASS"}
+    assert payload["changed"] == 0
+    assert payload["float_noise"]["tolerance"] == SCORE_TOLERANCE
+    assert payload["float_noise"]["count"] == 1
+    assert payload["float_noise"]["max_abs_delta"] == pytest.approx(1e-12, rel=0.1)
+
+
+def test_script_exit_1_when_stored_cache_differs_just_beyond_tolerance(
+    file_engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with Session(file_engine) as session:
+        _seed_term(session)
+    _tamper_stored_easiness(file_engine, "70001", 2e-9)
+
+    code, out = _run_main(monkeypatch, capsys, file_engine, "--term", "202701")
+    payload = json.loads(out)
+
+    assert code == 1
+    assert payload["verdicts"] == {"identical": "FAIL", "course_level_invariant": "FAIL"}
+    assert [record["crn"] for record in payload["course_level_violations"]] == ["70001"]
+    assert payload["float_noise"]["count"] == 0
+
+
+def test_script_exit_1_on_a_label_change_alongside_noise(
+    file_engine: Engine,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with Session(file_engine) as session:
+        _seed_term(session)
+        cache_row = session.scalars(
+            select(SectionRankingCache).where(SectionRankingCache.crn == "70001")
+        ).one()
+        cache_row.easiness_score = cache_row.easiness_score + 1e-12
+        cache_row.confidence_label = "changed-label"
+        session.commit()
+
+    code, out = _run_main(monkeypatch, capsys, file_engine, "--term", "202701")
+    payload = json.loads(out)
+
+    assert code == 1
+    assert payload["changed"] == 1
+    assert payload["float_noise"]["count"] == 1
 
 
 def test_script_never_writes(
@@ -550,4 +756,3 @@ def test_script_requires_term() -> None:
         report.main([])
 
     assert excinfo.value.code != 0
-

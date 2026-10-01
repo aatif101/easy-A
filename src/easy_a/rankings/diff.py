@@ -11,6 +11,14 @@ course keys and derived numbers (D-19): no per-CRN grade buckets, no instructor 
 
 Verdicts (T-10-10): ``identical`` and ``course_level_invariant`` are derived from the same
 fields the report shows, so a reported anomaly can never read as a pass.
+
+Float tolerance (Phase 10 gap fix): the stored cache and a recomputation can differ by a few
+units in the last place (a 2026-10-01 live check measured at most 5.33e-15, with no source, label,
+count or rank change). The two float score fields are therefore compared with an absolute
+tolerance, ``SCORE_TOLERANCE``. Every other field stays an exact comparison. Within-tolerance
+differences are not hidden: the report carries their count and the largest magnitude
+(``float_noise``). ``diff_score_rows`` is the single comparison behind the ranking-diff script and
+the backfill dry-run and apply gates, so all of them apply the same tolerance.
 """
 
 from __future__ import annotations
@@ -37,6 +45,13 @@ SCORE_FIELDS: tuple[str, ...] = (
     "confidence_label",
     "score_source",
 )
+
+# Float score fields compared with SCORE_TOLERANCE; the other SCORE_FIELDS are compared exactly.
+FLOAT_SCORE_FIELDS: tuple[str, ...] = ("easiness_score", "smoothed_withdrawal_rate")
+
+# Absolute tolerance for FLOAT_SCORE_FIELDS: far above float noise (~1e-14 on 0..100 scores) and
+# far below any real retune (smallest meaningful score change is orders of magnitude larger).
+SCORE_TOLERANCE: float = 1e-9
 
 # Upper bounds (inclusive) of the absolute easiness-delta buckets; the last bucket is open.
 _DELTA_BUCKET_BOUNDS: tuple[tuple[str, float], ...] = (
@@ -87,11 +102,24 @@ class RankingDiff:
     top_changes: tuple[dict[str, Any], ...]
     course_level_violations: tuple[dict[str, Any], ...]
     informational_changes: int
+    float_noise_count: int = 0
+    """Sections with a float score field that differs but only within SCORE_TOLERANCE."""
+    float_noise_max_abs_delta: float = 0.0
+    """Largest within-tolerance float-field difference seen (0.0 when none)."""
 
     @property
     def identical(self) -> bool:
-        """Identity sets equal and every score field equal for every section."""
-        return not self.missing_in_after and not self.extra_in_after and self.changed == 0
+        """Identity sets equal, every score field equal within tolerance and no rank moved.
+
+        A rank can only move without a beyond-tolerance score change through float noise, and
+        that is not identical output, so it fails here.
+        """
+        return (
+            not self.missing_in_after
+            and not self.extra_in_after
+            and self.changed == 0
+            and self.rank_shift.get("max", 0.0) == 0.0
+        )
 
     @property
     def course_level_invariant(self) -> bool:
@@ -116,6 +144,11 @@ class RankingDiff:
             "top_changes": [dict(record) for record in self.top_changes],
             "course_level_violations": [dict(record) for record in self.course_level_violations],
             "informational_changes": self.informational_changes,
+            "float_noise": {
+                "tolerance": SCORE_TOLERANCE,
+                "count": self.float_noise_count,
+                "max_abs_delta": self.float_noise_max_abs_delta,
+            },
             "identical": self.identical,
             "course_level_invariant": self.course_level_invariant,
         }
@@ -213,6 +246,29 @@ def rank_rows(rows: Iterable[ScoreRow]) -> dict[str, int]:
     return {row.crn: index for index, row in enumerate(ordered, start=1)}
 
 
+def float_differs(old: float, new: float, tolerance: float = SCORE_TOLERANCE) -> bool:
+    """True when two float scores differ by more than the absolute tolerance.
+
+    Written as ``not (<= tolerance)`` so a NaN on either side counts as a difference.
+    """
+    return not abs(new - old) <= tolerance
+
+
+def changed_score_fields(
+    old: ScoreRow, new: ScoreRow, tolerance: float = SCORE_TOLERANCE
+) -> list[str]:
+    """SCORE_FIELDS that differ: float fields beyond ``tolerance``, every other field exactly."""
+    return [
+        name
+        for name in SCORE_FIELDS
+        if (
+            float_differs(getattr(old, name), getattr(new, name), tolerance)
+            if name in FLOAT_SCORE_FIELDS
+            else getattr(old, name) != getattr(new, name)
+        )
+    ]
+
+
 def diff_score_rows(
     before: Mapping[str, ScoreRow],
     after: Mapping[str, ScoreRow],
@@ -230,6 +286,8 @@ def diff_score_rows(
     violations: list[dict[str, Any]] = []
     transitions: dict[str, int] = {}
     informational = 0
+    noise_count = 0
+    noise_max = 0.0
     abs_deltas: list[float] = []
     rank_shifts: list[int] = []
 
@@ -239,9 +297,15 @@ def diff_score_rows(
         delta = new.easiness_score - old.easiness_score
         abs_deltas.append(abs(delta))
         rank_shifts.append(abs(rank_before[crn] - rank_after[crn]))
-        changed_fields = [
-            name for name in SCORE_FIELDS if getattr(old, name) != getattr(new, name)
+        changed_fields = changed_score_fields(old, new)
+        noise_deltas = [
+            abs(getattr(new, name) - getattr(old, name))
+            for name in FLOAT_SCORE_FIELDS
+            if name not in changed_fields and getattr(new, name) != getattr(old, name)
         ]
+        if noise_deltas:
+            noise_count += 1
+            noise_max = max(noise_max, *noise_deltas)
         if not changed_fields:
             if old.mapped_instructor_section_count != new.mapped_instructor_section_count:
                 informational += 1
@@ -298,6 +362,8 @@ def diff_score_rows(
         top_changes=tuple(top_changes),
         course_level_violations=tuple(violations),
         informational_changes=informational,
+        float_noise_count=noise_count,
+        float_noise_max_abs_delta=noise_max,
     )
 
 

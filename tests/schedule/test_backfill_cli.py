@@ -271,6 +271,58 @@ def test_a_tampered_stored_cache_row_fails_code_only_parity(
     assert what_if["code_only_parity"]["changed"] == 1
 
 
+def tamper_stored_easiness(session_factory: sessionmaker[Session], crn: str, delta: float) -> None:
+    with session_factory.begin() as session:
+        row = session.scalars(
+            select(SectionRankingCache).where(SectionRankingCache.crn == crn)
+        ).one()
+        row.easiness_score = row.easiness_score + delta
+
+
+def test_float_noise_in_the_stored_cache_passes_the_dry_run_gates(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    client_factory = historical_client(session_factory)
+    # Downward, so the tied course-level sections keep their CRN tie-break order (no rank flip).
+    tamper_stored_easiness(session_factory, LIVE_OTHER_CRN, -1e-12)
+
+    code, report = dry_run(session_factory, client_factory, capsys)
+
+    assert code == 0
+    what_if = report["what_if"]
+    assert what_if["verdicts"]["code_only_parity"] == "PASS"
+    assert what_if["verdicts"]["course_level_invariant"] == "PASS"
+    parity = what_if["code_only_parity"]
+    assert parity["identical"] is True
+    assert parity["changed"] == 0
+    assert parity["float_noise"]["count"] == 1
+    assert parity["float_noise"]["max_abs_delta"] == pytest.approx(1e-12, rel=0.1)
+    # The same noise is visible in the stored-versus-after-backfill diff, not hidden.
+    assert what_if["ranking_diff"]["float_noise"]["count"] >= 1
+    assert what_if["ranking_diff"]["course_level_violations"] == []
+
+
+def test_a_difference_just_beyond_tolerance_fails_both_dry_run_gates(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    client_factory = historical_client(session_factory)
+    tamper_stored_easiness(session_factory, LIVE_OTHER_CRN, 2e-9)
+
+    code, report = dry_run(session_factory, client_factory, capsys)
+
+    assert code == 1
+    what_if = report["what_if"]
+    assert what_if["verdicts"]["code_only_parity"] == "FAIL"
+    assert what_if["verdicts"]["course_level_invariant"] == "FAIL"
+    assert what_if["code_only_parity"]["changed"] == 1
+    assert what_if["code_only_parity"]["float_noise"]["count"] == 0
+    assert [v["crn"] for v in what_if["ranking_diff"]["course_level_violations"]] == [
+        LIVE_OTHER_CRN
+    ]
+
+
 def test_what_if_term_must_be_a_live_six_digit_term(
     session_factory: sessionmaker[Session],
     capsys: pytest.CaptureFixture[str],
@@ -476,6 +528,46 @@ def test_a_course_level_violation_rolls_the_apply_back(
     assert report["error_kind"] == "course_level_invariant"
     assert report["written"] is False
     assert report["applied"]["verdicts"] == {"course_level_invariant": "FAIL"}
+    assert_nothing_written(session_factory, counts_before, scores_before)
+
+
+def test_float_noise_on_a_course_level_row_does_not_block_the_apply(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    client_factory = historical_client(session_factory)
+    # The rebuild recomputes the exact value, so the stored-before row is off by noise only.
+    tamper_stored_easiness(session_factory, LIVE_OTHER_CRN, -1e-12)
+
+    code, report = run(apply_args(), session_factory, client_factory, capsys)
+
+    assert code == 0
+    assert report["status"] == "succeeded"
+    assert report["written"] is True
+    applied = report["applied"]
+    assert applied["gate_failures"] == []
+    assert applied["verdicts"] == {"course_level_invariant": "PASS"}
+    assert applied["course_level_violations"] == []
+    assert applied["float_noise"]["count"] == 1
+    assert applied["float_noise"]["max_abs_delta"] == pytest.approx(1e-12, rel=0.1)
+
+
+def test_a_course_level_difference_just_beyond_tolerance_rolls_the_apply_back(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    client_factory = historical_client(session_factory)
+    tamper_stored_easiness(session_factory, LIVE_OTHER_CRN, 2e-9)
+    counts_before = table_counts(session_factory)
+    scores_before = stored_scores(session_factory)
+
+    code, report = run(apply_args(), session_factory, client_factory, capsys)
+
+    assert code == 1
+    assert report["error_kind"] == "course_level_invariant"
+    assert report["written"] is False
+    assert report["applied"]["verdicts"] == {"course_level_invariant": "FAIL"}
+    assert [v["crn"] for v in report["applied"]["course_level_violations"]] == [LIVE_OTHER_CRN]
     assert_nothing_written(session_factory, counts_before, scores_before)
 
 

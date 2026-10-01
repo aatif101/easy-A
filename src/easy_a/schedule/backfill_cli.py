@@ -587,7 +587,11 @@ class _WhatIfBefore:
 
 @dataclass(frozen=True)
 class WhatIf:
-    """The D-04 what-if of one dry run: code-only parity, the ranking diff and the pair join."""
+    """The D-04 what-if of one dry run: code-only parity, the ranking diff and the pair join.
+
+    Both gates read ``RankingDiff`` verdicts, which compare float scores within
+    ``easy_a.rankings.diff.SCORE_TOLERANCE``; the apply gate (``Applied``) does the same.
+    """
 
     term: str
     code_only_parity: RankingDiff

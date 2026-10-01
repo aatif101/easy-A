@@ -6,7 +6,13 @@ rebuild cannot produce a mixed snapshot. No row is written. Output is one JSON o
 course keys and derived numbers only (D-19): no grade buckets, instructor names or connection
 strings.
 
-Exit codes: 0 every section identical, 1 any difference, 3 NOT MEASURED (database unreachable).
+Float score fields are compared with an absolute tolerance (easy_a.rankings.diff.SCORE_TOLERANCE,
+1e-9) so last-digit float noise between the stored cache and a recomputation does not read as a
+difference; the noise stays visible in the JSON ``float_noise`` object. Source, label, effective_n,
+CRN identity and rank are compared exactly.
+
+Exit codes: 0 every section identical within tolerance, 1 any difference beyond tolerance (or any
+source, label, effective_n, rank or CRN-identity change), 3 NOT MEASURED (database unreachable).
 """
 
 from __future__ import annotations
@@ -56,8 +62,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
             "Read-only D-04 ranking diff: compare stored section_rankings score fields with a "
-            "fresh recomputation of the same term. Exit codes: 0 identical, 1 any difference, "
-            "3 NOT MEASURED (database unreachable)."
+            "fresh recomputation of the same term. Float scores are compared within an absolute "
+            "tolerance of 1e-9. Exit codes: 0 identical within tolerance, 1 any difference "
+            "beyond it, 3 NOT MEASURED (database unreachable)."
         )
     )
     parser.add_argument("--term", type=_term_code, required=True, help="Banner term code.")
