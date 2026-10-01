@@ -121,7 +121,7 @@ def refresh_section_rankings(
         {(course.subject, course.number) for _, course, _ in section_course_rows}
     )
     analytics_by_crn = {
-        row.crn: row.stats
+        row.crn: row
         for row in get_term_section_historical_analytics(
             session,
             term_code=normalized_term,
@@ -159,7 +159,8 @@ def refresh_section_rankings(
     refreshed_at = session.scalar(select(func.now()))
 
     for section, course, term_row in section_course_rows:
-        analytics_stats = analytics_by_crn[section.crn]
+        analytics_row = analytics_by_crn[section.crn]
+        analytics_stats = analytics_row.stats
         instructor, instructor_provenance = _instructor_from_state(
             instructor_states[section.id],
             term_code=term_row.banner_code,
@@ -169,6 +170,7 @@ def refresh_section_rankings(
         historical_analytics = _historical_summary(
             analytics_stats,
             before_term_code=term_row.banner_code,
+            instructor_breakdown=analytics_row.instructor_breakdown,
         )
         resolved_signals = signals_by_section_id[section.id]
         payload: dict[str, Any] = {

@@ -129,6 +129,34 @@ def test_rank_section_cli_outputs_synthetic_spring_2027_fixture(
         '      "source": "grade_distributions",\n'
         '      "source_term": null,\n'
         '      "detail": "computed from terms before 202701; non-grade data is excluded"\n'
+        "    },\n"
+        '    "instructor_breakdown": {\n'
+        '      "status": "ready",\n'
+        '      "instructors": [\n'
+        "        {\n"
+        '          "name": "I. Rothstein",\n'
+        '          "a_share": 0.6,\n'
+        '          "effective_n": 100.0,\n'
+        '          "term_count": 1,\n'
+        '          "first_term": "202408",\n'
+        '          "last_term": "202408",\n'
+        '          "easiness_score": 8.904761904761905,\n'
+        '          "scored": true,\n'
+        '          "is_current": true\n'
+        "        }\n"
+        "      ],\n"
+        '      "current_instructor": "I. Rothstein",\n'
+        '      "current_instructor_has_history": true,\n'
+        '      "other_instructor_count": 0,\n'
+        '      "scoring_min_effective_n": 30.0,\n'
+        '      "collapse_min_effective_n": 15.0,\n'
+        '      "provenance": {\n'
+        '        "freshness": "historical",\n'
+        '        "source": "grade_distributions+section_instructors",\n'
+        '        "source_term": null,\n'
+        '        "detail": "instructor-level history from terms before 202701; '
+        'laboratory sections excluded; USF lists one instructor per section"\n'
+        "      }\n"
         "    }\n"
         "  },\n"
         '  "signals": [\n'
