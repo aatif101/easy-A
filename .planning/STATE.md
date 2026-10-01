@@ -1,15 +1,15 @@
 ---
 gsd_state_version: "1.0"
-current_plan: 6
+current_plan: 7
 status: design_direction_selected
-stopped_at: Completed 10-05-PLAN.md
-last_updated: "2026-10-01T06:17:01.281Z"
-state_head: 0c53630122c26b1a02806b59eb43a2009471284f
+stopped_at: Completed 10-06-PLAN.md
+last_updated: "2026-10-01T06:27:28.730Z"
+state_head: 4a6bf9472535c31d4ac1809465f6601a71e336ba
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 45
-  completed_plans: 41
+  completed_plans: 42
   percent: 64
 last_activity: 2026-09-30
 current_phase: 10
@@ -118,7 +118,7 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: 6
+Current Plan: 7
 Total Plans in Phase: 9
 
 ## Next action
@@ -129,7 +129,7 @@ sweep on the CR-01 fix image succeeded (2026-09-30T23:58:46Z, about 26 s). Still
 warnings WR-01..WR-08 / IN-01..IN-04 (WR-03, the cadence-floor race during worker overlap, is worth fixing
 before Spring 2027 registration), NEB 0001 (fails every sweep), and the optional gate-recovery rehearsal
 (`09-UAT.md` test 5). **Next: Phase 10 (professor-level grades)** via `/gsd-discuss-phase 10`;
-D-24 (instructor-course scoring retune) was approved 2026-09-30. **Phase 10 status (2026-10-01): plan 10-01 complete** (retune + Laboratory rule in code, tests and docs, branch `phase-10-prof-grades`; 720 Python tests passed, 4 skipped); **plan 10-02 complete** (historical backfill CLI `scripts/backfill_historical_sections.py`, tested only against a fake USF client; no live run yet, the operator run is plan 10-08; 742 Python tests passed, 4 skipped); **plan 10-03 complete** (read-only D-04 ranking diff `scripts/report_ranking_diff.py` and join re-measure `scripts/measure_instructor_pairs.py`, tested on seeded SQLite only; no hosted run yet, those are 10-07 and 10-08; 783 Python tests passed, 4 skipped); **plan 10-04 complete** (web `InstructorBreakdown` block in `RankingDetails` per the UI-SPEC, all states and locked copy, synthetic mock-mode breakdowns; 118 frontend tests passed, production build passes; it renders only once plan 10-05 emits `historical_analytics.instructor_breakdown`; held-out 320 px visual checks deferred to 10-09); next is plan 10-05 (API contract) in Wave 1.
+D-24 (instructor-course scoring retune) was approved 2026-09-30. **Phase 10 status (2026-10-01): plan 10-01 complete** (retune + Laboratory rule in code, tests and docs, branch `phase-10-prof-grades`; 720 Python tests passed, 4 skipped); **plan 10-02 complete** (historical backfill CLI `scripts/backfill_historical_sections.py`, tested only against a fake USF client; no live run yet, the operator run is plan 10-08; 742 Python tests passed, 4 skipped); **plan 10-03 complete** (read-only D-04 ranking diff `scripts/report_ranking_diff.py` and join re-measure `scripts/measure_instructor_pairs.py`, tested on seeded SQLite only; no hosted run yet, those are 10-07 and 10-08; 783 Python tests passed, 4 skipped); **plan 10-04 complete** (web `InstructorBreakdown` block in `RankingDetails` per the UI-SPEC, all states and locked copy, synthetic mock-mode breakdowns; 118 frontend tests passed, production build passes; it renders only once plan 10-05 emits `historical_analytics.instructor_breakdown`; held-out 320 px visual checks deferred to 10-09); **plan 10-05 complete** (instructor breakdown embedded in `historical_analytics`, served by the search, section and course APIs; no migration); **plan 10-06 complete** (backfill CLI is now the D-04 rollout instrument: `--dry-run` what-if, `--apply --rebuild-term` atomic under the sweep lock with `--expect-inserted`, `--rollback [--yes]`, `--rebuild-only`, runbook `docs/runbooks/historical-instructor-backfill.md`; tested on SQLite and a fake USF client only, no hosted run yet; 843 Python tests passed, 4 skipped); next is plan 10-07 (hosted dry run and the D-04 owner review).
 
 **Earlier (2026-09-28): live schedule sync, then professor-level grades — planned.** Branch `codex/live-sync-plan` from verified `origin/main` `db8a98a`.
 - Investigation (read-only; hosted DB not written): `.planning/research/instructor-grade-feasibility-2026-09-28.md`.
@@ -284,7 +284,7 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Completed 10-05-PLAN.md
+**Stopped at:** Completed 10-06-PLAN.md
 Final specification review and student walkthrough remain open. See
 `.planning/sketches/001-student-experience/README.md`.
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
@@ -296,7 +296,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-10-01T06:17:01.197Z
+Last session: 2026-10-01T06:27:28.655Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
@@ -347,6 +347,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 | Phase 10 P03 | 12 min | 2 tasks | 6 files |
 | Phase 10 P04 | 8 min | 3 tasks | 8 files |
 | Phase 10 P05 | 35 min | 3 tasks | 9 files |
+| Phase 10 P06 | 10 min | 3 tasks | 6 files |
 
 ## Decisions
 
@@ -409,3 +410,5 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 - [Phase 10]: 10-03: ranking diff counts a mapped_instructor_section_count-only change as informational, never a gate failure; pair effective_n is min(sum A-F, sum total) with recency off — The backfill raises the mapped count on course-level rows without moving any score; the pair definition matches the 2026-09-28 research
 - [Phase 10]: 10-04: instructor block gated on course_history scope plus non-null breakdown; Staff/ambiguous/unknown sections ignore is_current (no pin, no highlight, no score claim); thresholds come from the API object — D-11, D-13, D-20; UI-SPEC copy locked, thresholds never hard-coded in the frontend
 - [Phase 10]: Plan 10-05: instructor breakdown is embedded in historical_analytics JSON (no migration), collapse cutoff 15, rows keyed by exact name_raw so the pinned row and instructor_course score share one stats helper
+- [Phase 10]: 10-06: undo modes (--rollback --yes, --rebuild-only) report the applied diff but never gate on it; only --apply gates on the course-level invariant and --expect-inserted — Blocking an undo because a diff looks odd is worse than the odd diff
+- [Phase 10]: 10-06: rollback preview performs the real deletion and cache rebuild inside a rolled-back transaction under the sweep lock; eligibility needs backfill-only instructor rows, no seat snapshot, no syllabus link, historical terms only — Preview and commit cannot differ; T-10-20
