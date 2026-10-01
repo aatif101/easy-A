@@ -579,13 +579,13 @@ history, wherever the evidence supports it.
 
 **Requirements**: REQ-PROF-01
 
-**Plans:** 1/9 plans executed (tracer-first; Wave 1 ×4 parallel → Wave 2 ×2 → Wave 3 → Wave 4 → Wave 5). D-24 approved 2026-09-30 (CONTEXT D-01).
+**Plans:** 2/9 plans executed (tracer-first; Wave 1 ×4 parallel → Wave 2 ×2 → Wave 3 → Wave 4 → Wave 5). D-24 approved 2026-09-30 (CONTEXT D-01).
 
 Plans:
 **Wave 1**
 
 - [x] 10-01-PLAN.md — D-24 retune (min n 30, instructor grade prior 30) through the whole-term cache; Laboratory rule in both instructor query paths; D-24 approved in PROJECT.md + README methodology
-- [ ] 10-02-PLAN.md — One-off historical backfill CLI: five whole-term requests, grade-backed rows only, idempotent change-only writes, rolled-back dry run, fail-closed guards
+- [x] 10-02-PLAN.md — One-off historical backfill CLI: five whole-term requests, grade-backed rows only, idempotent change-only writes, rolled-back dry run, fail-closed guards
 - [ ] 10-03-PLAN.md — Read-only D-04 ranking diff (stored vs recomputed, course-level invariant) and the join re-measure against the 2026-09-28 report
 - [ ] 10-04-PLAN.md — InstructorBreakdown block in RankingDetails per the UI-SPEC (all states, locked copy, 8 test hooks)
 
