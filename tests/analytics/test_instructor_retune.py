@@ -16,7 +16,12 @@ from easy_a.analytics.grades import (
     grade_favorability,
     withdrawal_rate,
 )
-from easy_a.analytics.queries import get_course_historical_outcome_stats
+from easy_a.analytics.queries import (
+    get_course_historical_outcome_stats,
+    get_current_section_historical_analytics,
+    get_instructor_course_historical_outcome_stats,
+    get_term_section_historical_analytics,
+)
 from easy_a.analytics.scoring import (
     DEFAULT_GRADE_PRIOR_STRENGTH,
     DEFAULT_INSTRUCTOR_COURSE_MIN_EFFECTIVE_N,
@@ -26,6 +31,11 @@ from easy_a.analytics.scoring import (
     bayesian_smooth,
     calculate_easiness_score,
     compute_historical_outcome_stats,
+)
+from easy_a.common.section_types import (
+    LABORATORY_SECTION_TYPES,
+    is_laboratory_section_type,
+    normalize_section_type,
 )
 from easy_a.models import (
     Course,
@@ -351,3 +361,111 @@ def test_retuned_instructor_course_score_flows_through_cache_rebuild(
     # O. Other (100 grades) is instructor_course under both configs, but the prior differs.
     assert baseline["70002"].score_source == "instructor_course"
     assert baseline["70002"].easiness_score != retuned["70002"].easiness_score
+
+
+# --- Task 2: laboratory vocabulary, D-02 label-only single term, D-08 Staff, D-14 identity -----
+
+
+def test_is_laboratory_section_type_matches_only_the_laboratory_vocabulary() -> None:
+    assert set(LABORATORY_SECTION_TYPES) == {"laboratory"}
+    for value in ("Laboratory", "  laboratory ", "LABORATORY"):
+        assert is_laboratory_section_type(value), value
+    for value in ("Class Lecture", "", "   ", None, "Lecture/Lab", "Lab", "Laboratory Lecture"):
+        assert not is_laboratory_section_type(value), value
+
+
+def test_normalize_section_type_collapses_whitespace_and_casefolds() -> None:
+    assert normalize_section_type(None) == ""
+    assert normalize_section_type("  Class   Lecture ") == "class lecture"
+
+
+def _rows_by_crn(session: Session, course_keys: list[tuple[str, str]]) -> dict:
+    rows = get_term_section_historical_analytics(
+        session, term_code="202701", course_keys=course_keys
+    )
+    per_course = []
+    for subject, number in course_keys:
+        per_course.extend(
+            get_current_section_historical_analytics(
+                session, term_code="202701", subject=subject, course_number=number
+            )
+        )
+    assert rows == per_course
+    return {row.crn: row.stats for row in rows}
+
+
+def test_single_term_flag_is_label_only_and_adds_no_shrinkage(db_session: Session) -> None:
+    # MAC 1105: one instructor, 40 grades in one term. ENC 1101: the same counts split 20/20
+    # over two terms. Each course's history is only its own instructor, so every prior matches.
+    _add_section(db_session, term_id=2, crn="51001", instructor="A. One")
+    _add_grade(db_session, term_id=2, crn="51001", a=20, b=10, c=6, d=2, f=2, w=4)
+    _add_section(db_session, term_id=2, crn="52001", course_id=11, instructor="B. Two")
+    _add_grade(db_session, term_id=2, crn="52001", course_id=11, a=10, b=5, c=3, d=1, f=1, w=2)
+    _add_section(db_session, term_id=3, crn="52002", course_id=11, instructor="B. Two")
+    _add_grade(db_session, term_id=3, crn="52002", course_id=11, a=10, b=5, c=3, d=1, f=1, w=2)
+    _add_section(db_session, term_id=1, crn="71001", instructor="A. One")
+    _add_section(db_session, term_id=1, crn="72001", course_id=11, instructor="B. Two")
+    db_session.commit()
+
+    stats = _rows_by_crn(db_session, [("ENC", "1101"), ("MAC", "1105")])
+
+    one_term, two_terms = stats["71001"], stats["72001"]
+    assert one_term.score_source is ScoreSource.instructor_course
+    assert two_terms.score_source is ScoreSource.instructor_course
+    assert (one_term.term_count, two_terms.term_count) == (1, 2)
+    assert one_term.effective_n == two_terms.effective_n == 40.0
+    assert one_term.easiness_score == two_terms.easiness_score
+    assert one_term.withdrawal_rate_smoothed == two_terms.withdrawal_rate_smoothed
+
+
+def test_staff_sections_feed_course_history_but_never_an_instructor(db_session: Session) -> None:
+    _add_section(db_session, term_id=2, crn="53001", instructor="Staff")
+    _add_grade(db_session, term_id=2, crn="53001", a=40, b=15, c=5, w=3)
+    _add_section(db_session, term_id=2, crn="53002", instructor="N. Named")
+    _add_grade(db_session, term_id=2, crn="53002", a=4, b=3, c=2, d=1, w=1)
+    _add_section(db_session, term_id=1, crn="73001", instructor="Staff")
+    _add_section(db_session, term_id=1, crn="73002", instructor="N. Named")
+    db_session.commit()
+
+    for name in ("Staff", "staff", " STAFF ", ""):
+        assert (
+            get_instructor_course_historical_outcome_stats(
+                db_session, "MAC", "1105", name, before_term_code="202701"
+            )
+            is None
+        ), name
+
+    named = get_instructor_course_historical_outcome_stats(
+        db_session, "MAC", "1105", "N. Named", before_term_code="202701"
+    )
+    assert named is not None
+    assert named.effective_n == 10.0  # the Staff section's grades are not attributed to anyone
+    assert named.section_count == 1
+
+    stats = _rows_by_crn(db_session, [("MAC", "1105")])
+    assert stats["73001"].score_source is ScoreSource.course
+    assert stats["73002"].score_source is ScoreSource.course  # 10 < the 30-grade gate
+    assert stats["73001"].section_count == 2  # Staff grades raise course-level history
+    assert stats["73001"].completed_grade_count == 60 + 10
+
+
+def test_instructor_name_is_matched_within_one_course_never_pooled(db_session: Session) -> None:
+    _add_section(db_session, term_id=2, crn="54001", instructor="X. Liu")
+    _add_grade(db_session, term_id=2, crn="54001", a=20, b=10, c=5, d=3, f=2, w=2)
+    _add_section(db_session, term_id=2, crn="54002", course_id=11, instructor="X. Liu")
+    _add_grade(db_session, term_id=2, crn="54002", course_id=11, a=15, b=15, c=5, d=3, f=2, w=2)
+    _add_section(db_session, term_id=1, crn="74001", instructor="X. Liu")
+    _add_section(db_session, term_id=1, crn="74002", course_id=11, instructor="X. Liu")
+    db_session.commit()
+
+    for subject, number in (("MAC", "1105"), ("ENC", "1101")):
+        per_course = get_instructor_course_historical_outcome_stats(
+            db_session, subject, number, "X. Liu", before_term_code="202701"
+        )
+        assert per_course is not None
+        assert per_course.effective_n == 40.0, subject  # not 80
+
+    stats = _rows_by_crn(db_session, [("ENC", "1101"), ("MAC", "1105")])
+    assert stats["74001"].score_source is ScoreSource.instructor_course
+    assert stats["74002"].score_source is ScoreSource.instructor_course
+    assert stats["74001"].effective_n == stats["74002"].effective_n == 40.0

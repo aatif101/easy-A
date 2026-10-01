@@ -28,6 +28,7 @@ from easy_a.common.instructors import (
     get_current_instructor_states,
     is_usable_instructor,
 )
+from easy_a.common.section_types import is_laboratory_section_type
 from easy_a.common.terms import normalize_banner_term_code
 from easy_a.models import Course, GradeDistribution, Section, SectionInstructor, Term
 
@@ -182,7 +183,10 @@ def get_current_section_historical_analytics(
         instructor_state = get_current_instructor_state(session, section.id)
         instructor = instructor_state.name
         stats = course_stats
-        if instructor_state.is_usable_for_scoring:
+        # D-13: a current laboratory section is scored from course-level history.
+        if instructor_state.is_usable_for_scoring and not is_laboratory_section_type(
+            section.section_type
+        ):
             assert instructor is not None
             instructor_stats = get_instructor_course_historical_outcome_stats(
                 session,
@@ -284,7 +288,10 @@ def get_term_section_historical_analytics(
             instructor_state = instructor_states[section.id]
             instructor = instructor_state.name
             stats = course_stats
-            if instructor_state.is_usable_for_scoring:
+            # D-13: a current laboratory section is scored from course-level history.
+            if instructor_state.is_usable_for_scoring and not is_laboratory_section_type(
+                section.section_type
+            ):
                 assert instructor is not None
                 if instructor not in instructor_stats_by_name:
                     instructor_stats_by_name[instructor] = _instructor_course_stats(
@@ -311,6 +318,7 @@ class _EvidenceRow:
     course_ids: frozenset[int]
     section_id: int | None
     section_course_id: int | None
+    section_is_lab: bool
 
 
 @dataclass(frozen=True)
@@ -328,7 +336,13 @@ class _TermGradeEvidence:
     @classmethod
     def load(cls, session: Session, *, before_term_code: str) -> _TermGradeEvidence:
         stmt = (
-            select(GradeDistribution, Term.banner_code, Section.id, Section.course_id)
+            select(
+                GradeDistribution,
+                Term.banner_code,
+                Section.id,
+                Section.course_id,
+                Section.section_type,
+            )
             .join(Term, GradeDistribution.term_id == Term.id)
             .outerjoin(
                 Section,
@@ -341,7 +355,9 @@ class _TermGradeEvidence:
         )
         fetched = session.execute(stmt).all()
         names_by_section_id: dict[int, set[str]] = {}
-        section_ids = [section_id for _, _, section_id, _ in fetched if section_id is not None]
+        section_ids = [
+            section_id for _, _, section_id, _, _ in fetched if section_id is not None
+        ]
         if section_ids:
             for section_id, name_raw in session.execute(
                 select(SectionInstructor.section_id, SectionInstructor.name_raw).where(
@@ -352,7 +368,7 @@ class _TermGradeEvidence:
 
         rows: list[_EvidenceRow] = []
         row_indexes_by_course_id: dict[int, list[int]] = {}
-        for distribution, term_code, section_id, section_course_id in fetched:
+        for distribution, term_code, section_id, section_course_id, section_type in fetched:
             mapped_instructor = section_id is not None and any(
                 is_usable_instructor(name) for name in names_by_section_id.get(section_id, ())
             )
@@ -373,6 +389,7 @@ class _TermGradeEvidence:
                     course_ids=course_ids,
                     section_id=section_id,
                     section_course_id=section_course_id,
+                    section_is_lab=is_laboratory_section_type(section_type),
                 )
             )
         return cls(
@@ -398,11 +415,12 @@ class _TermGradeEvidence:
         return [self.rows[index].observation for index in indexes]
 
     def for_instructor(self, course_ids: set[int], instructor_name: str) -> list[GradeObservation]:
-        """Rows joined to a section of these courses that ever listed instructor_name."""
+        """Non-laboratory rows joined to a section of these courses that listed instructor_name."""
         return [
             replace(row.observation, mapped_instructor=True)
             for row in self.rows
             if row.section_id is not None
+            and not row.section_is_lab
             and row.section_course_id in course_ids
             and instructor_name in self.instructor_names_by_section_id.get(row.section_id, ())
         ]
@@ -653,13 +671,17 @@ def _instructor_section_ids(
     course_ids: Sequence[int],
     instructor_name: str,
 ) -> set[int]:
-    return set(
-        session.execute(
-            select(Section.id)
-            .join(SectionInstructor, SectionInstructor.section_id == Section.id)
-            .where(
-                Section.course_id.in_(course_ids),
-                SectionInstructor.name_raw == instructor_name,
-            )
-        ).scalars()
+    rows = session.execute(
+        select(Section.id, Section.section_type)
+        .join(SectionInstructor, SectionInstructor.section_id == Section.id)
+        .where(
+            Section.course_id.in_(course_ids),
+            SectionInstructor.name_raw == instructor_name,
+        )
     )
+    # D-13: laboratory sections never feed instructor-level history.
+    return {
+        section_id
+        for section_id, section_type in rows
+        if not is_laboratory_section_type(section_type)
+    }
