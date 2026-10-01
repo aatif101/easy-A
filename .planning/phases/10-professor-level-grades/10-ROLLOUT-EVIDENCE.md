@@ -2,7 +2,7 @@
 
 Dated evidence for the pre-merge half of the Phase 10 rollout. No connection strings, hostnames or credentials appear in this file. Every hosted database statement below ran inside a READ ONLY transaction (`SET TRANSACTION READ ONLY`; `transaction_read_only` confirmed `on`). No USF request had been made when Task 1 closed; Task 2 sections are appended below as they are run.
 
-**STATUS: Task 1 parity gate RESOLVED (exit 0). Task 2 dry run FAILED at term 202505 with a parse guard (exit 1, nothing written); the dry run was NOT rerun, per the plan. Awaiting a decision. See "Five-term dry run (D-07)". Original Task 1 note: parity gate RESOLVED (exit 0 after the user's "revise-with-tolerance" decision, commit cef0d5c). The first run was BLOCKED (exit 1, float noise only); that record is kept below. See "Code-only parity (D-03)" and "Re-run after tolerance (D-03)".**
+**STATUS (2026-10-01, after dry run 2): the second five-term dry run (the one the user authorised) completed all five requests and the full what-if, but exited 1 with guard `unmatched_fraction` in all five terms (10.1% to 38.9% of graded CRNs missing from USF against a 2% limit), and `pairs_match_reference` FAIL (2,788 pairs against 3,216). Nothing was written (row counts identical). It was not rerun and no narrower query was tried (D-22e). The D-04 decision is awaiting the operator; see "Five-term dry run 2 (D-07)" and "D-04 what-if diff". Earlier status, kept for the record: Task 1 parity gate RESOLVED (exit 0 after the 1e-9 tolerance, commit cef0d5c); dry run 1 failed at 202505 with a parse guard and was repaired (commit 7e29a8c).**
 
 ## Pre-merge gates
 
@@ -119,7 +119,7 @@ Active 202701 `section_type` values on hosted Supabase (READ ONLY, 2026-10-01T06
 
 `LABORATORY_SECTION_TYPES` is `frozenset({"laboratory"})` (unchanged). The only laboratory value on hosted 202701 is `Laboratory`, which normalizes to `laboratory` and matches. There is no bare "Lab" value and no combined lecture-and-lab type among the nine values, so no code or test change was needed and none was committed. The historical-term section_type histogram is only available from the Task 2 dry run, so this vocabulary check remains open for the five historical terms.
 
-## Five-term dry run (D-07)
+## Five-term dry run 1 (D-07, parse failure at 202505)
 
 **FAILED. Exit code 1, nothing written. The what-if (D-04), the per-term counts, N for `--expect-inserted`, the historical section_type histogram and the join re-measure were NOT produced.**
 
@@ -140,7 +140,7 @@ Meaning: `parse_whole_term` found 2,175 `<tr>` blocks containing a `<td>` in the
 
 `10-WHATIF-DIFF.json` holds only this failure object (no `what_if`, no changes list, no "://").
 
-## Row counts before/after
+## Row counts before/after (dry run 1)
 
 Read-only transactions (`SET TRANSACTION READ ONLY`, confirmed `on`). Counts are identical, so nothing was written (T-10-21).
 
@@ -163,3 +163,140 @@ Decision "repair-anchor": a narrow, offline repair of cut-off anchor tags inside
 Offline validation against the saved page (no USF request, no database connection): 2175 of 2175 rows parsed with the guard passing, at three chunkings; the 2174 rows that parsed before are identical after; one row newly parsed. 34 row blocks were touched by the repair (one failing row, 33 harmless cut-off closes). Gates after the change: `uv run pytest -q` 941 passed, 4 skipped, 1 xfailed; ruff and mypy clean.
 
 The five-term dry run has NOT been rerun; it needs an explicit go-ahead, and this note does not authorise it. The Task 1 and Task 2 statuses above are unchanged until it is rerun.
+
+## Five-term dry run (D-07)
+
+Dry run 2, the single run the user authorised after the anchor repair (7e29a8c). Command, run exactly once and not rerun: `uv run python scripts/backfill_historical_sections.py --dry-run --report-json .planning/phases/10-professor-level-grades/10-WHATIF-DIFF.json --save-failed-response .planning/phases/10-professor-level-grades/failed-responses/dry-run-2.html`. Start 2026-10-01T19:39:42Z, end 2026-10-01T19:44:40Z (298 s, five whole-term USF requests 30 s apart). No parse failure occurred, so `dry-run-2.html` was not written (the git-ignored directory holds only the dry run 1 page).
+
+**Exit code 1. `status` failed, `error_kind` `guard`, `written` false (always rolled back). `guard_failures` is `["unmatched_fraction"]` for ALL FIVE terms; the limit is 2% (`DEFAULT_MAX_UNMATCHED_FRACTION`, runbook section 1). All five terms fetched and parsed, the lost-rows guard no longer trips (202505 now parses 2,175 rows), and the what-if below was still computed, but a real `--apply` with these defaults would stop at the guard.**
+
+Per term (fetched and graded, 202701 what-if computed once after all terms). `data_row_count`, `tail_error`, `bytes` and `elapsed` are reported only on a parse failure and were not emitted.
+
+| Term | fetched_rows | grade_crns | to_write (would insert) | unmatched_grade_crns | unmatched_fraction | guard_failures | staff_or_blank | non_tampa | grade_course_unattributed | course_key_mismatch | uncataloged |
+|------|-------------:|-----------:|------------------------:|---------------------:|-------------------:|----------------|---------------:|----------:|--------------------------:|--------------------:|------------:|
+| 202408 | 6,672 | 179 | 161 | 18 | 0.1006 | unmatched_fraction | 0 | 0 | 0 | 0 | 0 |
+| 202501 | 6,498 | 2,096 | 1,844 | 252 | 0.1202 | unmatched_fraction | 1 | 0 | 0 | 0 | 0 |
+| 202505 | 2,175 | 465 | 284 | 181 | 0.3892 | unmatched_fraction | 0 | 0 | 0 | 0 | 0 |
+| 202508 | 7,043 | 2,887 | 2,361 | 526 | 0.1822 | unmatched_fraction | 0 | 0 | 0 | 0 | 0 |
+| 202601 | 6,703 | 3,035 | 2,512 | 523 | 0.1723 | unmatched_fraction | 0 | 0 | 0 | 0 | 0 |
+| Total | 29,091 | 8,662 | **7,162** | 1,500 | 0.1732 | | 1 | 0 | 0 | 0 | 0 |
+
+Total would-insert **N = 7,162** (the `--expect-inserted` value for plan 10-08, valid only for a run whose guards pass). Per term: 161 + 1,844 + 284 + 2,361 + 2,512. Every term reports `unchanged` 0, `updated` 0, `refreshed_last_seen` 0, `instructor_changes` 0, and `instructor_rows_added` equal to `inserted`. The 1,500 unmatched graded CRNs equal exactly the 1,500 grade rows with no section in the join re-measure below (8,662 total, 7,162 with a section). The cause is NOT established (USF no longer listing those CRNs in a whole-term response is the guard's own definition; why 10% to 39% of past graded CRNs are absent is unexplained). Raising `--max-unmatched-fraction` is not recommended without understanding it (runbook).
+
+Historical `section_type` histogram per term (all five terms, 7,162 sections):
+
+| section_type | 202408 | 202501 | 202505 | 202508 | 202601 | Total |
+|--------------|-------:|-------:|-------:|-------:|-------:|------:|
+| Class Lecture | 161 | 1,251 | 157 | 1,664 | 1,720 | 4,953 |
+| Laboratory | 0 | 474 | 93 | 489 | 509 | 1,565 |
+| Discussion | 0 | 37 | 7 | 47 | 75 | 166 |
+| Other | 0 | 45 | 4 | 50 | 59 | 158 |
+| Internship | 0 | 12 | 11 | 25 | 56 | 104 |
+| Individual Performance | 0 | 0 | 0 | 43 | 46 | 89 |
+| Directed Individual Study | 0 | 15 | 6 | 28 | 28 | 77 |
+| Supervised Research | 0 | 7 | 3 | 8 | 9 | 27 |
+| Supervised Teaching | 0 | 3 | 3 | 7 | 10 | 23 |
+
+D-13 check: every historical value is one of the nine already seen on hosted 202701. The only laboratory value is `Laboratory`; there is no bare "Lab" and no combined lecture-and-lab type. `LABORATORY_SECTION_TYPES` stays `frozenset({"laboratory"})`; no code or test change. This closes the historical half of the vocabulary check opened in Task 1.
+
+`delivery_method` per historical term (202408: CL 159, HB 2; 202501: CL 1,774, HB 41, None 10, PD 18, AD 1; 202505: CL 269, HB 3, None 5, PD 3, AD 4; 202508: CL 2,291, HB 40, None 9, PD 17, AD 4; 202601: CL 2,379, HB 57, None 47, PD 23, AD 6). All of AD, CL, HB, PD and NULL already occur in 202701; no new delivery method.
+
+Pre-run read-only check at 2026-10-01T19:39:37Z: `uv run python scripts/report_ranking_diff.py --term 202701` exit 0 (identical PASS, course_level_invariant PASS, 3,706 of 3,706 sections, changed 0, float_noise count 3,670 with max 5.33e-15, no USF request).
+
+## Row counts before/after
+
+Read-only transactions (`SET TRANSACTION READ ONLY`, confirmed `on`). Identical, so nothing was written (T-10-21).
+
+| Table | Before (2026-10-01T19:39:31Z) | After (2026-10-01T19:44:58Z) |
+|-------|------------------------------|------------------------------|
+| sections (all terms; all are 202701) | 3,815 | 3,815 |
+| section_instructors | 4,436 | 4,436 |
+| seat_snapshots | 4,376 | 4,376 |
+| section_rankings (all rows; all 202701) | 3,706 | 3,706 |
+| ingest_runs | 136 | 136 |
+
+The counts moved slightly from the dry run 1 snapshots (3,814 / 4,426 / 4,370 / 3,705 / 133) through the normal sync between the two plan runs, not through the dry run.
+
+## Join re-measure vs 2026-09-28
+
+`what_if.pairs` of the dry run compared with the 2026-09-28 reference. `matches_reference` **false** (verdict `pairs_match_reference` FAIL). This blocks the go-live review until explained (runbook section 1).
+
+| Measure | Dry run 2 | Reference | Delta |
+|---------|----------:|----------:|------:|
+| pairs | 2,788 | 3,216 | -428 |
+| n >= 60 | 1,014 | 1,329 | -315 |
+| n >= 30 | 1,743 | 2,178 | -435 |
+| n >= 15 | 2,326 | 2,829 | -503 |
+| n >= 5 | 2,671 | 3,208 | -537 |
+| n >= 1 | 2,679 | 3,216 | -537 |
+| n >= 30 and multi-term | 1,039 | 1,308 | -269 |
+| instructors | 1,550 | 1,796 | -246 |
+| courses | 1,119 | 1,117 | +2 |
+| multi-term pairs | 1,208 | 1,439 | -231 |
+| term span 1 / 2 / 3 / 4 / 5 | 1,580 / 831 / 302 / 74 / 1 | 1,777 / 965 / 359 / 110 / 5 | -197 / -134 / -57 / -36 / -4 |
+| grade rows total | 8,662 | 8,662 | 0 |
+| grade rows with a section | 7,162 | not in reference | |
+| grade rows named | 7,161 | 8,661 | -1,500 |
+| grade rows Staff or blank | 1 | not in reference | |
+
+Reading: the grade-row total matches exactly; the shortfall of 1,500 named rows is exactly the 1,500 unmatched graded CRNs above. Every join number is lower than the reference, consistently with those rows being unattributable; courses is +2. The dry run cannot attribute instructors to graded CRNs that USF does not list, which is the likeliest source of the gap to the reference; this is not confirmed.
+
+## D-04 what-if diff
+
+**GUARD FAILURE: `unmatched_fraction` in all five terms (1,500 of 8,662 graded CRNs, 17.3%, limit 2%); `pairs_match_reference` FAIL (2,788 against 3,216; n >= 60/30/15 are 1,014 / 1,743 / 2,326 against 1,329 / 2,178 / 2,829). course_level_violations is 0.**
+
+What-if term 202701 (3,706 sections), computed on the in-transaction state as if the 7,162 sections had been written, then rolled back.
+
+| Item | Value |
+|------|-------|
+| code_only_parity | PASS (identical true; changed 0; float_noise count 3,670 at tolerance 1e-9, max 5.33e-15, on the stored cache against recomputation before any change) |
+| course_level_invariant | PASS |
+| course_level_violations | **0** |
+| changed sections (score fields differ beyond tolerance) | 616 of 3,706 |
+| transitions | course -> instructor_course: 616 (no other transition; no section leaves or enters) |
+| missing_in_after / extra_in_after | none / none |
+| informational_changes (mapped instructor section count changed, scores unchanged) | 2,989 |
+| float_noise | count 3,061, max 5.33e-15 |
+| changed fields | 272 with easiness, withdrawal, effective_n, confidence_label and source; 188 with easiness, withdrawal, effective_n and source; 140 with easiness, withdrawal and source; 16 other combinations |
+| direction of easiness change | 333 up, 283 down |
+| effective_n of the 616 after | 441 at n >= 60, 175 at 30 to 59, none below 30 |
+
+Absolute easiness delta, all 3,706 sections: max 2.619, mean 0.0457, median 3.6e-15, p90 0.1386; buckets: exactly 0: 650; (0, 0.25]: 2,797; (0.25, 0.5]: 166; (0.5, 1]: 80; (1, 2]: 11; > 2: 2.
+
+Absolute delta over the 616 changed sections only: max 2.619, mean 0.275, median 0.196, p90 0.589; 13 sections move by more than 1.0.
+
+Rank shift (absolute): all 3,706 sections max 2,137, median 35; over the 616 changed sections median 266.5, mean 385, p90 940, max 2,137.
+
+Top 25 changes by absolute delta (all are `course` -> `instructor_course`; CRN, subject and course number, easiness before and after, delta, rank before and after, effective_n before and after):
+
+| CRN | Course | Before | After | Delta | Rank before | Rank after | n before | n after |
+|-----|--------|-------:|------:|------:|------------:|-----------:|---------:|--------:|
+| 13417 | AMH 2020 | 8.568 | 5.949 | -2.619 | 2686 | 3703 | 4049 | 296 |
+| 20578 | AMH 2020 | 8.568 | 5.949 | -2.619 | 2700 | 3704 | 4049 | 296 |
+| 12059 | ECO 3101 | 6.502 | 7.933 | +1.430 | 3701 | 3395 | 469 | 56 |
+| 12060 | ECO 3101 | 6.502 | 7.933 | +1.430 | 3702 | 3396 | 469 | 56 |
+| 13155 | HUM 1020 | 8.598 | 7.197 | -1.401 | 2605 | 3657 | 3384 | 77 |
+| 13819 | EGN 3343 | 7.599 | 8.930 | +1.331 | 3585 | 1871 | 727 | 142 |
+| 16940 | FIN 4504 | 8.911 | 7.609 | -1.303 | 1859 | 3553 | 426 | 56 |
+| 14092 | EGN 3311 | 6.862 | 5.608 | -1.254 | 3684 | 3705 | 929 | 181 |
+| 18402 | EGN 2615 | 7.222 | 5.982 | -1.240 | 3655 | 3701 | 496 | 53 |
+| 18405 | EGN 2615 | 7.222 | 5.982 | -1.240 | 3658 | 3702 | 496 | 53 |
+| 13523 | BSC 2011 | 7.658 | 8.745 | +1.088 | 3579 | 2247 | 2829 | 490 |
+| 18637 | ANT 4930 | 8.745 | 7.741 | -1.004 | 2242 | 3525 | 227 | 32 |
+| 18716 | ANT 4930 | 8.745 | 7.741 | -1.004 | 2245 | 3526 | 227 | 32 |
+| 14499 | CEG 4850 | 8.609 | 9.595 | +0.986 | 2561 | 471 | 78 | 78 |
+| 18408 | EGN 2440 | 7.213 | 8.195 | +0.983 | 3661 | 3171 | 827 | 148 |
+| 18411 | EGN 2440 | 7.213 | 8.195 | +0.983 | 3664 | 3172 | 827 | 148 |
+| 13804 | EGN 3365 | 7.976 | 8.953 | +0.978 | 3396 | 1814 | 722 | 84 |
+| 15987 | AMH 2020 | 8.568 | 9.530 | +0.962 | 2690 | 559 | 4049 | 494 |
+| 20509 | AMH 2020 | 8.568 | 9.530 | +0.962 | 2697 | 560 | 4049 | 494 |
+| 12151 | POT 3003 | 8.403 | 7.461 | -0.942 | 3027 | 3586 | 362 | 79 |
+| 19095 | HUM 1020 | 8.598 | 7.661 | -0.937 | 2611 | 3547 | 3384 | 261 |
+| 11590 | MAR 3023 | 8.189 | 9.116 | +0.927 | 3205 | 1515 | 2772 | 919 |
+| 14798 | GEB 3033 | 9.399 | 8.482 | -0.918 | 794 | 2809 | 2320 | 159 |
+| 17151 | STA 2122 | 8.286 | 9.194 | +0.908 | 3119 | 1295 | 1247 | 192 |
+| 17152 | STA 2122 | 8.286 | 9.194 | +0.908 | 3120 | 1296 | 1247 | 192 |
+
+Resulting 202701 `instructor_course` sections: **616** (none before the backfill). Sanity against the research's 751 sections at n >= 30 including 131 labs (as of 2026-09-28): 751 less 131 labs is 620, and 616 is close; labs stay at course level (9 of the 616 carry an L suffix in the course number). The lower count is consistent with the shortfall in joined pairs above.
+
+`10-WHATIF-DIFF.json` holds the full object plus the `changes` list (616 entries, derived numbers only, no instructor names, no "://").
