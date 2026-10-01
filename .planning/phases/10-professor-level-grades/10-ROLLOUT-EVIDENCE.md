@@ -2,6 +2,8 @@
 
 Dated evidence for the pre-merge half of the Phase 10 rollout. No connection strings, hostnames or credentials appear in this file. Every hosted database statement below ran inside a READ ONLY transaction (`SET TRANSACTION READ ONLY`; `transaction_read_only` confirmed `on`). No USF request had been made when Task 1 closed; Task 2 sections are appended below as they are run.
 
+**LATEST STATUS (2026-10-01, after dry run 4): the fourth five-term dry run (all-campus request with the campus gate before normalising, the one the user authorised after 10-GAP-06) COMPLETED: exit 0, `status` succeeded, `guard_failures` empty in all five terms, `row_normalisation_failures` 0, would-insert 8,535, nothing written (row counts identical). `pairs_match_reference` is still FAIL (pairs_total 3,297 against 3,216; n >= 60/30/15 are 1,314 / 2,153 / 2,785 against 1,329 / 2,178 / 2,829); `course_level_violations` is 0. It was not rerun. The D-04 decision is awaiting the operator; see "Five-term dry run 4 (D-07)" at the end. The statuses below are earlier ones, kept for the record.**
+
 **STATUS (2026-10-01, after dry run 3): the third five-term dry run (all-campus request, the one the user authorised after 10-GAP-05) FAILED to complete: `error_kind` `parse` at term 202601, a schedule time cell holding two to-be-announced components that the row normaliser rejects (2 rows, both on a campus the backfill excludes). No what-if, no per-term report and no guard result was produced; nothing was written (row counts identical). It was not rerun and no code was changed (D-22e). See "Five-term dry run 3 (D-07)" at the end. The D-04 decision cannot be taken on dry run 3 evidence. The status below is the earlier one, kept for the record.**
 
 **EARLIER STATUS (2026-10-01, after dry run 2): the second five-term dry run (the one the user authorised) completed all five requests and the full what-if, but exited 1 with guard `unmatched_fraction` in all five terms (10.1% to 38.9% of graded CRNs missing from USF against a 2% limit), and `pairs_match_reference` FAIL (2,788 pairs against 3,216). Nothing was written (row counts identical). It was not rerun and no narrower query was tried (D-22e). The D-04 decision is awaiting the operator; see "Five-term dry run 2 (D-07)" and "D-04 what-if diff". Earlier status, kept for the record: Task 1 parity gate RESOLVED (exit 0 after the 1e-9 tolerance, commit cef0d5c); dry run 1 failed at 202505 with a parse guard and was repaired (commit 7e29a8c).**
@@ -341,3 +343,146 @@ Read-only transactions (`SET TRANSACTION READ ONLY`, `on`). Identical, so nothin
 ### D-04 and the join re-measure
 
 Not available from dry run 3: no what-if was computed, no pairs figure exists, no `would-insert` value, no `rows_by_campus` per term (other than the offline 202601 counts above), and the 633 non-"Other" previously unmatched CRNs were not checked. The dry run 2 figures above remain the last complete ones and are superseded by the request change. There is no `--expect-inserted` proposal. D-04 is not decided and nothing here approves a go-live.
+
+## Five-term dry run 4 (D-07), campus gate before normalising
+
+The single run the user authorised after the GAP-06 fix (commits `88a1f93`, `6501f3b`; notes 10-GAP-05, 10-GAP-06). Command, run exactly once and not rerun: `uv run python scripts/backfill_historical_sections.py --dry-run --report-json .planning/phases/10-professor-level-grades/10-WHATIF-DIFF.json --save-responses .planning/phases/10-professor-level-grades/failed-responses/dry-run-4`. Start 2026-10-01T21:08:44Z, end 2026-10-01T21:14:04Z (320 s wall clock: five all-campus whole-term USF requests 30 s apart). Pre-run read-only check at 2026-10-01T21:08:40Z: `report_ranking_diff.py --term 202701` exit 0 (identical true, course_level_invariant true, changed 0, 3,707 of 3,707, float_noise count 3,671 with max 5.33e-15, no USF request).
+
+**Exit code 0. `status` succeeded, `mode` dry_run, `written` false (always rolled back), `guard_failures` `[]` for every term, `row_normalisation_failures` 0 for every term, `row_failures` empty.** Stderr empty. Request: whole-term campus blank (all campuses), selection allow-list `tampa` and `off-campus - tampa`. The five saved pages (`failed-responses/dry-run-4/<term>.html`, mode 0600, 47,483,086 bytes in all) are git-ignored and are not quoted or committed. In `10-WHATIF-DIFF.json` the saved-response paths were shortened from an absolute path to `<repo>/...` (no other change); the file contains no "://" and no home path.
+
+Per term (the grade table holds 8,662 CRNs; every figure is a count).
+
+| Term | fetched_rows | grade_crns | matched | unmatched | unmatched_fraction | kept (to_write = inserted) | non_tampa (grade CRN on another campus) | unknown_campus_labels (graded) | row_normalisation_failures | response_bytes | fetch_seconds |
+|------|-------------:|-----------:|--------:|----------:|-------------------:|---------------------------:|----------------------------------------:|-------------------------------:|---------------------------:|---------------:|--------------:|
+| 202408 | 9,776 | 179 | 179 | 0 | 0.0000 | 179 | 0 | none | 0 | 10,502,779 | 13.52 |
+| 202501 | 9,620 | 2,096 | 2,096 | 0 | 0.0000 | 2,090 | 6 | Off Campus Special Programs 3 | 0 | 10,349,520 | 13.265 |
+| 202505 | 4,445 | 465 | 465 | 0 | 0.0000 | 448 | 17 | Off Campus Special Programs 17 | 0 | 4,782,960 | 7.452 |
+| 202508 | 10,298 | 2,887 | 2,863 | 24 | 0.0083 | 2,840 | 23 | Off Campus Special Programs 1 | 0 | 11,091,372 | 14.457 |
+| 202601 | 9,969 | 3,035 | 3,001 | 34 | 0.0112 | 2,978 | 23 | Off Campus Special Programs 5 | 0 | 10,756,455 | 13.705 |
+| Total | 44,108 | 8,662 | 8,604 | 58 | 0.0067 | **8,535** | 69 | 26 | 0 | 47,483,086 | 62.4 |
+
+Total would-insert **N = 8,535** (179 + 2,090 + 448 + 2,840 + 2,978); this is the proposed `--expect-inserted` value for plan 10-08, valid only for a run whose guards pass. 8,662 grade CRNs = 8,535 kept + 69 on a non-allow-listed campus + 58 absent from the response. Every term reports `unchanged` 0, `updated` 0, `refreshed_last_seen` 0, `instructor_changes` 0, `course_key_mismatch` 0, `grade_course_unattributed` 0, `uncataloged` 0 and `instructor_rows_added` equal to `inserted`; `staff_or_blank` 1 (202501). The largest page is 11.09 MB (202508), under the 25 MB `WHOLE_TERM_MAX_BYTES` cap; no fetch size or timeout error.
+
+`rows_by_campus` per term (all fetched rows; Tampa / Off-campus - Tampa / St. Petersburg / Off-campus - St. Petersburg / Sarasota-Manatee / Off-campus - Sarasota-Manatee / Off Campus Special Programs):
+
+| Term | Tampa | Off-campus - Tampa | St. Petersburg | Off-campus - St. Petersburg | Sarasota-Manatee | Off-campus - Sarasota-Manatee | Off Campus Special Programs |
+|------|------:|-------------------:|---------------:|----------------------------:|-----------------:|------------------------------:|----------------------------:|
+| 202408 | 6,672 | 1,857 | 604 | 178 | 190 | 237 | 38 |
+| 202501 | 6,498 | 1,858 | 599 | 161 | 189 | 254 | 61 |
+| 202505 | 2,175 | 1,370 | 194 | 139 | 40 | 228 | 299 |
+| 202508 | 7,043 | 1,936 | 646 | 181 | 210 | 253 | 29 |
+| 202601 | 6,703 | 1,958 | 646 | 175 | 195 | 253 | 39 |
+
+`non_tampa_by_label` (graded CRNs whose schedule campus is not on the allow-list; skipped, never written): 202501: Off Campus Special Programs 3, Sarasota-Manatee 1, St. Petersburg 2. 202505: Off Campus Special Programs 17. 202508: Off Campus Special Programs 1, Off-campus - Sarasota-Manatee 4, Off-campus - St. Petersburg 8, Sarasota-Manatee 2, St. Petersburg 8. 202601: Off Campus Special Programs 5, Off-campus - Sarasota-Manatee 2, Off-campus - St. Petersburg 2, Sarasota-Manatee 6, St. Petersburg 8. Totals: Off Campus Special Programs 26 (the only label that is neither allow-listed nor one of the four known non-Tampa labels, reported as `unknown_campus_labels`), St. Petersburg 18, Off-campus - St. Petersburg 10, Sarasota-Manatee 9, Off-campus - Sarasota-Manatee 6 (69 in all). These are Tampa-credited in the grade file (`0001 - Tampa Campus`) but scheduled on another campus by USF, so the allow-list excludes them; that policy is part of the D-04 decision.
+
+### Unmatched graded CRNs, and the earlier non-"Other" gap
+
+Unmatched fell from 1,500 (dry run 2, `campus=T`) to 58 (0.67% of 8,662; the limit is 2%), and the two terms that have any are 0.83% (202508) and 1.12% (202601). Offline read of the saved pages (the repo's own parser, the grade keys captured earlier, no USF request): the 58 still-unmatched grade CRNs by grade suffix are C 36, L 10, D 8, S 3, O 1 (202508: C 14, L 5, D 4, S 1; 202601: C 22, L 5, D 4, S 2, O 1). So at most 57 non-"Other" CRNs remain unmatched, against 633 non-"Other" before: at least 576 of the 633 now match (assuming the 57 are among the earlier 633, which holds when a campus=T row is also in the all-campus response), and only 1 `O` CRN remains unmatched against the 867 lower bound before. The 202505 term, where the earlier campus=T page survives, is exact: all 181 CRNs unmatched in dry run 2 (68 non-"Other", 113 `O`) are now matched and 202505 has 0 unmatched. The remaining 58 are not explained here (no label check of those CRNs was made).
+
+### Historical `section_type` histogram and delivery methods (D-13)
+
+| section_type | 202408 | 202501 | 202505 | 202508 | 202601 | Total |
+|--------------|-------:|-------:|-------:|-------:|-------:|------:|
+| Class Lecture | 168 | 1,299 | 186 | 1,806 | 1,850 | 5,309 |
+| Laboratory | 0 | 482 | 115 | 503 | 517 | 1,617 |
+| Other | 11 | 233 | 116 | 315 | 342 | 1,017 |
+| Discussion | 0 | 38 | 7 | 53 | 81 | 179 |
+| Internship | 0 | 12 | 12 | 57 | 81 | 162 |
+| Individual Performance | 0 | 0 | 0 | 43 | 46 | 89 |
+| Directed Individual Study | 0 | 16 | 6 | 31 | 30 | 83 |
+| Supervised Teaching | 0 | 3 | 3 | 24 | 22 | 52 |
+| Supervised Research | 0 | 7 | 3 | 8 | 9 | 27 |
+
+D-13 check: every historical value is one of the nine values already seen on hosted 202701. The only laboratory value is `Laboratory` (no bare "Lab"); there is no combined lecture-and-lab type and no pure-lab type outside `LABORATORY_SECTION_TYPES = frozenset({"laboratory"})`. No code or test change. The `Other` count rises from 158 (campus=T) to 1,017 as expected: the Tampa-credited online block is mostly `Other`.
+
+`delivery_method` per term: 202408: CL 159, AD 18, HB 2; 202501: CL 1,775, AD 242, HB 41, PD 22, None 10; 202505: CL 269, AD 167, PD 4, HB 3, None 5; 202508: CL 2,293, AD 448, HB 42, None 39, PD 18; 202601: CL 2,386, AD 440, HB 59, None 68, PD 25. Totals CL 6,882, AD 1,315, HB 147, None 122, PD 69. All of AD, CL, HB, PD and NULL already occur in 202701; no new delivery method.
+
+### Row counts before/after (dry run 4)
+
+Read-only transactions (`SET TRANSACTION READ ONLY`, `on`). Identical, so nothing was written (T-10-21).
+
+| Table | Before (2026-10-01T21:08:35Z) | After (2026-10-01T21:14:09Z) |
+|-------|------------------------------|------------------------------|
+| sections (all terms; all are 202701) | 3,816 | 3,816 |
+| section_instructors | 4,438 | 4,438 |
+| seat_snapshots | 4,377 | 4,377 |
+| section_rankings (all rows; all 202701) | 3,707 | 3,707 |
+| ingest_runs | 137 | 137 |
+
+The counts moved slightly from the dry run 3 snapshots (3,815 / 4,436 / 4,376 / 3,706 / 136) through the normal sync between the two plan runs, not through the dry run.
+
+### Join re-measure vs 2026-09-28
+
+`what_if.pairs.matches_reference` **false** (verdict `pairs_match_reference` FAIL; it requires pairs, n >= 60, n >= 30 and n >= 15 to match exactly). This blocks the go-live review until every delta is explained and accepted in writing (runbook section 1).
+
+| Measure | Dry run 4 | Reference | Delta | Dry run 2 (campus=T) |
+|---------|----------:|----------:|------:|---------------------:|
+| pairs (`pairs_total`, includes pairs with n = 0) | 3,297 | 3,216 | +81 | 2,788 |
+| n >= 60 | 1,314 | 1,329 | -15 | 1,014 |
+| n >= 30 | 2,153 | 2,178 | -25 | 1,743 |
+| n >= 15 | 2,785 | 2,829 | -44 | 2,326 |
+| n >= 5 | 3,145 | 3,208 | -63 | 2,671 |
+| n >= 1 | 3,153 | 3,216 | -63 | 2,679 |
+| n >= 30 and multi-term | 1,292 | 1,308 | -16 | 1,039 |
+| instructors | 1,790 | 1,796 | -6 | 1,550 |
+| courses | 1,148 | 1,117 | +31 | 1,119 |
+| multi-term pairs | 1,484 | 1,439 | +45 | 1,208 |
+| term span 1 / 2 / 3 / 4 / 5 | 1,813 / 992 / 372 / 115 / 5 | 1,777 / 965 / 359 / 110 / 5 | +36 / +27 / +13 / +5 / 0 | 1,580 / 831 / 302 / 74 / 1 |
+| grade rows total | 8,662 | 8,662 | 0 | 8,662 |
+| grade rows with a section | 8,535 | not in reference | | 7,162 |
+| grade rows named | 8,534 | 8,661 | -127 | 7,161 |
+| grade rows Staff or blank | 1 | not in reference | | 1 |
+
+Reading (observations; the cause of the remaining differences is not established): the join is now within 0.5% to 1.5% of the reference on the n-threshold counts (the dry run 2 gap was 21% to 24%) and the `named` shortfall fell from 1,500 to 127. The 127 named rows missing equal the 58 unmatched CRNs plus the 69 grade CRNs on a non-allow-listed campus (58 + 69 = 127). The headline `pairs` figure is +81 because `pairs_total` includes 144 pairs with no graded students (n = 0); the reference `pairs` (3,216) equals its own `n >= 1`, and on that like-for-like measure the delta is -63. `matches_reference` compares exactly, so it stays FAIL until the deltas are accepted or explained. `section_type_histogram` of the join: Class Lecture 5,309, Laboratory 1,617, Other 1,017, Discussion 179, Internship 162, Individual Performance 89, Directed Individual Study 83, Supervised Teaching 52, Supervised Research 27 (sums to 8,535).
+
+### D-04 what-if diff
+
+What-if term 202701 (3,707 sections), computed on the in-transaction state as if the 8,535 sections had been written, then rolled back. `guard_failures` is empty in every term; the only failing verdict is `pairs_match_reference`.
+
+| Item | Value |
+|------|-------|
+| code_only_parity | PASS (identical true; changed 0; float_noise count 3,671 at tolerance 1e-9, max 5.33e-15, stored cache against recomputation before any change) |
+| course_level_invariant | PASS |
+| course_level_violations | **0** |
+| changed sections (score fields differ beyond tolerance) | 637 of 3,707 |
+| transitions | course -> instructor_course: 637 (no other transition; no section leaves or enters) |
+| missing_in_after / extra_in_after | none / none |
+| informational_changes (mapped instructor section count changed, scores unchanged) | 3,019 |
+| float_noise | count 3,041, max 5.33e-15 |
+| changed fields | 270 with easiness, withdrawal, effective_n, confidence_label and source; 195 with easiness, withdrawal, effective_n and source; 156 with easiness, withdrawal and source; 16 other combinations |
+| direction of easiness change | 343 up, 294 down |
+| effective_n of the 637 after | 469 at n >= 60, 168 at 30 to 59, none below 30 |
+
+Absolute easiness delta, all 3,707 sections: max 2.619, mean 0.0461, median 3.6e-15, p90 0.1476; buckets: exactly 0: 650; (0, 0.25]: 2,801; (0.25, 0.5]: 164; (0.5, 1]: 79; (1, 2]: 11; > 2: 2.
+
+Absolute delta over the 637 changed sections only: max 2.619, mean 0.268, median 0.189, p90 0.575; 13 sections move by more than 1.0.
+
+Rank shift (absolute): all 3,707 sections max 2,135, median 36; over the 637 changed sections median 266, mean 378, p90 931, max 2,135.
+
+Top 15 changes by absolute delta (all `course` -> `instructor_course`; CRN, subject and course number, easiness before and after, delta, rank before and after, effective_n before and after):
+
+| CRN | Course | Before | After | Delta | Rank before | Rank after | n before | n after |
+|-----|--------|-------:|------:|------:|------------:|-----------:|---------:|--------:|
+| 13417 | AMH 2020 | 8.568 | 5.949 | -2.619 | 2686 | 3704 | 4049 | 296 |
+| 20578 | AMH 2020 | 8.568 | 5.949 | -2.619 | 2700 | 3705 | 4049 | 296 |
+| 12059 | ECO 3101 | 6.502 | 7.933 | +1.430 | 3702 | 3396 | 469 | 56 |
+| 12060 | ECO 3101 | 6.502 | 7.933 | +1.430 | 3703 | 3397 | 469 | 56 |
+| 13155 | HUM 1020 | 8.598 | 7.197 | -1.401 | 2605 | 3659 | 3384 | 77 |
+| 13819 | EGN 3343 | 7.599 | 8.930 | +1.331 | 3586 | 1868 | 727 | 142 |
+| 16940 | FIN 4504 | 8.911 | 7.609 | -1.303 | 1859 | 3557 | 426 | 56 |
+| 14092 | EGN 3311 | 6.862 | 5.608 | -1.254 | 3685 | 3706 | 929 | 181 |
+| 18402 | EGN 2615 | 7.222 | 5.982 | -1.240 | 3656 | 3702 | 496 | 53 |
+| 18405 | EGN 2615 | 7.222 | 5.982 | -1.240 | 3659 | 3703 | 496 | 53 |
+| 13523 | BSC 2011 | 7.658 | 8.745 | +1.088 | 3580 | 2246 | 2829 | 490 |
+| 18637 | ANT 4930 | 8.745 | 7.741 | -1.004 | 2242 | 3529 | 227 | 32 |
+| 18716 | ANT 4930 | 8.745 | 7.741 | -1.004 | 2245 | 3530 | 227 | 32 |
+| 14499 | CEG 4850 | 8.609 | 9.595 | +0.986 | 2561 | 476 | 78 | 78 |
+| 18408 | EGN 2440 | 7.213 | 8.195 | +0.983 | 3662 | 3170 | 827 | 148 |
+
+Resulting 202701 `instructor_course` sections: **637** (none before the backfill); 9 of the 637 carry an L suffix in the course number (labs stay at course level by rule and no course-level, subject-level or global score moved: `course_level_violations` 0). Against the 2026-09-28 research's 751 sections at n >= 30 including 131 labs (751 less 131 is 620), 637 is in the same range.
+
+`10-WHATIF-DIFF.json` now holds the full dry run 4 object, including the `changes` list (637 entries, derived numbers only: no instructor names, no "://", no home path). It replaces the dry run 2 object that was committed earlier; the dry run 2 figures above stay in this file for the record.
+
+### D-04 and the plan 10-08 hand-off
+
+No decision is recorded here and nothing in this section approves a go-live or `--apply`: D-04 is a `blocking-human` decision that the operator takes. The evidence it rests on is the two tables above (guards all clear; `pairs_match_reference` FAIL with the deltas listed; 637 sections change, all `course` -> `instructor_course`; no course-level movement). Proposed `--expect-inserted 8535`, valid only for a rerun that again has empty `guard_failures` on current data; a real `--apply` would make its own five USF requests.
