@@ -2,18 +2,18 @@
 gsd_state_version: "1.0"
 current_plan: Not started
 status: design_direction_selected
-stopped_at: Phase 10 context gathered
-last_updated: "2026-10-01T00:28:30.571Z"
-state_head: 76dc024bb1836bddcf3eb6532781c7a9cedf2248
+stopped_at: Phase 10 UI-SPEC approved
+last_updated: "2026-10-01T01:15:19.136Z"
+state_head: 7e613e41f173060f5b02e2e5c6f5b68daca2171e
 progress:
   total_phases: 11
   completed_phases: 7
-  total_plans: 36
+  total_plans: 45
   completed_plans: 36
-  percent: 64
+  percent: 18
 last_activity: 2026-09-30
+current_phase_name: professor-level-grades
 current_phase: 10
-current_phase_name: Professor-level grades
 last_activity_desc: Plan 09-15 complete; hosted beta live on Render, two sweeps soaked, 30 s sweep-duration gap open for operator decision
 ---
 
@@ -119,7 +119,7 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 ## Current Position
 
 Current Plan: Not started
-Total Plans in Phase: 16
+Total Plans in Phase: 9
 
 ## Next action
 
@@ -284,11 +284,11 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Phase 10 context gathered
+**Stopped at:** Phase 10 UI-SPEC approved
 Final specification review and student walkthrough remain open. See
 `.planning/sketches/001-student-experience/README.md`.
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
-**Resume file:** .planning/phases/10-professor-level-grades/10-CONTEXT.md
+**Resume file:** .planning/phases/10-professor-level-grades/10-UI-SPEC.md
 
 Earlier session: 2026-09-23. Phase 07 execution ran across three sessions. Codex (Windows clone)
 completed the 07-01 benchmarks and baseline. A Claude Code WSL session fetched that branch,
@@ -296,7 +296,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-10-01T00:28:30.438Z
+Last session: 2026-10-01T00:34:52.665Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
