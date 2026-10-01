@@ -516,3 +516,105 @@ Open follow-ups (none resolved by this decision):
 3. Live-term blind spot: the live sync's `campus=T` request still cannot see Tampa-credited rows scheduled under another label for Spring 2027 (see 10-GAP-05, "Follow-up: the live term has the same blind spot").
 4. The shared-normaliser change from 10-GAP-06 (a time cell of only `TBA`/`ARR` placeholders now reads as no time range, not a parse error) is a live-visible change to the live sync's normaliser (see 10-GAP-06, "Shared-code call-outs").
 5. The Phase 9 carry-overs WR-03 and NEB 0001 are untouched by this plan.
+
+## CI, merge and deploy
+
+Recorded 2026-10-01 by the plan 10-08 continuation executor (Task 1 verification half), read-only, from branch `phase-10-post-merge` (created at origin/main). The merge, the push and the Render deploy were operator actions; nothing here pushed, merged or deployed.
+
+Verdict: PASS on every item below. One item is not independently verifiable and is stated as such (the Render deploy rows).
+
+| Item | Result |
+|------|--------|
+| PR | #37 (`phase-10-prof-grades` into `main`), https://github.com/aatif101/easy-A/pull/37, state MERGED |
+| Merge commit | `bcf1dbbace2a16dc8d03d18880f6bcba89f4afe7`, merged 2026-10-01T21:33:06Z |
+| `git fetch origin && git rev-parse origin/main` | `bcf1dbbace2a16dc8d03d18880f6bcba89f4afe7`, equal to the merge commit |
+| `gh pr checks 37` | python, web and docker all `pass` on both PR runs (below) |
+| PR run, event `push`, head `144e07d` | https://github.com/aatif101/easy-A/actions/runs/36929153363 (python 1m25s, web 27s, docker 40s), conclusion success |
+| PR run, event `pull_request`, head `144e07d` | https://github.com/aatif101/easy-A/actions/runs/36929155977 (python 1m24s, web 32s, docker 28s), conclusion success |
+| Post-merge run on main, event `push`, head `bcf1dbb` | https://github.com/aatif101/easy-A/actions/runs/36929434892, conclusion success |
+| Check-runs on the merge commit | `python`, `web`, `docker` all `success` (GitHub API) |
+
+Render deploy of the merge commit:
+
+| Item | Result |
+|------|--------|
+| Operator statement | The user states Render shows easy-a-api, easy-a-worker and easy-a-web live on the merge commit. |
+| Independent evidence | GitHub deployments created by Render for sha `bcf1dbbace2a16dc8d03d18880f6bcba89f4afe7` (environments `main - easy-a-api`, `main - easy-a-worker`, `main - easy-a-web`, created 2026-10-01T21:34:52Z to 21:34:53Z). Each has status `in_progress` then `success`: web 21:35:08Z, worker 21:35:21Z, api 21:35:34Z. This is Render's own report to GitHub, read through the GitHub API; it corroborates the operator statement but is not a read of the running containers. |
+| What could NOT be verified | The commit actually running inside each container. `/health` returns only `{"status":"ok"}` and `/api/v1/metadata/sync-status` has no version or commit field; the runbook documents none. The worker (no HTTP surface) was not inspected beyond the Render deployment status above. |
+
+Live health at 2026-10-01T21:40Z:
+
+| Check | Result |
+|-------|--------|
+| `GET /health` | HTTP 200, `{"status":"ok"}` (served by uvicorn behind Cloudflare) |
+| `GET /api/v1/metadata/sync-status?term=202701` | `is_stale` false; `last_status` succeeded; `last_success_at` 2026-10-01T20:42:05Z; `last_run_at` 2026-10-01T20:41:29Z; `last_error_kind` null; `failures_last_24h` 0; `in_registration_window` false; `cadence_seconds` 3600; `stale_after_seconds` 7200; `as_of` 2026-10-01T21:40:42Z |
+| Observation | `last_records_failed` is 1 for the latest sweep. The runbook's healthy definition (succeeded, not stale, 0 failures in 24h) is met; the one unapplied row per sweep is noted, not investigated here. No sweep ran after the merge deploy yet at the time of the check (last run 20:41Z, cadence 3600 s), so this status predates the deployed code's first sweep. |
+
+## Pre-apply live baseline
+
+Observed 2026-10-01T21:41Z to 21:43Z, after the deploy of `bcf1dbb`, before any apply. All database reads in READ ONLY transactions; all API calls were public GETs. No USF request, no write.
+
+Verdict: PASS. `report_ranking_diff` exit 0, inventory PASS/PASS, search items carry no instructor history.
+
+### Deployed code changes no live score
+
+`uv run python scripts/report_ranking_diff.py --term 202701`: exit 0 at 2026-10-01T21:41:03Z, verdicts `identical` PASS and `course_level_invariant` PASS.
+
+| Field | Value |
+|-------|-------|
+| total_before / total_after | 3,707 / 3,707 |
+| missing_in_after / extra_in_after | none / none |
+| changed (beyond 1e-9) | 0 |
+| float noise | 3,671 rows with delta at or below 1e-9; max abs delta 5.33e-15 (tolerance 1e-9) |
+| course_level_violations | none |
+
+### Inventory baseline (D-21)
+
+`uv run python scripts/inventory_tampa_grades.py --term 202701`: exit 0 at 2026-10-01T21:41:05Z, verdicts `integrity` PASS and `d21_grade_coverage` PASS.
+
+| Field | Value |
+|-------|-------|
+| 202701 sections / cache rows / represented courses | 3,707 / 3,707 / 1,374 |
+| non_tampa_section_count | 0 |
+| stale_cache | false (cache refreshed 2026-10-01T20:41:29Z) |
+| evidence_backed sections | 3,049 |
+| exception sections | 658 = no_rows 374 + non_letter_grade 284 |
+| courses by state | evidence_backed 1,081; exception_no_rows 244; exception_non_letter_grade 49 |
+| grade rows | 8,662 (202408 179, 202501 2,096, 202505 465, 202508 2,887, 202601 3,035); latest ingest 2026-09-23T21:36:34Z |
+| integrity | unattributed_grade_rows 0; bucket_sum_mismatch_rows 0; rows_at_or_after_term 0 |
+
+Note: active 202701 sections are 3,707 now against 3,703 at the 2026-10-01T06:30Z baseline above; the difference is live sweep drift (the worker ran at 20:41Z), not a change from this plan.
+
+### Cache and metadata baselines (counts only)
+
+| Item | Value |
+|------|-------|
+| Alembic version | `0004_sync_removed_at` (unchanged; no migration in this phase) |
+| 202701 `section_rankings` rows | 3,707 |
+| score_source split | course 3,333; subject 325; global 49 (no `instructor_course` yet) |
+| delivery_method split | CL 3,480; NULL 104; HB 85; PD 24; AD 14 |
+| Rows with a non-null `instructor_breakdown` | 0 of 3,707 (0 rows have a null `historical_analytics`) |
+
+### API payload baselines
+
+Public GETs against `https://easy-a-api.onrender.com`, HTTP 200 each. Bytes are the response body size; the SHA-256 is of the exact body saved at that moment (the search pages depend on live sweep data, so a later difference is expected to be explained, not assumed a regression).
+
+| Request | Bytes | Items | SHA-256 |
+|---------|-------|-------|---------|
+| `/api/v1/rankings/search?term=202701&subject=ENC&course_number=1101&limit=50` | 84,210 | 41 (envelope total 41; limit 50, offset 0) | `f1255729d31617b55b2ef491e80dab06d77db1271a11a36d8b7a902239870351` |
+| `/api/v1/rankings/search?term=202701&limit=50` (default page) | 99,363 | 50 (envelope total 3,707) | `873b63cd332913a0fe17de56fadafe1705e33fc1bffecd6153a5d93f98e3c7b4` |
+| `/api/v1/metadata/delivery-methods` | 175 | 4 codes | `870eed9100ddfbd460599f5cf53918fc0dcdf4f35ab36c7b1c81e6062c50d4a3` |
+
+`/api/v1/metadata/delivery-methods` body, verbatim (it carries no personal data):
+
+```json
+[{"code":"AD","label":"All Online 100%"},{"code":"CL","label":"Classroom 1–49%"},{"code":"HB","label":"Hybrid Blend 50–79%"},{"code":"PD","label":"Primarily DL 80–99%"}]
+```
+
+### No instructor history yet
+
+Every sampled search item (41 on the ENC 1101 page and 50 on the default page, 91 items in all) has `historical_analytics.instructor_breakdown` present with the value `null`, so the key exists in the deployed response schema and carries no history. All 91 items have `score_source` `course`. The `historical_analytics` object keys on the deployed API are: completed_grade_count, confidence_label, easiness_score, effective_n, instructor_breakdown, mapped_instructor_section_count, prior_level, provenance, score_source, section_count, smoothed_withdrawal_rate, term_count, total_grade_count, withdrawal_count.
+
+### Baseline conclusion
+
+The deployed code changes no live score (ranking diff identical), D-21 inventory passes with 3,049 evidence-backed sections and 658 exceptions, the API serves no instructor history, and the payload sizes and delivery-method list are recorded for the post-apply comparison. Task 2 (the operator-run apply) was not prepared or run.
