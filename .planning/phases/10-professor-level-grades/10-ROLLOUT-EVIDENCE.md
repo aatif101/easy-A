@@ -1,8 +1,8 @@
 # Phase 10 Rollout Evidence (plan 10-07)
 
-Dated evidence for the pre-merge half of the Phase 10 rollout. No connection strings, hostnames or credentials appear in this file. Every hosted database statement below ran inside a READ ONLY transaction (`SET TRANSACTION READ ONLY`; `transaction_read_only` confirmed `on`). No USF request has been made in this plan so far, and the dry run (Task 2) has NOT been run.
+Dated evidence for the pre-merge half of the Phase 10 rollout. No connection strings, hostnames or credentials appear in this file. Every hosted database statement below ran inside a READ ONLY transaction (`SET TRANSACTION READ ONLY`; `transaction_read_only` confirmed `on`). No USF request had been made when Task 1 closed; Task 2 sections are appended below as they are run.
 
-**STATUS: BLOCKED at Task 1. The code-only parity gate (D-03) returned exit 1, not the required exit 0. Task 2 (dry run) was not run, per the plan. See "Code-only parity (D-03)".**
+**STATUS: Task 1 parity gate RESOLVED (exit 0 after the user's "revise-with-tolerance" decision, commit cef0d5c). The first run was BLOCKED (exit 1, float noise only); that record is kept below. See "Code-only parity (D-03)" and "Re-run after tolerance (D-03)".**
 
 ## Pre-merge gates
 
@@ -51,7 +51,7 @@ Observed 2026-10-01T06:30:54Z, READ ONLY transaction.
 
 ## Code-only parity (D-03)
 
-Command: `uv run python scripts/report_ranking_diff.py --term 202701`, run from the workstation at 2026-10-01T06:31:00Z to 06:31:04Z. **Exit code 1 (differences). The required result was exit 0 (identical). The plan's instruction on exit 1 is to stop and present this evidence, so Task 2 was not run.**
+First run (exact comparison, before the tolerance). Command: `uv run python scripts/report_ranking_diff.py --term 202701`, run from the workstation at 2026-10-01T06:31:00Z to 06:31:04Z. **Exit code 1 (differences). The required result was exit 0 (identical). The plan's instruction on exit 1 is to stop and present this evidence, so Task 2 was not run.**
 
 | Field | Value |
 |-------|-------|
@@ -67,6 +67,23 @@ Command: `uv run python scripts/report_ranking_diff.py --term 202701`, run from 
 | verdicts | identical FAIL; course_level_invariant FAIL (see below) |
 
 Every difference is at the size of a single floating-point unit in the last place (1 ULP; the largest is 5.33e-15 on scores near 8 to 10). Fields that differ: `easiness_score` on 2,958 CRNs and `smoothed_withdrawal_rate` on 3,440 CRNs. No score_source, effective_n, confidence label or rank changed. The `course_level_invariant` verdict fails only because the comparison is exact: it counts these 1-ULP differences on course-level sections as violations.
+
+### Re-run after tolerance (D-03)
+
+The user decided "revise-with-tolerance". Commit `cef0d5c` added a shared `SCORE_TOLERANCE = 1e-9` (see `10-GAP-01-TOLERANCE.md`). The first run above is kept as the original BLOCKED record. Re-run: `uv run python scripts/report_ranking_diff.py --term 202701`, read-only, 2026-10-01T16:56:43Z to 16:56:49Z, no USF request. **Exit code 0 (identical).**
+
+| Field | Value |
+|-------|-------|
+| verdicts | identical PASS; course_level_invariant PASS |
+| total_before / total_after | 3,705 / 3,705 (active 202701 sections grew from 3,703 to 3,705 through the normal sync between the two runs; no missing or extra CRN) |
+| changed (beyond tolerance) | 0 |
+| transitions | none |
+| rank_shift | max 0, median 0 |
+| course_level_violations / informational_changes | 0 / 0 |
+| float_noise | tolerance 1e-9, count 3,669, max_abs_delta 5.33e-15 |
+| abs easiness delta | max 5.33e-15, mean 2.35e-15, median 1.78e-15; exactly 0: 745; (0, 0.25]: 2,960; every larger bucket: 0 |
+
+Within-tolerance float noise remains visible under `float_noise` (3,669 sections, largest 5.33e-15, about 1 ULP), the same pre-existing cache gap diagnosed below. No score_source, effective_n, confidence label or rank differs.
 
 ### Diagnosis (read-only, local recompute against the same hosted data)
 
