@@ -579,7 +579,7 @@ history, wherever the evidence supports it.
 
 **Requirements**: REQ-PROF-01
 
-**Plans:** 4/9 plans executed (tracer-first; Wave 1 ×4 parallel → Wave 2 ×2 → Wave 3 → Wave 4 → Wave 5). D-24 approved 2026-09-30 (CONTEXT D-01).
+**Plans:** 5/9 plans executed (tracer-first; Wave 1 ×4 parallel → Wave 2 ×2 → Wave 3 → Wave 4 → Wave 5). D-24 approved 2026-09-30 (CONTEXT D-01).
 
 Plans:
 **Wave 1**
@@ -591,7 +591,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 10-05-PLAN.md — Breakdown builder in both ranking paths, embedded in historical_analytics (no migration), contract-exact API, consistency invariant
+- [x] 10-05-PLAN.md — Breakdown builder in both ranking paths, embedded in historical_analytics (no migration), contract-exact API, consistency invariant
 - [ ] 10-06-PLAN.md — Backfill what-if dry run (D-04 diff + re-measure), atomic apply + cache rebuild under the sweep lock, rollback and rebuild-only, operator runbook
 
 **Wave 3** *(blocked on Wave 2)*

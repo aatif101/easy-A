@@ -1,15 +1,15 @@
 ---
 gsd_state_version: "1.0"
-current_plan: 5
+current_plan: 6
 status: design_direction_selected
-stopped_at: Completed 10-04-PLAN.md
-last_updated: "2026-10-01T06:07:33.794Z"
-state_head: ddae01614a69024ecf759bc8b2ac8811b1960bc5
+stopped_at: Completed 10-05-PLAN.md
+last_updated: "2026-10-01T06:17:01.281Z"
+state_head: 0c53630122c26b1a02806b59eb43a2009471284f
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 45
-  completed_plans: 40
+  completed_plans: 41
   percent: 64
 last_activity: 2026-09-30
 current_phase: 10
@@ -118,7 +118,7 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: 5
+Current Plan: 6
 Total Plans in Phase: 9
 
 ## Next action
@@ -284,7 +284,7 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Completed 10-04-PLAN.md
+**Stopped at:** Completed 10-05-PLAN.md
 Final specification review and student walkthrough remain open. See
 `.planning/sketches/001-student-experience/README.md`.
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
@@ -296,7 +296,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-10-01T06:07:33.708Z
+Last session: 2026-10-01T06:17:01.197Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
@@ -346,6 +346,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 | Phase 10 P02 | 20 min | 2 tasks | 5 files |
 | Phase 10 P03 | 12 min | 2 tasks | 6 files |
 | Phase 10 P04 | 8 min | 3 tasks | 8 files |
+| Phase 10 P05 | 35 min | 3 tasks | 9 files |
 
 ## Decisions
 
@@ -407,3 +408,4 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 - [Phase 10]: 10-02: backfill writes via Core executemany plus one id read, change-only, never seat snapshots or removed_at; a failed guard never writes in --apply — ORM unit of work issued one INSERT per row (81 vs 21 statements for 40 vs 10 rows); D-07 idempotence and D-05 isolation
 - [Phase 10]: 10-03: ranking diff counts a mapped_instructor_section_count-only change as informational, never a gate failure; pair effective_n is min(sum A-F, sum total) with recency off — The backfill raises the mapped count on course-level rows without moving any score; the pair definition matches the 2026-09-28 research
 - [Phase 10]: 10-04: instructor block gated on course_history scope plus non-null breakdown; Staff/ambiguous/unknown sections ignore is_current (no pin, no highlight, no score claim); thresholds come from the API object — D-11, D-13, D-20; UI-SPEC copy locked, thresholds never hard-coded in the frontend
+- [Phase 10]: Plan 10-05: instructor breakdown is embedded in historical_analytics JSON (no migration), collapse cutoff 15, rows keyed by exact name_raw so the pinned row and instructor_course score share one stats helper
