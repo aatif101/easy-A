@@ -28,6 +28,7 @@ class RowSpec:
     wait: int = 0
     delivery: str = "CL"
     status: str = "A"
+    section_type: str = "Class Lecture"
 
 
 def header_row_html() -> str:
@@ -42,7 +43,7 @@ def _cells(spec: RowSpec) -> list[str]:
         spec.crn,
         f"{spec.subject}&nbsp;{spec.number}",
         spec.section,
-        "Class Lecture",
+        spec.section_type,
         f"{spec.title}<br>Synthetic note.",
         "3",
         "No",

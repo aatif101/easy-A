@@ -15,12 +15,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import time
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import httpx
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
 from easy_a.common.lookups import ensure_term
@@ -29,15 +32,18 @@ from easy_a.db import get_engine, get_session_factory
 from easy_a.models import IngestRun
 from easy_a.schedule.backfill import (
     HISTORICAL_GRADE_TERMS,
+    BackfillGuardError,
     TermSelection,
     WriteCounts,
     backfill_ingest_source,
     load_grade_keys,
     resolve_course_ids,
     select_backfill_rows,
+    validate_selection,
     write_term_backfill,
 )
-from easy_a.schedule.client import StaffScheduleClient
+from easy_a.schedule.client import StaffScheduleClient, WholeTermResponseError
+from easy_a.schedule.parser import ScheduleParseError
 from easy_a.sync.fetch import FetchedTerm, fetch_whole_term
 
 EXIT_OK = 0
@@ -46,6 +52,9 @@ EXIT_FAILED = 1
 DEFAULT_PAUSE_SECONDS = 30.0
 MIN_PAUSE_SECONDS = 10.0
 DEFAULT_MAX_UNMATCHED_FRACTION = 0.02
+
+ERROR_DETAIL_LIMIT = 200
+_URL_RE = re.compile(r"[a-z][a-z0-9+.-]*://\S*", re.I)
 
 SessionFactory = sessionmaker[Session]
 ClientFactory = Callable[[], StaffScheduleClient]
@@ -156,6 +165,46 @@ def main(
             engine.dispose()
 
 
+def _scrub(text: str) -> str:
+    """Strip anything URL-shaped and cap the length, so error text is safe to print."""
+    return _URL_RE.sub("[redacted-url]", text)[:ERROR_DETAIL_LIMIT]
+
+
+def _fetch_error_kind(exc: Exception) -> str | None:
+    """A coarse, URL-free kind for a fetch or parse failure; None for anything unexpected."""
+    if isinstance(exc, httpx.TimeoutException):
+        return "usf_timeout"
+    if isinstance(exc, httpx.HTTPStatusError | httpx.TransportError):
+        return "usf_http"
+    if isinstance(exc, WholeTermResponseError):
+        return "usf_response"
+    if isinstance(exc, ScheduleParseError):
+        return "parse"
+    return None
+
+
+def _failure(kind: str, *, term: str | None = None, detail: str | None = None) -> dict[str, Any]:
+    report: dict[str, Any] = {"status": "failed", "error_kind": kind, "written": False}
+    if term is not None:
+        report["failed_term"] = term
+    if detail:
+        report["error"] = _scrub(detail)
+    return report
+
+
+def _guard_failures(selection: TermSelection, max_unmatched_fraction: float) -> list[str]:
+    failures: list[str] = []
+    if selection.fetched_rows == 0:
+        failures.append("zero_rows")
+    if selection.unmatched_fraction > max_unmatched_fraction:
+        failures.append("unmatched_fraction")
+    try:
+        validate_selection(selection)
+    except BackfillGuardError:
+        failures.append("duplicate_crn")
+    return failures
+
+
 def _run(
     args: argparse.Namespace,
     *,
@@ -168,17 +217,28 @@ def _run(
     dry_run = bool(args.dry_run)
     run_started = now_fn()
 
-    with session_factory() as session:
-        grade_keys = load_grade_keys(session, terms)
-        course_ids = resolve_course_ids(session, grade_keys.needed_course_keys())
+    try:
+        with session_factory() as session:
+            grade_keys = load_grade_keys(session, terms)
+            course_ids = resolve_course_ids(session, grade_keys.needed_course_keys())
+    except SQLAlchemyError as exc:
+        return _emit(args, _failure("database", detail=str(exc)), EXIT_FAILED)
 
+    # No transaction is open while the slow, polite USF requests run. One request per term, never
+    # retried, never narrowed: the first failure stops the run with nothing written (D-22 d/e).
     fetched: dict[str, FetchedTerm] = {}
     client = (client_factory or StaffScheduleClient)()
     try:
         for index, term in enumerate(terms):
             if index > 0:
                 sleep(args.pause_seconds)
-            fetched[term] = fetch_whole_term(client, term, now_fn=now_fn)
+            try:
+                fetched[term] = fetch_whole_term(client, term, now_fn=now_fn)
+            except Exception as exc:
+                kind = _fetch_error_kind(exc)
+                if kind is None:
+                    raise
+                return _emit(args, _failure(kind, term=term, detail=str(exc)), EXIT_FAILED)
     finally:
         client.close()
 
@@ -188,33 +248,47 @@ def _run(
         )
         for term in terms
     }
+    guards = {
+        term: _guard_failures(selection, args.max_unmatched_fraction)
+        for term, selection in selections.items()
+    }
+    guard_failed = any(guards.values())
+    # Apply never writes past a failed guard. A dry run still shows the what-if counts, unless a
+    # duplicate CRN makes the write itself unsafe.
+    can_write = not any("duplicate_crn" in failures for failures in guards.values()) and (
+        dry_run or not guard_failed
+    )
 
     writes: dict[str, WriteCounts] = {}
-    session = session_factory()
-    try:
-        for term in terms:
-            term_row = ensure_term(session, term)
-            writes[term] = write_term_backfill(
-                session,
-                term_id=term_row.id,
-                selection=selections[term],
-                observed_at=fetched[term].fetched_at,
-            )
-            if not dry_run:
-                run = _ingest_run(term, selections[term], writes[term], run_started, now_fn())
-                session.add(run)
-        if dry_run:
+    if can_write:
+        session = session_factory()
+        try:
+            for term in terms:
+                term_row = ensure_term(session, term)
+                writes[term] = write_term_backfill(
+                    session,
+                    term_id=term_row.id,
+                    selection=selections[term],
+                    observed_at=fetched[term].fetched_at,
+                )
+                if not dry_run:
+                    run = _ingest_run(term, selections[term], writes[term], run_started, now_fn())
+                    session.add(run)
+            if dry_run:
+                session.rollback()
+            else:
+                session.commit()
+        except SQLAlchemyError as exc:
             session.rollback()
-        else:
-            session.commit()
-    except BaseException:
-        session.rollback()
-        raise
-    finally:
-        session.close()
+            return _emit(args, _failure("database", detail=str(exc)), EXIT_FAILED)
+        except BaseException:
+            session.rollback()
+            raise
+        finally:
+            session.close()
 
-    report = _report(args, selections, writes)
-    return _emit(args, report, EXIT_OK)
+    report = _report(args, selections, writes, guards)
+    return _emit(args, report, EXIT_FAILED if guard_failed else EXIT_OK)
 
 
 def _ingest_run(
@@ -236,7 +310,9 @@ def _ingest_run(
     )
 
 
-def _term_report(selection: TermSelection, counts: WriteCounts | None) -> dict[str, Any]:
+def _term_report(
+    selection: TermSelection, counts: WriteCounts | None, guards: list[str]
+) -> dict[str, Any]:
     report: dict[str, Any] = {
         "fetched_rows": selection.fetched_rows,
         "grade_crns": selection.grade_crns,
@@ -247,6 +323,8 @@ def _term_report(selection: TermSelection, counts: WriteCounts | None) -> dict[s
         "uncataloged": selection.uncataloged,
         "to_write": selection.to_write,
         "unmatched_grade_crns": selection.unmatched_grade_crns,
+        "unmatched_fraction": round(selection.unmatched_fraction, 6),
+        "guard_failures": list(guards),
         "staff_or_blank": selection.staff_or_blank,
         "section_type_histogram": dict(selection.section_type_histogram),
         "delivery_method_histogram": dict(selection.delivery_method_histogram),
@@ -256,7 +334,9 @@ def _term_report(selection: TermSelection, counts: WriteCounts | None) -> dict[s
             inserted=counts.inserted,
             updated=counts.updated,
             unchanged=counts.unchanged,
+            refreshed_last_seen=counts.refreshed_last_seen,
             instructor_rows_added=counts.instructor_rows_added,
+            instructor_changes=counts.instructor_changes,
         )
     return report
 
@@ -265,21 +345,29 @@ def _report(
     args: argparse.Namespace,
     selections: dict[str, TermSelection],
     writes: dict[str, WriteCounts],
+    guards: dict[str, list[str]],
 ) -> dict[str, Any]:
-    return {
-        "mode": "dry_run" if args.dry_run else "apply",
-        "status": "succeeded",
+    failed = any(guards.values())
+    report: dict[str, Any] = {
+        "status": "failed" if failed else "succeeded",
+        "written": bool(writes) and not args.dry_run,
         "terms": {
-            term: _term_report(selection, writes.get(term))
+            term: _term_report(selection, writes.get(term), guards[term])
             for term, selection in selections.items()
         },
     }
+    if failed:
+        report["error_kind"] = "guard"
+    return report
 
 
 def _emit(args: argparse.Namespace, report: dict[str, Any], exit_code: int) -> int:
     full = {"mode": "dry_run" if args.dry_run else "apply", **report}
-    print(json.dumps(full, sort_keys=True))
+    # Defence in depth: nothing URL-shaped may reach stdout or the report file.
+    line = _URL_RE.sub("[redacted-url]", json.dumps(full, sort_keys=True))
+    print(line)
     if args.report_json is not None:
-        args.report_json.write_text(json.dumps(full, indent=2, sort_keys=True) + "\n")
+        pretty = _URL_RE.sub("[redacted-url]", json.dumps(full, indent=2, sort_keys=True))
+        args.report_json.write_text(pretty + "\n")
     return exit_code
 

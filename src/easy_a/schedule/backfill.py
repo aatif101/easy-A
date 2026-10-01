@@ -17,11 +17,16 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import insert, select, update
 from sqlalchemy.orm import Session
 
 from easy_a.common.campus import SUPPORTED_CAMPUS, same_campus
-from easy_a.common.instructors import is_usable_instructor
+from easy_a.common.instructors import (
+    CurrentInstructorState,
+    CurrentInstructorStatus,
+    get_current_instructor_states,
+    is_usable_instructor,
+)
 from easy_a.common.terms import normalize_banner_term_code
 from easy_a.models import Course, GradeDistribution, Section, SectionInstructor, Term
 from easy_a.schedule.ingest import _section_values
@@ -154,6 +159,21 @@ class TermSelection:
     def unmatched_fraction(self) -> float:
         return self.unmatched_grade_crns / self.grade_crns if self.grade_crns else 0.0
 
+    @property
+    def duplicate_crns(self) -> tuple[str, ...]:
+        """CRNs that appear on more than one row to write (the unique key would collide)."""
+        counts = Counter(item.row.crn for item in self.rows)
+        return tuple(sorted(crn for crn, seen in counts.items() if seen > 1))
+
+
+def validate_selection(selection: TermSelection) -> None:
+    """Raise BackfillGuardError before any write when the rows to write are unsafe."""
+    duplicates = selection.duplicate_crns
+    if duplicates:
+        raise BackfillGuardError(
+            f"Term {selection.term} has {len(duplicates)} CRN(s) on more than one row to write."
+        )
+
 
 def select_backfill_rows(
     term: str,
@@ -203,12 +223,39 @@ def select_backfill_rows(
     )
 
 
+CHUNK_SIZE = 500
+"""CRNs per IN list and per bulk last_seen_at update."""
+
+
 @dataclass(frozen=True)
 class WriteCounts:
     inserted: int
     updated: int
     unchanged: int
+    refreshed_last_seen: int
     instructor_rows_added: int
+    instructor_changes: int
+
+
+_EMPTY_COUNTS = WriteCounts(0, 0, 0, 0, 0, 0)
+
+
+def _chunks[T](items: Sequence[T], size: int = CHUNK_SIZE) -> list[Sequence[T]]:
+    return [items[start : start + size] for start in range(0, len(items), size)]
+
+
+def _clean_name(raw: str) -> str:
+    return " ".join(raw.strip().split())
+
+
+def _instructor_differs(state: CurrentInstructorState, raw: str) -> bool:
+    """Whether the stored current instructor state differs from the freshly fetched name."""
+    cleaned = _clean_name(raw)
+    if state.status is CurrentInstructorStatus.resolved:
+        return state.name is None or state.name.casefold() != cleaned.casefold()
+    if state.status is CurrentInstructorStatus.blank_latest_state:
+        return bool(cleaned)
+    return True  # no observations, or an ambiguous latest state: record the fetched name
 
 
 def write_term_backfill(
@@ -218,46 +265,112 @@ def write_term_backfill(
     selection: TermSelection,
     observed_at: datetime,
 ) -> WriteCounts:
-    """Insert the selected sections and one instructor row each. The caller owns the transaction."""
+    """Change-only write of the selected sections. The caller owns the transaction.
+
+    New sections get one instructor row each. Existing sections are updated only when a stored
+    field differs, get a refreshed last_seen_at, and get an instructor row only when the name
+    changed. Never writes seat snapshots and never sets removed_at (D-07).
+    """
+    validate_selection(selection)
     if not selection.rows:
-        return WriteCounts(inserted=0, updated=0, unchanged=0, instructor_rows_added=0)
+        return _EMPTY_COUNTS
 
-    crns = [item.row.crn for item in selection.rows]
-    existing_crns = set(
-        session.scalars(
-            select(Section.crn).where(Section.term_id == term_id, Section.crn.in_(crns))
-        )
-    )
+    wanted = {item.row.crn: item for item in selection.rows}
+    existing: dict[str, Section] = {}
+    for chunk in _chunks(sorted(wanted)):
+        for section in session.scalars(
+            select(Section).where(Section.term_id == term_id, Section.crn.in_(chunk))
+        ):
+            existing[section.crn] = section
 
-    new_sections: list[tuple[Section, NormalizedSection]] = []
-    for item in selection.rows:
-        if item.row.crn in existing_crns:
+    new_items: list[SelectedRow] = []
+    updated = 0
+    for crn, item in wanted.items():
+        current = existing.get(crn)
+        if current is None:
+            new_items.append(item)
             continue
-        section = Section(
-            term_id=term_id,
-            course_id=item.course_id,
-            first_seen_at=observed_at,
-            last_seen_at=observed_at,
-            removed_at=None,
-            **_section_values(item.row),
-        )
-        session.add(section)
-        new_sections.append((section, item.row))
+        changed = {
+            name: value
+            for name, value in _section_values(item.row).items()
+            if getattr(current, name) != value
+        }
+        if current.course_id != item.course_id:
+            changed["course_id"] = item.course_id
+        if changed:
+            for name, value in changed.items():
+                setattr(current, name, value)
+            updated += 1
     session.flush()
-    for section, row in new_sections:
-        session.add(
-            SectionInstructor(
-                section_id=section.id,
-                name_raw=row.instructor_raw,
-                name_normalized=None,
-                source=BACKFILL_SOURCE,
-                observed_at=observed_at,
-            )
+
+    # Bulk inserts (executemany), then one id read: the statement count must not depend on how
+    # many rows are written. The unit of work would issue one INSERT per row.
+    if new_items:
+        session.execute(
+            insert(Section),
+            [
+                {
+                    "term_id": term_id,
+                    "course_id": item.course_id,
+                    "first_seen_at": observed_at,
+                    "last_seen_at": observed_at,
+                    "removed_at": None,
+                    **_section_values(item.row),
+                }
+                for item in new_items
+            ],
         )
+        new_ids: dict[str, int] = {}
+        for chunk in _chunks(sorted(item.row.crn for item in new_items)):
+            for section_id, crn in session.execute(
+                select(Section.id, Section.crn).where(
+                    Section.term_id == term_id, Section.crn.in_(chunk)
+                )
+            ):
+                new_ids[crn] = section_id
+        session.execute(
+            insert(SectionInstructor),
+            [
+                {
+                    "section_id": new_ids[item.row.crn],
+                    "name_raw": item.row.instructor_raw,
+                    "name_normalized": None,
+                    "source": BACKFILL_SOURCE,
+                    "observed_at": observed_at,
+                }
+                for item in new_items
+            ],
+        )
+
+    instructor_changes = 0
+    if existing:
+        states = get_current_instructor_states(session, [s.id for s in existing.values()])
+        for crn, section in existing.items():
+            raw = wanted[crn].row.instructor_raw
+            if _instructor_differs(states[section.id], raw):
+                session.add(
+                    SectionInstructor(
+                        section_id=section.id,
+                        name_raw=raw,
+                        name_normalized=None,
+                        source=BACKFILL_SOURCE,
+                        observed_at=observed_at,
+                    )
+                )
+                instructor_changes += 1
+        for chunk in _chunks(sorted(existing)):
+            session.execute(
+                update(Section)
+                .where(Section.term_id == term_id, Section.crn.in_(chunk))
+                .values(last_seen_at=observed_at)
+                .execution_options(synchronize_session=False)
+            )
     session.flush()
     return WriteCounts(
-        inserted=len(new_sections),
-        updated=0,
-        unchanged=len(selection.rows) - len(new_sections),
-        instructor_rows_added=len(new_sections),
+        inserted=len(new_items),
+        updated=updated,
+        unchanged=len(existing) - updated,
+        refreshed_last_seen=len(existing),
+        instructor_rows_added=len(new_items) + instructor_changes,
+        instructor_changes=instructor_changes,
     )
