@@ -2,7 +2,7 @@
 
 Dated evidence for the pre-merge half of the Phase 10 rollout. No connection strings, hostnames or credentials appear in this file. Every hosted database statement below ran inside a READ ONLY transaction (`SET TRANSACTION READ ONLY`; `transaction_read_only` confirmed `on`). No USF request had been made when Task 1 closed; Task 2 sections are appended below as they are run.
 
-**STATUS: Task 1 parity gate RESOLVED (exit 0 after the user's "revise-with-tolerance" decision, commit cef0d5c). The first run was BLOCKED (exit 1, float noise only); that record is kept below. See "Code-only parity (D-03)" and "Re-run after tolerance (D-03)".**
+**STATUS: Task 1 parity gate RESOLVED (exit 0). Task 2 dry run FAILED at term 202505 with a parse guard (exit 1, nothing written); the dry run was NOT rerun, per the plan. Awaiting a decision. See "Five-term dry run (D-07)". Original Task 1 note: parity gate RESOLVED (exit 0 after the user's "revise-with-tolerance" decision, commit cef0d5c). The first run was BLOCKED (exit 1, float noise only); that record is kept below. See "Code-only parity (D-03)" and "Re-run after tolerance (D-03)".**
 
 ## Pre-merge gates
 
@@ -118,3 +118,38 @@ Active 202701 `section_type` values on hosted Supabase (READ ONLY, 2026-10-01T06
 | Total | 3,703 |
 
 `LABORATORY_SECTION_TYPES` is `frozenset({"laboratory"})` (unchanged). The only laboratory value on hosted 202701 is `Laboratory`, which normalizes to `laboratory` and matches. There is no bare "Lab" value and no combined lecture-and-lab type among the nine values, so no code or test change was needed and none was committed. The historical-term section_type histogram is only available from the Task 2 dry run, so this vocabulary check remains open for the five historical terms.
+
+## Five-term dry run (D-07)
+
+**FAILED. Exit code 1, nothing written. The what-if (D-04), the per-term counts, N for `--expect-inserted`, the historical section_type histogram and the join re-measure were NOT produced.**
+
+Command (run exactly once): `uv run python scripts/backfill_historical_sections.py --dry-run --report-json .planning/phases/10-professor-level-grades/10-WHATIF-DIFF.json`. Start 2026-10-01T16:57:32Z, end 2026-10-01T16:59:13Z (101 s). No USF request had been made from this workstation in this plan before it (the 60-minute precondition holds).
+
+Sanitized outcome (stdout, identical to the report file):
+
+| Field | Value |
+|-------|-------|
+| status / mode / written | failed / dry_run / false |
+| error_kind | `parse` |
+| failed_term | `202505` |
+| error | Parsed 2174 rows from 2175 data rows; refusing a response that silently lost rows. |
+
+Request count: the CLI fetches the terms in order and stops at the first failure, so three whole-term USF requests were made (`202408`, `202501`, `202505`, the last two 30 s apart); `202508` and `202601` were never requested. `202408` and `202501` fetched and parsed without a guard failure, but their counts were not reported because the run stops before any database step.
+
+Meaning: `parse_whole_term` found 2,175 `<tr>` blocks containing a `<td>` in the 202505 response but the row parser produced 2,174 rows, one fewer. The guard refuses the whole term by design (it is the same fail-closed guard the live sync uses). The cause (which row is dropped and why) cannot be seen from the sanitized output, and the response HTML is not kept. Diagnosing it needs either a code change that reports the dropped row's position (counts only) plus a new request, or an explicit decision about the parser. Per D-22(e) there was no retry and no narrower-query fallback, and the dry run was not rerun.
+
+`10-WHATIF-DIFF.json` holds only this failure object (no `what_if`, no changes list, no "://").
+
+## Row counts before/after
+
+Read-only transactions (`SET TRANSACTION READ ONLY`, confirmed `on`). Counts are identical, so nothing was written (T-10-21).
+
+| Table | Before (2026-10-01T16:57:24Z) | After (2026-10-01T16:59:17Z) |
+|-------|------------------------------|------------------------------|
+| sections (all terms; all are 202701) | 3,814 | 3,814 |
+| section_instructors | 4,426 | 4,426 |
+| seat_snapshots | 4,370 | 4,370 |
+| section_rankings (all rows; all 202701) | 3,705 | 3,705 |
+| ingest_runs | 133 | 133 |
+
+Note: `sections` includes removed rows (3,814 total vs 3,705 active/ranked 202701 sections).

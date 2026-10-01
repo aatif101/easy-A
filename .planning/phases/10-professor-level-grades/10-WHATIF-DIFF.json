@@ -1,0 +1,8 @@
+{
+  "error": "Parsed 2174 rows from 2175 data rows; refusing a response that silently lost rows.",
+  "error_kind": "parse",
+  "failed_term": "202505",
+  "mode": "dry_run",
+  "status": "failed",
+  "written": false
+}
