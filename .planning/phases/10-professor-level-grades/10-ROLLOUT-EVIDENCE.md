@@ -2,6 +2,8 @@
 
 Dated evidence for the pre-merge half of the Phase 10 rollout. No connection strings, hostnames or credentials appear in this file. Every hosted database statement below ran inside a READ ONLY transaction (`SET TRANSACTION READ ONLY`; `transaction_read_only` confirmed `on`). No USF request had been made when Task 1 closed; Task 2 sections are appended below as they are run.
 
+**FINAL STATUS (2026-10-01T21:23:24Z): the operator chose `approve` at the D-04 decision (see "D-04 decision" at the end); plan 10-07 is complete. The status lines below are earlier ones, kept for the record.**
+
 **LATEST STATUS (2026-10-01, after dry run 4): the fourth five-term dry run (all-campus request with the campus gate before normalising, the one the user authorised after 10-GAP-06) COMPLETED: exit 0, `status` succeeded, `guard_failures` empty in all five terms, `row_normalisation_failures` 0, would-insert 8,535, nothing written (row counts identical). `pairs_match_reference` is still FAIL (pairs_total 3,297 against 3,216; n >= 60/30/15 are 1,314 / 2,153 / 2,785 against 1,329 / 2,178 / 2,829); `course_level_violations` is 0. It was not rerun. The D-04 decision is awaiting the operator; see "Five-term dry run 4 (D-07)" at the end. The statuses below are earlier ones, kept for the record.**
 
 **STATUS (2026-10-01, after dry run 3): the third five-term dry run (all-campus request, the one the user authorised after 10-GAP-05) FAILED to complete: `error_kind` `parse` at term 202601, a schedule time cell holding two to-be-announced components that the row normaliser rejects (2 rows, both on a campus the backfill excludes). No what-if, no per-term report and no guard result was produced; nothing was written (row counts identical). It was not rerun and no code was changed (D-22e). See "Five-term dry run 3 (D-07)" at the end. The D-04 decision cannot be taken on dry run 3 evidence. The status below is the earlier one, kept for the record.**
@@ -486,3 +488,31 @@ Resulting 202701 `instructor_course` sections: **637** (none before the backfill
 ### D-04 and the plan 10-08 hand-off
 
 No decision is recorded here and nothing in this section approves a go-live or `--apply`: D-04 is a `blocking-human` decision that the operator takes. The evidence it rests on is the two tables above (guards all clear; `pairs_match_reference` FAIL with the deltas listed; 637 sections change, all `course` -> `instructor_course`; no course-level movement). Proposed `--expect-inserted 8535`, valid only for a rerun that again has empty `guard_failures` on current data; a real `--apply` would make its own five USF requests.
+
+## D-04 decision
+
+| Item | Value |
+|------|-------|
+| Decision | `approve` |
+| Recorded (UTC) | 2026-10-01T21:23:24Z |
+| Decided by | the user (operator), in the orchestrator session, from the dry run 4 evidence summary |
+| Options offered | approve (accept the reference deltas in writing, keep the allow-list); revise-widen-allow-list; reject |
+| Reason given | None in the user's own words. The user replied only "approve"; no written reason was given and none is inferred here. |
+
+What the approval accepts, in writing, from the "Five-term dry run 4" evidence above (dry run 4: exit 0, `guard_failures` empty in all five terms, `row_normalisation_failures` 0, would-insert 8,535, `course_level_violations` 0, `pairs_match_reference` FAIL):
+
+- The `pairs_match_reference` FAIL stays as measured; it is accepted, not re-run. Deltas against the 2026-09-28 reference: pairs with n >= 1 -63; n >= 60 -15; n >= 30 -25; n >= 15 -44; named grade rows -127.
+- The -127 named grade rows are fully accounted for: 58 graded CRNs absent from the whole-term responses plus 69 graded CRNs scheduled on a non-allow-listed campus (58 + 69 = 127).
+- The courses delta (+31) and the multi-term pairs delta (+45) are unexplained. They are accepted as unexplained, not as understood. (The headline `pairs` +81 is the `pairs_total` definition including 144 pairs with n = 0; the like-for-like figure is the n >= 1 delta above.)
+- The allow-list stays `{Tampa, Off-campus - Tampa}`. The 69 graded CRNs on other campuses stay excluded: 26 Off Campus Special Programs, 18 St. Petersburg, 10 Off-campus - St. Petersburg, 9 Sarasota-Manatee, 6 Off-campus - Sarasota-Manatee. The option to widen the allow-list was offered and not chosen.
+- The proposed `--expect-inserted 8535` is valid only for a rerun that again has empty `guard_failures` on current data. A real `--apply` makes its own five USF requests and must be judged against its own dry run figures; if the guards or N differ, this approval does not cover that run without a new look.
+
+Scope of the approval: it lets plan 10-08 start (merge with green CI, then the operator-run apply, each with its own gates and its own authorisations). It does NOT itself authorise the apply, a merge, a push, a deploy or any live USF request or hosted database write.
+
+Open follow-ups (none resolved by this decision):
+
+1. The 58 unmatched graded CRNs (0.67% of 8,662; 202508: 24, 202601: 34) are unexplained.
+2. The courses (+31) and multi-term pairs (+45) deltas are unexplained.
+3. Live-term blind spot: the live sync's `campus=T` request still cannot see Tampa-credited rows scheduled under another label for Spring 2027 (see 10-GAP-05, "Follow-up: the live term has the same blind spot").
+4. The shared-normaliser change from 10-GAP-06 (a time cell of only `TBA`/`ARR` placeholders now reads as no time range, not a parse error) is a live-visible change to the live sync's normaliser (see 10-GAP-06, "Shared-code call-outs").
+5. The Phase 9 carry-overs WR-03 and NEB 0001 are untouched by this plan.
