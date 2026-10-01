@@ -28,6 +28,10 @@ and a structural fingerprint, never cell text. ``--save-failed-response PATH`` (
 run and apply only) also keeps the raw failing response in a local, git-ignored file, written only
 on a parse failure.
 
+The request is made with a blank campus (every campus) because USF labels many Tampa-credited
+sections ``Off-campus - Tampa``; only the allow-listed labels in ``backfill.BACKFILL_CAMPUS_LABELS``
+are kept (Phase 10 gap 05). The live sync is unchanged and stays on ``campus=T``.
+
 One request per term, never retried, and no URL (request or database) is ever printed: stdout is a
 single JSON object of counts.
 """
@@ -64,6 +68,8 @@ from easy_a.rankings.diff import (
     stored_score_rows,
 )
 from easy_a.schedule.backfill import (
+    BACKFILL_CAMPUS_LABELS,
+    BACKFILL_WHOLE_TERM_CAMPUS,
     HISTORICAL_GRADE_TERMS,
     BackfillGuardError,
     TermSelection,
@@ -439,7 +445,11 @@ def _run(
                 sleep(args.pause_seconds)
             try:
                 fetched[term] = fetch_whole_term(
-                    client, term, now_fn=now_fn, on_parse_failure=saver
+                    client,
+                    term,
+                    now_fn=now_fn,
+                    on_parse_failure=saver,
+                    campus=BACKFILL_WHOLE_TERM_CAMPUS,
                 )
             except Exception as exc:
                 kind = _fetch_error_kind(exc)
@@ -534,6 +544,7 @@ def _run(
         what_if=what_if,
         applied=applied,
         committed=committed,
+        fetched=fetched,
     )
     return _emit(
         args,
@@ -677,6 +688,7 @@ class _Outcome:
     what_if: WhatIf | None
     applied: Applied | None
     committed: bool
+    fetched: dict[str, FetchedTerm]
 
 
 @dataclass(frozen=True)
@@ -761,10 +773,17 @@ def _ingest_run(
 
 
 def _term_report(
-    selection: TermSelection, counts: WriteCounts | None, guards: list[str]
+    selection: TermSelection,
+    counts: WriteCounts | None,
+    guards: list[str],
+    fetched: FetchedTerm | None = None,
 ) -> dict[str, Any]:
     report: dict[str, Any] = {
         "fetched_rows": selection.fetched_rows,
+        "rows_by_campus": dict(selection.rows_by_campus),
+        "campus_allowed_rows": selection.campus_allowed_rows,
+        "non_tampa_by_label": dict(selection.non_tampa_by_label),
+        "unknown_campus_labels": dict(selection.unknown_campus_labels),
         "grade_crns": selection.grade_crns,
         "not_graded": selection.not_graded,
         "non_tampa": selection.non_tampa,
@@ -779,6 +798,8 @@ def _term_report(
         "section_type_histogram": dict(selection.section_type_histogram),
         "delivery_method_histogram": dict(selection.delivery_method_histogram),
     }
+    if fetched is not None:
+        report["response_bytes"] = fetched.byte_count
     if counts is not None:
         report.update(
             inserted=counts.inserted,
@@ -802,8 +823,22 @@ def _report(
     report: dict[str, Any] = {
         "status": "failed" if guard_failed or what_if_failed or apply_failures else "succeeded",
         "written": outcome.committed,
+        "request": {
+            "whole_term_campus": BACKFILL_WHOLE_TERM_CAMPUS or "(blank: all campuses)",
+            "campus_allow_list": sorted(BACKFILL_CAMPUS_LABELS),
+        },
+        # Timings vary run to run, so they sit outside ``terms`` (a dry run and its apply must
+        # report identical per-term counts).
+        "fetch_seconds": {
+            term: round(fetched.elapsed_seconds, 3) for term, fetched in outcome.fetched.items()
+        },
         "terms": {
-            term: _term_report(selection, outcome.writes.get(term), outcome.guards[term])
+            term: _term_report(
+                selection,
+                outcome.writes.get(term),
+                outcome.guards[term],
+                outcome.fetched.get(term),
+            )
             for term, selection in outcome.selections.items()
         },
     }

@@ -15,6 +15,12 @@ WHOLE_TERM_MAX_BYTES = 25_000_000
 WHOLE_TERM_READ_TIMEOUT_SECONDS = 120.0
 WHOLE_TERM_CONNECT_TIMEOUT_SECONDS = 15.0
 
+LIVE_WHOLE_TERM_CAMPUS = "T"
+"""P_CAMPUS of the live sync's whole-term request: Tampa only (PROJECT.md D-22(a))."""
+
+ALL_CAMPUSES = ""
+"""A blank P_CAMPUS asks USF for every campus; only the one-off backfill uses it (gap 05)."""
+
 
 class WholeTermResponseError(ValueError):
     """Raised when a whole-term response is not HTML or is implausibly large."""
@@ -74,7 +80,7 @@ class StaffScheduleClient:
     def search_term(
         self,
         term: str,
-        campus: str = "T",
+        campus: str = LIVE_WHOLE_TERM_CAMPUS,
         *,
         max_bytes: int = WHOLE_TERM_MAX_BYTES,
         read_timeout_seconds: float = WHOLE_TERM_READ_TIMEOUT_SECONDS,
@@ -139,7 +145,7 @@ def build_form_data(query: ScheduleSearchQuery) -> dict[str, str]:
     )
 
 
-def build_whole_term_form_data(term: str, campus: str = "T") -> dict[str, str]:
+def build_whole_term_form_data(term: str, campus: str = LIVE_WHOLE_TERM_CAMPUS) -> dict[str, str]:
     """Form fields for a whole-term request: empty subject, CRN and course number."""
     return _form_fields(term=term, campus=campus, crn=None, subject=None, course=None)
 

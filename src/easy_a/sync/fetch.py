@@ -16,7 +16,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import datetime
 
-from easy_a.schedule.client import StaffScheduleClient
+from easy_a.schedule.client import LIVE_WHOLE_TERM_CAMPUS, StaffScheduleClient
 from easy_a.schedule.normalize import NormalizedSection, normalize_schedule_row
 from easy_a.schedule.parser import ParsedScheduleRow, ScheduleParseError, parse_schedule_html
 from easy_a.sync.parse_diagnostics import ChunkStat, LostRowsError, build_lost_rows_diagnostics
@@ -158,14 +158,18 @@ def fetch_whole_term(
     *,
     now_fn: Callable[[], datetime],
     on_parse_failure: Callable[[str], None] | None = None,
+    campus: str = LIVE_WHOLE_TERM_CAMPUS,
 ) -> FetchedTerm:
     """One whole-term request, parsed and normalized. Drops the HTML before returning.
+
+    ``campus`` is the request's P_CAMPUS. It defaults to the live sync's Tampa-only ``"T"``
+    (D-22(a)); the one-off backfill passes ``ALL_CAMPUSES`` explicitly (Phase 10 gap 05).
 
     ``on_parse_failure`` is an opt-in hook for the one-off backfill: when the parse guard raises it
     receives the raw response (never otherwise), so an operator can keep it locally to diagnose.
     The live sweep leaves it unset. The error is always re-raised unchanged.
     """
-    page = client.search_term(term)
+    page = client.search_term(term, campus)
     byte_count = page.byte_count
     content_type = page.content_type
     content_encoding = page.content_encoding

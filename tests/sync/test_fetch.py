@@ -66,6 +66,24 @@ def test_search_term_posts_one_whole_term_request() -> None:
     assert page.elapsed_seconds >= 0
 
 
+def test_whole_term_campus_defaults_to_tampa_and_is_passed_through_explicitly() -> None:
+    """The live sync never names a campus, so it keeps campus=T; the backfill names its own."""
+    seen: list[str] = []
+    html = build_whole_term_html(sequential_rows(2))
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(parse_qs(request.content.decode(), keep_blank_values=True)["P_CAMPUS"][0])
+        return httpx.Response(200, text=html, headers={"content-type": "text/html"})
+
+    http, client = _client(httpx.MockTransport(handler))
+    with http:
+        client.search_term("202701")
+        fetch_whole_term(client, "202701", now_fn=lambda: NOW)
+        fetch_whole_term(client, "202701", now_fn=lambda: NOW, campus="")
+
+    assert seen == ["T", "T", ""]
+
+
 def test_search_term_reports_content_encoding_and_uses_long_read_timeout() -> None:
     timeouts: list[object] = []
 

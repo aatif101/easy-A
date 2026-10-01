@@ -32,21 +32,32 @@ from easy_a.models import (
 )
 from easy_a.rankings.cache import SectionRankingCache
 from easy_a.schedule.backfill import (
+    BACKFILL_CAMPUS_LABELS,
     BACKFILL_SOURCE,
+    BACKFILL_WHOLE_TERM_CAMPUS,
     HISTORICAL_GRADE_TERMS,
     BackfillGuardError,
     TermSelection,
+    campus_allowed,
     resolve_course_ids,
     select_backfill_rows,
     write_term_backfill,
 )
-from easy_a.schedule.backfill_cli import FAILED_RESPONSE_DIR, REPO_ROOT, _failed_response_path, main
-from easy_a.schedule.client import StaffScheduleClient
+from easy_a.schedule.backfill_cli import (
+    DEFAULT_MAX_UNMATCHED_FRACTION,
+    FAILED_RESPONSE_DIR,
+    REPO_ROOT,
+    _failed_response_path,
+    _guard_failures,
+    build_parser,
+    main,
+)
+from easy_a.schedule.client import ALL_CAMPUSES, LIVE_WHOLE_TERM_CAMPUS, StaffScheduleClient
 from easy_a.sync import courses as courses_module
 from easy_a.sync.courses import CatalogSettings, CourseAdder
 from easy_a.sync.fetch import parse_whole_term
 from tests.sync.sweep_support import enc_rows, seed_from_rows, sweep_rows, table_counts, usf_client
-from tests.sync.wholeterm_html import RowSpec, build_whole_term_html
+from tests.sync.wholeterm_html import RowSpec, build_whole_term_html, row_html
 
 NOW = datetime(2026, 10, 1, 12, 0, tzinfo=UTC)
 
@@ -208,7 +219,7 @@ def test_tracer_one_term_goes_from_whole_term_response_to_joined_rows(
     form = parse_qs(requests[0].content.decode(), keep_blank_values=True)
     assert form["P_SEMESTER"] == ["202408"]
     assert form["P_SUBJ"] == [""]
-    assert form["P_CAMPUS"] == ["T"]
+    assert form["P_CAMPUS"] == [""]  # the backfill asks for every campus (gap 05)
 
     with session_factory() as session:
         sections = session.scalars(select(Section).order_by(Section.crn)).all()
@@ -1083,3 +1094,284 @@ def test_the_failed_response_directory_is_git_ignored() -> None:
         text=True,
     )
     assert tracked.stdout.strip() == ""
+
+
+# --- gap 05: all-campus request and the Tampa campus-label allow-list ----------------------------
+
+OFF_CAMPUS_TAMPA = "Off-campus - Tampa"
+NON_TAMPA_LABELS = (
+    "St. Petersburg",
+    "Off-campus - St. Petersburg",
+    "Sarasota-Manatee",
+    "Off-campus - Sarasota-Manatee",
+)
+
+
+def _form(request: httpx.Request) -> dict[str, list[str]]:
+    return parse_qs(request.content.decode(), keep_blank_values=True)
+
+
+def test_backfill_requests_every_campus_while_the_live_sweep_stays_on_campus_t(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    assert BACKFILL_WHOLE_TERM_CAMPUS == ALL_CAMPUSES == ""
+    assert LIVE_WHOLE_TERM_CAMPUS == "T"
+
+    rows = graded_rows(session_factory)
+    client_factory, backfill_requests = client_for({"202408": rows})
+    code, _ = run(["--terms", "202408", "--dry-run"], session_factory, client_factory, capsys)
+    assert code in (0, 1)
+    assert len(backfill_requests) == 1
+    backfill_form = _form(backfill_requests[0])
+    assert backfill_form["P_CAMPUS"] == [""]
+    assert backfill_form["P_SUBJ"] == backfill_form["P_REF"] == backfill_form["P_NUM"] == [""]
+
+    # The live sweep's whole-term request is unchanged (D-22(a)).
+    _, live_requests = sweep_rows(session_factory, enc_rows(3))
+    assert len(live_requests) == 1
+    assert _form(live_requests[0])["P_CAMPUS"] == ["T"]
+    assert _form(live_requests[0])["P_SEMESTER"] == ["202701"]
+
+
+def _label_rows(
+    labels: list[str],
+) -> tuple[list[RowSpec], dict[str, frozenset[tuple[str, str] | None]]]:
+    specs = [
+        RowSpec(
+            crn=str(70000 + i), subject="MAC", number="1105", section=f"{i + 1:03d}", campus=label
+        )
+        for i, label in enumerate(labels)
+    ]
+    keys: dict[str, frozenset[tuple[str, str] | None]] = {
+        spec.crn: frozenset({("MAC", "1105")}) for spec in specs
+    }
+    return specs, keys
+
+
+@pytest.mark.parametrize(
+    "label",
+    [
+        "Tampa",
+        "tampa",
+        "  TAMPA ",
+        "Off-campus - Tampa",
+        "off-campus - tampa",
+        "  Off-campus  -   Tampa  ",
+    ],
+)
+def test_allow_listed_campus_labels_are_kept(label: str) -> None:
+    specs, keys = _label_rows([label])
+    selection = _selection(specs, keys, {("MAC", "1105"): 10})
+    assert campus_allowed(label)
+    assert (selection.to_write, selection.non_tampa) == (1, 0)
+    assert selection.non_tampa_by_label == {}
+    assert selection.campus_allowed_rows == 1
+
+
+@pytest.mark.parametrize(
+    ("label", "unknown"),
+    [
+        ("St. Petersburg", False),
+        ("Off-campus - St. Petersburg", False),
+        ("Sarasota-Manatee", False),
+        ("Off-campus - Sarasota-Manatee", False),
+        ("Online", True),
+        ("Tampa Campus", True),
+        ("Off-campus-Tampa", True),  # whitespace and case are the only tolerated variation
+        ("Off-campus - Tampa Bay", True),
+        ("", True),
+    ],
+)
+def test_every_other_campus_label_is_excluded_and_counted_by_label(
+    label: str, unknown: bool
+) -> None:
+    specs, keys = _label_rows([label])
+    selection = _selection(specs, keys, {("MAC", "1105"): 10})
+    shown = label.strip() or "(blank)"
+    assert not campus_allowed(label)
+    assert (selection.to_write, selection.non_tampa) == (0, 1)
+    assert selection.non_tampa_by_label == {shown: 1}
+    assert selection.unknown_campus_labels == ({shown: 1} if unknown else {})
+    assert selection.skipped_graded_rows == 1
+
+
+def test_the_allow_list_is_exactly_the_two_tampa_labels() -> None:
+    assert sorted(BACKFILL_CAMPUS_LABELS) == ["off-campus - tampa", "tampa"]
+
+
+def test_campus_breakdown_counts_every_fetched_row_and_the_excluded_graded_ones() -> None:
+    labels = (
+        ["Tampa"] * 3 + [OFF_CAMPUS_TAMPA] * 2 + ["St. Petersburg", "Sarasota-Manatee", "Online"]
+    )
+    specs, keys = _label_rows(labels)
+    specs.append(RowSpec(crn="79999", subject="MAC", number="1105", campus="Sarasota-Manatee"))
+    del keys["70006"]  # one St. Petersburg-labelled... keep graded set smaller than fetched
+    selection = _selection(specs, keys, {("MAC", "1105"): 10})
+
+    assert selection.fetched_rows == 9
+    assert selection.rows_by_campus == {
+        "Online": 1,
+        "Sarasota-Manatee": 2,
+        "St. Petersburg": 1,
+        "Tampa": 3,
+        OFF_CAMPUS_TAMPA: 2,
+    }
+    assert sum(selection.rows_by_campus.values()) == selection.fetched_rows
+    assert selection.campus_allowed_rows == 5
+    assert selection.to_write == 5
+    # 70005 (St. Petersburg), 70006 (Sarasota, no grade row: not_graded), 70007 (Online).
+    assert selection.non_tampa == 2
+    assert selection.non_tampa_by_label == {"Online": 1, "St. Petersburg": 1}
+    assert sum(selection.non_tampa_by_label.values()) == selection.non_tampa
+    assert selection.unknown_campus_labels == {"Online": 1}
+
+
+def test_the_unmatched_fraction_guard_is_unchanged() -> None:
+    assert DEFAULT_MAX_UNMATCHED_FRACTION == 0.02
+    assert build_parser().parse_args(["--dry-run"]).max_unmatched_fraction == 0.02
+
+    def selection_with(unmatched: int) -> TermSelection:
+        specs = [
+            RowSpec(crn=str(40000 + i), subject="MAC", number="1105", section=f"{i + 1:03d}")
+            for i in range(100 - unmatched)
+        ]
+        keys: dict[str, frozenset[tuple[str, str] | None]] = {
+            str(40000 + i): frozenset({("MAC", "1105")}) for i in range(100)
+        }
+        return _selection(specs, keys, {("MAC", "1105"): 10})
+
+    at_limit = selection_with(2)  # exactly 2%: passes
+    assert at_limit.unmatched_fraction == 0.02
+    assert _guard_failures(at_limit, DEFAULT_MAX_UNMATCHED_FRACTION) == []
+    assert _guard_failures(selection_with(0), DEFAULT_MAX_UNMATCHED_FRACTION) == []
+    over = selection_with(3)  # 3%: trips
+    assert _guard_failures(over, DEFAULT_MAX_UNMATCHED_FRACTION) == ["unmatched_fraction"]
+
+
+def test_off_campus_tampa_rows_are_written_and_other_campuses_never_are(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    graded = {
+        "81001": ("MAC", "1105", 10, "Tampa", "Pat Tampa"),
+        "81002": ("ENC", "1101", 11, OFF_CAMPUS_TAMPA, "Olive Offsite"),
+        "81003": ("MAC", "1105", 10, "  Off-campus  -   Tampa ", "Orla Spacing"),
+        "81004": ("MAC", "1105", 10, "Sarasota-Manatee", "Sara Sota"),
+        "81005": ("ENC", "1101", 11, "Off-campus - Sarasota-Manatee", "Sara Offsite"),
+        "81006": ("MAC", "1105", 10, "St. Petersburg", "Pete Burg"),
+        "81007": ("ENC", "1101", 11, "Off-campus - St. Petersburg", "Pete Offsite"),
+        "81008": ("MAC", "1105", 10, "Mystery Campus", "Una Known"),
+    }
+    specs: list[RowSpec] = []
+    for crn, (subject, number, course_id, campus, instructor) in graded.items():
+        add_grade(session_factory, term_id=2, crn=crn, course_id=course_id)
+        specs.append(
+            RowSpec(
+                crn=crn,
+                subject=subject,
+                number=number,
+                title="Composition I" if subject == "ENC" else "College Algebra",
+                campus=campus,
+                instructor=instructor,
+                section_type="Other" if "Off" in campus or "off" in campus else "Class Lecture",
+            )
+        )
+    specs.append(RowSpec(crn="81999", subject="MAC", number="1105", campus=OFF_CAMPUS_TAMPA))
+    client_factory, requests = client_for({"202408": specs})
+    argv = ["--terms", "202408", "--apply", "--rebuild-term", "202701"]
+
+    code, report = run(argv, session_factory, client_factory, capsys)
+
+    assert code == 0, report
+    assert _form(requests[0])["P_CAMPUS"] == [""]
+    assert report["request"]["whole_term_campus"] == "(blank: all campuses)"
+    term = term_of(report)
+    assert term["fetched_rows"] == 9
+    assert term["rows_by_campus"] == {
+        "Mystery Campus": 1,
+        "Off-campus - Sarasota-Manatee": 1,
+        "Off-campus - St. Petersburg": 1,
+        "Sarasota-Manatee": 1,
+        "St. Petersburg": 1,
+        "Tampa": 1,
+        OFF_CAMPUS_TAMPA: 3,  # 81002, 81003 (spacing collapsed in the report) and 81999
+    }
+    assert (term["to_write"], term["non_tampa"], term["not_graded"]) == (3, 5, 1)
+    assert term["campus_allowed_rows"] == 4  # 1 Tampa + 3 Off-campus - Tampa
+    assert term["non_tampa_by_label"] == {
+        "Mystery Campus": 1,
+        "Off-campus - Sarasota-Manatee": 1,
+        "Off-campus - St. Petersburg": 1,
+        "Sarasota-Manatee": 1,
+        "St. Petersburg": 1,
+    }
+    assert term["unknown_campus_labels"] == {"Mystery Campus": 1}
+    assert term["guard_failures"] == []
+    assert term["unmatched_grade_crns"] == 0
+    assert term["response_bytes"] > 0
+
+    with session_factory() as session:
+        sections = session.scalars(select(Section).order_by(Section.crn)).all()
+        assert [s.crn for s in sections] == ["81001", "81002", "81003"]
+        names = {
+            section.crn: session.scalars(
+                select(SectionInstructor.name_raw).where(SectionInstructor.section_id == section.id)
+            ).all()
+            for section in sections
+        }
+        assert names == {
+            "81001": ["Pat Tampa"],
+            "81002": ["Olive Offsite"],
+            "81003": ["Orla Spacing"],
+        }
+        stored_campuses = {s.crn: s.campus for s in sections}
+        assert stored_campuses["81002"] == OFF_CAMPUS_TAMPA
+        assert not set(
+            session.scalars(
+                select(Section.crn).where(
+                    Section.crn.in_(["81004", "81005", "81006", "81007", "81008"])
+                )
+            )
+        )
+
+
+def test_anchor_repair_and_the_lost_rows_guard_still_apply_on_the_all_campus_path(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    rows = graded_rows(session_factory)
+    rows[0] = RowSpec(
+        crn="89033",
+        subject="MAC",
+        number="1105",
+        campus=OFF_CAMPUS_TAMPA,
+        instructor="Olive Offsite",
+    )
+    broken_note = (
+        'Synthetic note: <a\xa0href="http://example.invalid/x">link</a\nhttp://example.invalid/x'
+    )
+    html = build_whole_term_html(rows, error_tail=False)
+    html = html.replace(
+        row_html(rows[0]), row_html(rows[0]).replace("Synthetic note.", broken_note)
+    )
+    assert len(html) and broken_note in html
+
+    # 1. The unterminated anchor on an Off-campus - Tampa row is repaired: nothing is lost.
+    client, requests = usf_client(handler=per_term_handler({"202408": html}))
+    code, report = run(["--terms", "202408", "--dry-run"], session_factory, lambda: client, capsys)
+    assert _form(requests[0])["P_CAMPUS"] == [""]
+    assert term_of(report)["fetched_rows"] == 2
+    assert term_of(report)["to_write"] == 2
+    assert term_of(report)["rows_by_campus"] == {"Tampa": 1, OFF_CAMPUS_TAMPA: 1}
+    assert report.get("error_kind") != "parse"
+
+    # 2. A genuinely lost row (23 cells) on the same path is still refused.
+    lost = build_whole_term_html(rows, error_tail=False, malformed_crns=[rows[0].crn])
+    client, _ = usf_client(handler=per_term_handler({"202408": lost}))
+    before = table_counts(session_factory)
+    code, report = run(["--terms", "202408", "--dry-run"], session_factory, lambda: client, capsys)
+    assert code == 1
+    assert report["error_kind"] == "parse"
+    assert "Parsed 1 rows from 2 data rows" in report["error"]
+    assert table_counts(session_factory) == before

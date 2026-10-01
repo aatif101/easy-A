@@ -20,7 +20,6 @@ from datetime import datetime
 from sqlalchemy import and_, delete, exists, insert, select, update
 from sqlalchemy.orm import Session
 
-from easy_a.common.campus import SUPPORTED_CAMPUS, same_campus
 from easy_a.common.instructors import (
     CurrentInstructorState,
     CurrentInstructorStatus,
@@ -38,6 +37,7 @@ from easy_a.models import (
     Syllabus,
     Term,
 )
+from easy_a.schedule.client import ALL_CAMPUSES
 from easy_a.schedule.ingest import _section_values
 from easy_a.schedule.normalize import NormalizedSection
 
@@ -45,6 +45,53 @@ HISTORICAL_GRADE_TERMS: tuple[str, ...] = ("202408", "202501", "202505", "202508
 """The five terms D-22(e) allows; nothing else can be backfilled, least of all the live term."""
 
 BACKFILL_SOURCE = "usf_schedule_backfill"
+
+BACKFILL_WHOLE_TERM_CAMPUS = ALL_CAMPUSES
+"""P_CAMPUS of the backfill's whole-term request: blank, every campus (Phase 10 gap 05).
+
+USF lists many Tampa-credited sections (online and off-site "Other" types above all) under the
+schedule label ``Off-campus - Tampa``, which a ``campus=T`` request never returns, although the
+grade source files them under Tampa. The live sync keeps ``campus=T`` (D-22(a)); only the one-off
+backfill widens the request, and ``BACKFILL_CAMPUS_LABELS`` below decides what is kept.
+"""
+
+BACKFILL_CAMPUS_LABELS: frozenset[str] = frozenset({"tampa", "off-campus - tampa"})
+"""Schedule campus labels (whitespace-collapsed, case-folded) the grade source files under Tampa.
+
+An explicit allow-list: any other label, known or not, is excluded and counted under
+``non_tampa`` with its label, never silently kept.
+"""
+
+KNOWN_NON_TAMPA_CAMPUS_LABELS: frozenset[str] = frozenset(
+    {
+        "st. petersburg",
+        "off-campus - st. petersburg",
+        "sarasota-manatee",
+        "off-campus - sarasota-manatee",
+    }
+)
+"""Labels seen in USF responses that are not Tampa. Excluded; any label in neither set is
+reported separately as an unknown campus label."""
+
+BLANK_CAMPUS_LABEL = "(blank)"
+_CAMPUS_LABEL_REPORT_LIMIT = 60
+
+
+def normalize_campus_label(label: str | None) -> str:
+    """Whitespace-collapsed, case-folded campus label (the allow-list comparison form)."""
+    return " ".join((label or "").split()).casefold()
+
+
+def campus_allowed(label: str | None) -> bool:
+    """Whether a schedule campus label is on the backfill's Tampa allow-list."""
+    return normalize_campus_label(label) in BACKFILL_CAMPUS_LABELS
+
+
+def campus_report_label(label: str | None) -> str:
+    """A bounded, whitespace-collapsed label for the report (labels only, no row text)."""
+    collapsed = " ".join((label or "").split())
+    return collapsed[:_CAMPUS_LABEL_REPORT_LIMIT] if collapsed else BLANK_CAMPUS_LABEL
+
 
 CourseKey = tuple[str, str]
 """A course identity as (subject, number), both upper-cased."""
@@ -145,6 +192,15 @@ class TermSelection:
     staff_or_blank: int
     section_type_histogram: Mapping[str, int] = field(default_factory=dict)
     delivery_method_histogram: Mapping[str, int] = field(default_factory=dict)
+    rows_by_campus: Mapping[str, int] = field(default_factory=dict)
+    """Every fetched row by its (whitespace-collapsed) schedule campus label."""
+    campus_allowed_rows: int = 0
+    """Fetched rows, graded or not, whose label is on the allow-list."""
+    non_tampa_by_label: Mapping[str, int] = field(default_factory=dict)
+    """Graded rows excluded by the campus allow-list, by label (sums to ``non_tampa``)."""
+    unknown_campus_labels: Mapping[str, int] = field(default_factory=dict)
+    """The part of ``non_tampa_by_label`` whose label is neither allowed nor a known non-Tampa
+    label: excluded, but worth a look."""
 
     @property
     def to_write(self) -> int:
@@ -193,12 +249,20 @@ def select_backfill_rows(
     """Pure: keep the rows that back a stored grade row and count every other outcome (D-06)."""
     selected: list[SelectedRow] = []
     not_graded = non_tampa = unattributed = mismatch = uncataloged = 0
+    rows_by_campus: Counter[str] = Counter()
+    non_tampa_by_label: Counter[str] = Counter()
+    unknown_labels: Counter[str] = Counter()
     for row in rows:
+        rows_by_campus[campus_report_label(row.campus)] += 1
         keys = grade_keys.get(row.crn)
         if keys is None:
             not_graded += 1
-        elif not same_campus(row.campus, SUPPORTED_CAMPUS):
+        elif not campus_allowed(row.campus):
             non_tampa += 1
+            label = campus_report_label(row.campus)
+            non_tampa_by_label[label] += 1
+            if normalize_campus_label(row.campus) not in KNOWN_NON_TAMPA_CAMPUS_LABELS:
+                unknown_labels[label] += 1
         elif None in keys:
             unattributed += 1
         else:
@@ -229,6 +293,10 @@ def select_backfill_rows(
         delivery_method_histogram=dict(
             sorted(Counter(str(i.row.delivery_method) for i in selected).items())
         ),
+        rows_by_campus=dict(sorted(rows_by_campus.items())),
+        campus_allowed_rows=sum(1 for row in rows if campus_allowed(row.campus)),
+        non_tampa_by_label=dict(sorted(non_tampa_by_label.items())),
+        unknown_campus_labels=dict(sorted(unknown_labels.items())),
     )
 
 
