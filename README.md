@@ -588,6 +588,39 @@ The default prior strengths are V1 regularization constants, not statistically
 optimal claims. Instructor-course history uses course-level history as its prior.
 Course-level history can fall back to subject-level or global history.
 
+### Instructor-course history
+
+Instructor-course scoring was retuned under PROJECT.md D-24 (approved 2026-09-30,
+amending D-02 for instructor-course scoring only):
+
+- **Gate:** a section is scored from its current instructor's history in that course
+  only when that history has at least 30 effective graded students
+  (`instructor_course_min_effective_n = 30`, was 60) and at least one section mapped to
+  a usable instructor name.
+- **Instructor prior strength:** the instructor's grade favorability is shrunk toward the
+  course-level mean with `instructor_prior_strength = 30`. `grade_prior_strength` stays 60
+  for course, subject and global history, and `withdrawal_prior_strength` stays 60 at every
+  level, so withdrawal smoothing is unchanged for instructors too.
+- **Laboratory sections:** grades of Laboratory sections never count toward an
+  instructor's history, and a current Laboratory section is scored from course-level
+  history. Course-level history still includes lab grades. The rule lives in
+  `src/easy_a/common/section_types.py` and matches the exact normalized type
+  `laboratory`, so combined types such as lecture-plus-lab stay included.
+- **Staff and blank instructors** are never matched to a named instructor. Their sections
+  keep contributing to course-level history.
+- **One listed instructor per section.** Co-teaching is invisible: a co-taught section is
+  attributed to whichever name the schedule lists.
+- **Names are matched within one course only.** The same listed name in two different
+  courses is two separate histories and is never pooled across courses.
+- **Single-term histories are labeled, not penalized.** An instructor whose history sits in
+  one term gets the same score as the same counts spread over two terms; only `term_count`
+  (and the confidence label) differ. There is no extra shrinkage and no multi-term
+  requirement.
+- **Reproducing the earlier D-02 baseline:** scoring with
+  `ScoreConfig(instructor_course_min_effective_n=60, instructor_prior_strength=60)` gives
+  the previous instructor-course behavior. Course, subject and global scores are identical
+  under both configurations.
+
 Each result includes a confidence label based on effective sample size:
 
 ```text
