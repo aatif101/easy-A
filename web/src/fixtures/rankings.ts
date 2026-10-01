@@ -3,6 +3,8 @@ import type {
   CourseCoverage,
   SeatFreshness,
   Freshness,
+  InstructorBreakdown,
+  InstructorHistoryRow,
   RankingProvenance,
   RankingSignal,
   ScoreSource,
@@ -55,6 +57,8 @@ interface FixtureOptions {
   gened?: { code: string; label: string }[];
   signals?: RankingSignal[];
   signalProvenance?: RankingProvenance;
+  /** Synthetic per-instructor history; omitted means no breakdown (null). */
+  instructorBreakdown?: InstructorBreakdown | null;
 }
 
 const makeSignal = (
@@ -73,6 +77,42 @@ const makeSignal = (
   source_term: sourceTerm,
   freshness,
   evidence,
+});
+
+// Synthetic instructor history (mock mode only). Every name below is invented and
+// describes no real USF instructor; counts avoid strings other tests assert on.
+const syntheticInstructor = (
+  name: string,
+  effectiveN: number,
+  aShare: number,
+  termCount: number,
+  firstTerm: string,
+  lastTerm: string,
+  easiness: number | null,
+  isCurrent = false,
+): InstructorHistoryRow => ({
+  name,
+  a_share: aShare,
+  effective_n: effectiveN,
+  term_count: termCount,
+  first_term: firstTerm,
+  last_term: lastTerm,
+  easiness_score: easiness,
+  scored: easiness !== null,
+  is_current: isCurrent,
+});
+
+const syntheticBreakdown = (
+  overrides: Partial<InstructorBreakdown> & Pick<InstructorBreakdown, "instructors">,
+): InstructorBreakdown => ({
+  status: "ready",
+  current_instructor: null,
+  current_instructor_has_history: false,
+  other_instructor_count: 0,
+  scoring_min_effective_n: 30,
+  collapse_min_effective_n: 15,
+  provenance: historical("grade_distributions", "202608"),
+  ...overrides,
 });
 
 const makeRanking = (options: FixtureOptions): SectionRanking => {
@@ -129,6 +169,7 @@ const makeRanking = (options: FixtureOptions): SectionRanking => {
       mapped_instructor_section_count:
         options.scoreSource === "instructor_course" ? 4 : 0,
       provenance: analyticsProvenance,
+      instructor_breakdown: options.instructorBreakdown ?? null,
     },
     signals: options.signals ?? [],
     signal_provenance: options.signalProvenance ?? unavailable,
@@ -193,6 +234,15 @@ export const syntheticRankings: SectionRanking[] = [
     gened: [{ code: "SMEL", label: "Enhanced General Education Mathematics" }],
     signals: currentNoteSignals,
     signalProvenance: current("schedule_section_note"),
+    instructorBreakdown: syntheticBreakdown({
+      instructors: [
+        syntheticInstructor("Pat Rowan", 410, 0.31, 4, "202408", "202601", 7.9),
+        syntheticInstructor("Robin Vale", 356, 0.27, 3, "202501", "202601", 7.2),
+        syntheticInstructor("Jamie Okafor", 295, 0.22, 3, "202501", "202601", 6.8),
+        syntheticInstructor("Lee Sandoval", 88, 0.45, 1, "202601", "202601", 8.4),
+      ],
+      other_instructor_count: 2,
+    }),
   }),
   makeRanking({
     crn: "19411",
@@ -231,6 +281,20 @@ export const syntheticRankings: SectionRanking[] = [
     gened: [{ code: "COMM", label: "Communication" }],
     signals: historicalSignals,
     signalProvenance: historical("historical_same_instructor_course"),
+    instructorBreakdown: syntheticBreakdown({
+      current_instructor: "Jordan Alvarez",
+      current_instructor_has_history: true,
+      other_instructor_count: 3,
+      instructors: [
+        syntheticInstructor("Jordan Alvarez", 126, 0.46, 3, "202501", "202601", 8.1, true),
+        syntheticInstructor("Casey Morgan", 188, 0.38, 4, "202408", "202601", 7.4),
+        syntheticInstructor("Riley Park", 164, 0.33, 3, "202501", "202601", 6.9),
+        syntheticInstructor("Devon Hale", 97, 0.29, 2, "202508", "202601", 6.5),
+        syntheticInstructor("Skyler Imani", 58, 0.41, 2, "202508", "202601", 7.6),
+        syntheticInstructor("Avery Quinn", 41, 0.52, 1, "202601", "202601", 8.8),
+        syntheticInstructor("Morgan Reyes", 24, 0.18, 2, "202508", "202601", null),
+      ],
+    }),
   }),
   makeRanking({
     crn: "14023",
@@ -266,6 +330,15 @@ export const syntheticRankings: SectionRanking[] = [
     effectiveN: 342,
     scoreSource: "course",
     gened: [{ code: "SCIV", label: "Natural Sciences" }],
+    instructorBreakdown: syntheticBreakdown({
+      current_instructor: "Priya Nair",
+      current_instructor_has_history: false,
+      other_instructor_count: 1,
+      instructors: [
+        syntheticInstructor("Hollis Grant", 205, 0.19, 3, "202501", "202601", 6.6),
+        syntheticInstructor("Wren Takahashi", 137, 0.24, 2, "202508", "202601", 7.1),
+      ],
+    }),
   }),
   makeRanking({
     crn: "16880",

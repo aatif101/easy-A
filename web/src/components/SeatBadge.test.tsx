@@ -49,5 +49,6 @@ test("expanded details show seat data separately from historical analytics", () 
   expect(within(observation).getByText("Aging")).toBeVisible();
   expect(within(observation).getByText("3 seats open")).toBeVisible();
   expect(within(observation).getByText("Waitlist: 4 spots available")).toBeVisible();
-  expect(screen.getByText("Easiness")).toBeVisible();
+  // The Staff MAC fixture now also renders instructor-row "Easiness" captions; target the course-wide <dt>.
+  expect(screen.getByText("Easiness", { selector: "dt" })).toBeVisible();
 });
