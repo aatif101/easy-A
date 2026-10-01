@@ -28,6 +28,19 @@ and a structural fingerprint, never cell text. ``--save-failed-response PATH`` (
 run and apply only) also keeps the raw failing response in a local, git-ignored file, written only
 on a parse failure.
 
+``--save-responses DIR`` (off by default; dry run and apply only) saves EVERY fetched whole-term
+response as ``DIR/<term>.html`` the moment it arrives, so a later failure in any term can be
+diagnosed offline. ``--from-saved DIR`` is the offline replay: it reads ``DIR/<term>.html`` for each
+requested term instead of calling USF, runs the identical parse, selection and what-if, and is
+dry-run only. It never builds an HTTP client, so the whole report is reproduced with zero USF
+requests (the database access is the same read-only what-if as a normal dry run).
+
+Campus allow-list before normalisation (gap 06): only rows on the allow-list are normalised, so a
+row on an excluded campus can never abort a run. A row on an allowed campus that fails
+normalisation is quarantined (position, campus label, failing field, fixed-vocabulary shape; no
+cell text) and the rest of the term is still computed, but the term fails the guard
+``row_normalisation_failures``: a dry run exits 1 after reporting and ``--apply`` writes nothing.
+
 The request is made with a blank campus (every campus) because USF labels many Tampa-credited
 sections ``Off-campus - Tampa``; only the allow-listed labels in ``backfill.BACKFILL_CAMPUS_LABELS``
 are kept (Phase 10 gap 05). The live sync is unchanged and stays on ``campus=T``.
@@ -44,7 +57,7 @@ import os
 import re
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -71,10 +84,13 @@ from easy_a.schedule.backfill import (
     BACKFILL_CAMPUS_LABELS,
     BACKFILL_WHOLE_TERM_CAMPUS,
     HISTORICAL_GRADE_TERMS,
+    ROW_FAILURE_REPORT_LIMIT,
     BackfillGuardError,
     TermSelection,
     WriteCounts,
     backfill_ingest_source,
+    backfill_row_gate,
+    campus_report_label,
     delete_backfilled_sections,
     load_grade_keys,
     resolve_course_ids,
@@ -85,7 +101,7 @@ from easy_a.schedule.backfill import (
 )
 from easy_a.schedule.client import StaffScheduleClient, WholeTermResponseError
 from easy_a.schedule.parser import ScheduleParseError
-from easy_a.sync.fetch import FetchedTerm, fetch_whole_term
+from easy_a.sync.fetch import FetchedTerm, fetch_whole_term, parse_saved_term
 from easy_a.sync.lock import try_sweep_lock
 from easy_a.sync.parse_diagnostics import LostRowsError
 
@@ -157,23 +173,45 @@ def _non_negative_int(value: str) -> int:
     return number
 
 
-def _failed_response_path(value: str) -> Path:
-    """A local file for the raw failing response. It must never be committable.
+def _local_only_path(value: str, *, what: str) -> Path:
+    """A resolved local path that must never be committable.
 
     Anywhere outside the repository is fine. Inside it, only the git-ignored
-    ``FAILED_RESPONSE_DIR`` is accepted, so the saved HTML (which names instructors) cannot land in
-    a tracked directory.
+    ``FAILED_RESPONSE_DIR`` is accepted, so saved HTML (which names instructors) cannot land in a
+    tracked directory.
     """
     path = Path(value).expanduser().resolve()
-    if path.is_dir():
-        raise argparse.ArgumentTypeError("must be a file path, not a directory")
     in_repo = (REPO_ROOT / "pyproject.toml").is_file() and path.is_relative_to(REPO_ROOT)
     if in_repo and not path.is_relative_to(FAILED_RESPONSE_DIR):
         raise argparse.ArgumentTypeError(
-            "inside the repository only the git-ignored "
+            f"{what}: inside the repository only the git-ignored "
             f"{FAILED_RESPONSE_DIR.relative_to(REPO_ROOT)}/ is allowed; "
             "otherwise choose a path outside the repository"
         )
+    return path
+
+
+def _failed_response_path(value: str) -> Path:
+    """A local file for the raw failing response. It must never be committable."""
+    path = _local_only_path(value, what="--save-failed-response")
+    if path.is_dir():
+        raise argparse.ArgumentTypeError("must be a file path, not a directory")
+    return path
+
+
+def _responses_dir(value: str) -> Path:
+    """The local directory ``--save-responses`` writes ``<term>.html`` into (same path rules)."""
+    path = _local_only_path(value, what="--save-responses")
+    if path.exists() and not path.is_dir():
+        raise argparse.ArgumentTypeError("must be a directory path, not a file")
+    return path
+
+
+def _saved_dir(value: str) -> Path:
+    """The existing directory ``--from-saved`` reads ``<term>.html`` from."""
+    path = Path(value).expanduser().resolve()
+    if not path.is_dir():
+        raise argparse.ArgumentTypeError("must be an existing directory")
     return path
 
 
@@ -264,6 +302,27 @@ def build_parser() -> argparse.ArgumentParser:
         "git-ignored .planning/phases/10-professor-level-grades/failed-responses/.",
     )
     parser.add_argument(
+        "--save-responses",
+        type=_responses_dir,
+        default=None,
+        metavar="DIR",
+        help="With --dry-run or --apply: save EVERY fetched whole-term response as DIR/<term>.html "
+        "(decoded text, mode 0600) as it arrives, so a later failure in any term can be diagnosed "
+        "offline and the whole report replayed with --from-saved. Off by default. Same path rules "
+        "as --save-failed-response: outside the repository or under the git-ignored "
+        ".planning/phases/10-professor-level-grades/failed-responses/.",
+    )
+    parser.add_argument(
+        "--from-saved",
+        type=_saved_dir,
+        default=None,
+        metavar="DIR",
+        help="With --dry-run only: read DIR/<term>.html for each requested term instead of "
+        "requesting USF, and run the identical parse, selection and what-if. Makes no request and "
+        "builds no HTTP client. Refused with --apply, --rollback, --rebuild-only, --save-responses "
+        "and --save-failed-response. Use --terms to replay a subset of the saved terms.",
+    )
+    parser.add_argument(
         "--report-json",
         type=Path,
         default=None,
@@ -322,6 +381,16 @@ def _check_mode_arguments(parser: argparse.ArgumentParser, args: argparse.Namesp
         parser.error("--yes only applies to --rollback")
     if args.save_failed_response is not None and not (args.dry_run or args.apply):
         parser.error("--save-failed-response only applies to --dry-run and --apply")
+    if args.save_responses is not None and not (args.dry_run or args.apply):
+        parser.error("--save-responses only applies to --dry-run and --apply")
+    if args.from_saved is not None:
+        if not args.dry_run:
+            parser.error("--from-saved is an offline replay and only applies to --dry-run")
+        if args.save_responses is not None or args.save_failed_response is not None:
+            parser.error(
+                "--from-saved reads saved pages and cannot be combined with --save-responses "
+                "or --save-failed-response"
+            )
 
 
 def _scrub(text: str) -> str:
@@ -360,7 +429,7 @@ def _failure(
 
 
 class _ResponseSaver:
-    """Writes the raw failing response to one local file, only when called (a parse failure)."""
+    """Writes one raw response to one local file, only when called."""
 
     def __init__(self, path: Path) -> None:
         self.path = path
@@ -375,10 +444,11 @@ class _ResponseSaver:
             data = html.encode("utf-8", errors="replace")
             fd = os.open(self.path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
             with os.fdopen(fd, "wb") as handle:
+                os.fchmod(handle.fileno(), 0o600)  # a pre-existing file keeps its old mode
                 handle.write(data)
             self.bytes_written = len(data)
         except OSError as exc:
-            # Never let a save problem mask the parse failure it was meant to help diagnose.
+            # Never let a save problem mask the failure it was meant to help diagnose.
             self.error = type(exc).__name__
 
     def report(self) -> dict[str, Any] | None:
@@ -389,13 +459,24 @@ class _ResponseSaver:
         return {"saved": True, "path": str(self.path), "bytes": self.bytes_written}
 
 
-def _failure_extras(exc: Exception, saver: _ResponseSaver | None) -> dict[str, Any]:
+def _saved_responses_report(savers: dict[str, _ResponseSaver]) -> dict[str, Any]:
+    reports = {term: saver.report() for term, saver in savers.items()}
+    return {term: report for term, report in reports.items() if report is not None}
+
+
+def _failure_extras(
+    exc: Exception,
+    saver: _ResponseSaver | None,
+    response_savers: dict[str, _ResponseSaver] | None = None,
+) -> dict[str, Any]:
     """Structured, sanitized parse diagnostics and the save outcome for a failed fetch."""
     extras: dict[str, Any] = {}
     if isinstance(exc, LostRowsError):
         extras["parse_diagnostics"] = exc.diagnostics.to_dict()
     if saver is not None and (saved := saver.report()) is not None:
         extras["saved_response"] = saved
+    if response_savers and (all_saved := _saved_responses_report(response_savers)):
+        extras["saved_responses"] = all_saved
     return extras
 
 
@@ -409,6 +490,10 @@ def _guard_failures(selection: TermSelection, max_unmatched_fraction: float) -> 
         validate_selection(selection)
     except BackfillGuardError:
         failures.append("duplicate_crn")
+    if selection.row_normalisation_failures:
+        # Strictness is unchanged for data we would write: a row that cannot be normalised on an
+        # allowed campus fails the run. Only the abort-before-any-report behaviour is gone.
+        failures.append("row_normalisation_failures")
     return failures
 
 
@@ -436,35 +521,30 @@ def _run(
 
     # No transaction is open while the slow, polite USF requests run. One request per term, never
     # retried, never narrowed: the first failure stops the run with nothing written (D-22 d/e).
-    fetched: dict[str, FetchedTerm] = {}
-    client = (client_factory or StaffScheduleClient)()
-    saver = _ResponseSaver(args.save_failed_response) if args.save_failed_response else None
-    try:
-        for index, term in enumerate(terms):
-            if index > 0:
-                sleep(args.pause_seconds)
-            try:
-                fetched[term] = fetch_whole_term(
-                    client,
-                    term,
-                    now_fn=now_fn,
-                    on_parse_failure=saver,
-                    campus=BACKFILL_WHOLE_TERM_CAMPUS,
-                )
-            except Exception as exc:
-                kind = _fetch_error_kind(exc)
-                if kind is None:
-                    raise
-                failure = _failure(
-                    kind, term=term, detail=str(exc), extra=_failure_extras(exc, saver)
-                )
-                return _emit(args, failure, EXIT_FAILED)
-    finally:
-        client.close()
+    # A replay (--from-saved) reads saved pages instead and never builds a client.
+    response_savers: dict[str, _ResponseSaver] = {}
+    if args.from_saved is not None:
+        fetched, fetch_failure = _replay_terms(args, terms, now_fn=now_fn)
+    else:
+        fetched, fetch_failure = _fetch_terms(
+            args,
+            terms,
+            client_factory=client_factory,
+            now_fn=now_fn,
+            sleep=sleep,
+            response_savers=response_savers,
+        )
+    if fetch_failure is not None:
+        return _emit(args, fetch_failure, EXIT_FAILED)
 
     selections = {
         term: select_backfill_rows(
-            term, fetched[term].parse.rows, dict(grade_keys.for_term(term)), course_ids
+            term,
+            fetched[term].parse.rows,
+            dict(grade_keys.for_term(term)),
+            course_ids,
+            skipped=fetched[term].parse.skipped,
+            failures=fetched[term].parse.failures,
         )
         for term in terms
     }
@@ -545,6 +625,8 @@ def _run(
         applied=applied,
         committed=committed,
         fetched=fetched,
+        saved_responses=_saved_responses_report(response_savers),
+        replayed=args.from_saved is not None,
     )
     return _emit(
         args,
@@ -552,6 +634,90 @@ def _run(
         EXIT_FAILED if failed else EXIT_OK,
         file_report=_report(args, outcome, include_changes=True),
     )
+
+
+def _fetch_terms(
+    args: argparse.Namespace,
+    terms: list[str],
+    *,
+    client_factory: ClientFactory | None,
+    now_fn: NowFn,
+    sleep: SleepFn,
+    response_savers: dict[str, _ResponseSaver],
+) -> tuple[dict[str, FetchedTerm], dict[str, Any] | None]:
+    """One whole-term USF request per term. Returns the parsed terms, or the failure report."""
+    fetched: dict[str, FetchedTerm] = {}
+    client = (client_factory or StaffScheduleClient)()
+    saver = _ResponseSaver(args.save_failed_response) if args.save_failed_response else None
+    try:
+        for index, term in enumerate(terms):
+            if index > 0:
+                sleep(args.pause_seconds)
+            on_response: _ResponseSaver | None = None
+            if args.save_responses is not None:
+                on_response = response_savers[term] = _ResponseSaver(
+                    args.save_responses / f"{term}.html"
+                )
+            try:
+                fetched[term] = fetch_whole_term(
+                    client,
+                    term,
+                    now_fn=now_fn,
+                    on_parse_failure=saver,
+                    campus=BACKFILL_WHOLE_TERM_CAMPUS,
+                    on_response=on_response,
+                    row_gate=backfill_row_gate,
+                    quarantine_row_failures=True,
+                )
+            except Exception as exc:
+                kind = _fetch_error_kind(exc)
+                if kind is None:
+                    raise
+                failure = _failure(
+                    kind,
+                    term=term,
+                    detail=str(exc),
+                    extra=_failure_extras(exc, saver, response_savers),
+                )
+                return fetched, failure
+    finally:
+        client.close()
+    return fetched, None
+
+
+def _replay_terms(
+    args: argparse.Namespace, terms: list[str], *, now_fn: NowFn
+) -> tuple[dict[str, FetchedTerm], dict[str, Any] | None]:
+    """Parse ``<from-saved>/<term>.html`` per term with the same pipeline. No client, no request."""
+    fetched: dict[str, FetchedTerm] = {}
+    for term in terms:
+        path: Path = args.from_saved / f"{term}.html"
+        try:
+            raw = path.read_bytes()
+        except FileNotFoundError:
+            return fetched, _failure(
+                "saved_response_missing", term=term, detail=f"{term}.html is not in the directory"
+            )
+        except OSError as exc:
+            return fetched, _failure(
+                "saved_response_unreadable", term=term, detail=type(exc).__name__
+            )
+        try:
+            fetched[term] = parse_saved_term(
+                raw.decode("utf-8", errors="replace"),
+                byte_count=len(raw),
+                now_fn=now_fn,
+                row_gate=backfill_row_gate,
+                quarantine_row_failures=True,
+            )
+        except Exception as exc:
+            kind = _fetch_error_kind(exc)
+            if kind is None:
+                raise
+            return fetched, _failure(
+                kind, term=term, detail=str(exc), extra=_failure_extras(exc, None)
+            )
+    return fetched, None
 
 
 def _busy_report() -> dict[str, Any]:
@@ -689,6 +855,8 @@ class _Outcome:
     applied: Applied | None
     committed: bool
     fetched: dict[str, FetchedTerm]
+    saved_responses: dict[str, Any] = field(default_factory=dict)
+    replayed: bool = False
 
 
 @dataclass(frozen=True)
@@ -794,6 +962,19 @@ def _term_report(
         "unmatched_grade_crns": selection.unmatched_grade_crns,
         "unmatched_fraction": round(selection.unmatched_fraction, 6),
         "guard_failures": list(guards),
+        "row_normalisation_failures": selection.row_normalisation_failures,
+        "row_failures": [
+            {
+                "position": failure.position,
+                "campus": campus_report_label(failure.campus),
+                "field": failure.field,
+                "shape": failure.shape,
+            }
+            for failure in selection.row_failures[:ROW_FAILURE_REPORT_LIMIT]
+        ],
+        "row_failures_omitted": max(
+            0, selection.row_normalisation_failures - ROW_FAILURE_REPORT_LIMIT
+        ),
         "staff_or_blank": selection.staff_or_blank,
         "section_type_histogram": dict(selection.section_type_histogram),
         "delivery_method_histogram": dict(selection.delivery_method_histogram),
@@ -823,10 +1004,18 @@ def _report(
     report: dict[str, Any] = {
         "status": "failed" if guard_failed or what_if_failed or apply_failures else "succeeded",
         "written": outcome.committed,
-        "request": {
-            "whole_term_campus": BACKFILL_WHOLE_TERM_CAMPUS or "(blank: all campuses)",
-            "campus_allow_list": sorted(BACKFILL_CAMPUS_LABELS),
-        },
+        "request": (
+            {
+                "source": "saved_responses",
+                "requests_made": 0,
+                "campus_allow_list": sorted(BACKFILL_CAMPUS_LABELS),
+            }
+            if outcome.replayed
+            else {
+                "whole_term_campus": BACKFILL_WHOLE_TERM_CAMPUS or "(blank: all campuses)",
+                "campus_allow_list": sorted(BACKFILL_CAMPUS_LABELS),
+            }
+        ),
         # Timings vary run to run, so they sit outside ``terms`` (a dry run and its apply must
         # report identical per-term counts).
         "fetch_seconds": {
@@ -842,6 +1031,8 @@ def _report(
             for term, selection in outcome.selections.items()
         },
     }
+    if outcome.saved_responses:
+        report["saved_responses"] = outcome.saved_responses
     if what_if is not None:
         report["what_if"] = what_if.to_dict(include_changes=include_changes)
     if applied is not None:

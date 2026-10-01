@@ -29,6 +29,9 @@ class RowSpec:
     delivery: str = "CL"
     status: str = "A"
     section_type: str = "Class Lecture"
+    time: str = "11:00am-12:15pm"
+    capacity_raw: str | None = None
+    """When set, the CAP cell text verbatim instead of ``capacity`` (to build a bad cell)."""
 
 
 def header_row_html() -> str:
@@ -51,10 +54,10 @@ def _cells(spec: RowSpec) -> list[str]:
         spec.status,
         str(spec.seats_remaining),
         str(spec.wait),
-        str(spec.capacity),
+        spec.capacity_raw if spec.capacity_raw is not None else str(spec.capacity),
         str(spec.enrollment),
         "MW",
-        "11:00am-12:15pm",
+        spec.time,
         "BEH",
         "104",
         spec.instructor,

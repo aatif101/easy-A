@@ -39,7 +39,8 @@ from easy_a.models import (
 )
 from easy_a.schedule.client import ALL_CAMPUSES
 from easy_a.schedule.ingest import _section_values
-from easy_a.schedule.normalize import NormalizedSection
+from easy_a.schedule.normalize import NormalizedSection, RowFailure, SkippedRow
+from easy_a.schedule.parser import ParsedScheduleRow
 
 HISTORICAL_GRADE_TERMS: tuple[str, ...] = ("202408", "202501", "202505", "202508", "202601")
 """The five terms D-22(e) allows; nothing else can be backfilled, least of all the live term."""
@@ -85,6 +86,19 @@ def normalize_campus_label(label: str | None) -> str:
 def campus_allowed(label: str | None) -> bool:
     """Whether a schedule campus label is on the backfill's Tampa allow-list."""
     return normalize_campus_label(label) in BACKFILL_CAMPUS_LABELS
+
+
+def backfill_row_gate(row: ParsedScheduleRow) -> bool:
+    """The backfill's pre-normalisation gate: only allow-listed campuses are normalised.
+
+    Passed to ``parse_whole_term(row_gate=...)`` by the backfill alone (Phase 10 gap 06), so a row
+    on any other campus can never abort the run; the live sync passes no gate.
+    """
+    return campus_allowed(row.campus)
+
+
+ROW_FAILURE_REPORT_LIMIT = 10
+"""Quarantined rows listed per term in the report; the count is always the full total."""
 
 
 def campus_report_label(label: str | None) -> str:
@@ -201,6 +215,13 @@ class TermSelection:
     unknown_campus_labels: Mapping[str, int] = field(default_factory=dict)
     """The part of ``non_tampa_by_label`` whose label is neither allowed nor a known non-Tampa
     label: excluded, but worth a look."""
+    row_failures: tuple[RowFailure, ...] = ()
+    """Allowed-campus rows that failed normalisation and were quarantined (Phase 10 gap 06).
+    Counted in ``fetched_rows`` and ``rows_by_campus``, never written; any one fails the guard."""
+
+    @property
+    def row_normalisation_failures(self) -> int:
+        return len(self.row_failures)
 
     @property
     def to_write(self) -> int:
@@ -208,8 +229,8 @@ class TermSelection:
 
     @property
     def matched_grade_rows(self) -> int:
-        """Fetched rows whose CRN has a grade row."""
-        return self.fetched_rows - self.not_graded
+        """Fetched rows whose CRN has a grade row (quarantined rows are reported separately)."""
+        return self.fetched_rows - self.not_graded - self.row_normalisation_failures
 
     @property
     def skipped_graded_rows(self) -> int:
@@ -245,25 +266,45 @@ def select_backfill_rows(
     rows: Sequence[NormalizedSection],
     grade_keys: Mapping[str, frozenset[CourseKey | None]],
     course_ids_by_key: Mapping[CourseKey, int],
+    *,
+    skipped: Sequence[SkippedRow] = (),
+    failures: Sequence[RowFailure] = (),
 ) -> TermSelection:
-    """Pure: keep the rows that back a stored grade row and count every other outcome (D-06)."""
+    """Pure: keep the rows that back a stored grade row and count every other outcome (D-06).
+
+    ``skipped`` are rows the campus gate excluded before normalisation (identity and campus only);
+    they are counted exactly as a normalised row on the same campus would be, so a term's counts do
+    not depend on whether the gate ran first. ``failures`` are allowed-campus rows that failed
+    normalisation: fetched and counted by campus, never written, and reported separately.
+    """
     selected: list[SelectedRow] = []
     not_graded = non_tampa = unattributed = mismatch = uncataloged = 0
     rows_by_campus: Counter[str] = Counter()
     non_tampa_by_label: Counter[str] = Counter()
     unknown_labels: Counter[str] = Counter()
-    for row in rows:
-        rows_by_campus[campus_report_label(row.campus)] += 1
-        keys = grade_keys.get(row.crn)
+
+    def count_unselected(crn: str, campus: str) -> bool:
+        """Count a row that is never written for a non-campus reason; False if it is not one."""
+        nonlocal not_graded, non_tampa
+        keys = grade_keys.get(crn)
         if keys is None:
             not_graded += 1
-        elif not campus_allowed(row.campus):
+        elif not campus_allowed(campus):
             non_tampa += 1
-            label = campus_report_label(row.campus)
+            label = campus_report_label(campus)
             non_tampa_by_label[label] += 1
-            if normalize_campus_label(row.campus) not in KNOWN_NON_TAMPA_CAMPUS_LABELS:
+            if normalize_campus_label(campus) not in KNOWN_NON_TAMPA_CAMPUS_LABELS:
                 unknown_labels[label] += 1
-        elif None in keys:
+        else:
+            return False
+        return True
+
+    for row in rows:
+        rows_by_campus[campus_report_label(row.campus)] += 1
+        if count_unselected(row.crn, row.campus):
+            continue
+        keys = grade_keys[row.crn]
+        if None in keys:
             unattributed += 1
         else:
             row_key = (row.subject.strip().upper(), row.course_number.strip().upper())
@@ -273,11 +314,22 @@ def select_backfill_rows(
                 uncataloged += 1
             else:
                 selected.append(SelectedRow(row=row, course_id=course_ids_by_key[row_key]))
+    for item in skipped:
+        if campus_allowed(item.campus):
+            raise BackfillGuardError("A row on an allowed campus was set aside without being read.")
+        rows_by_campus[campus_report_label(item.campus)] += 1
+        count_unselected(item.crn, item.campus)
+    for failure in failures:
+        rows_by_campus[campus_report_label(failure.campus)] += 1
 
-    fetched_crns = {row.crn for row in rows}
+    fetched_crns = (
+        {row.crn for row in rows}
+        | {item.crn for item in skipped}
+        | {failure.crn for failure in failures}
+    )
     return TermSelection(
         term=term,
-        fetched_rows=len(rows),
+        fetched_rows=len(rows) + len(skipped) + len(failures),
         grade_crns=len(grade_keys),
         rows=tuple(selected),
         not_graded=not_graded,
@@ -294,9 +346,14 @@ def select_backfill_rows(
             sorted(Counter(str(i.row.delivery_method) for i in selected).items())
         ),
         rows_by_campus=dict(sorted(rows_by_campus.items())),
-        campus_allowed_rows=sum(1 for row in rows if campus_allowed(row.campus)),
+        campus_allowed_rows=(
+            sum(1 for row in rows if campus_allowed(row.campus))
+            + sum(1 for item in skipped if campus_allowed(item.campus))
+            + sum(1 for failure in failures if campus_allowed(failure.campus))
+        ),
         non_tampa_by_label=dict(sorted(non_tampa_by_label.items())),
         unknown_campus_labels=dict(sorted(unknown_labels.items())),
+        row_failures=tuple(failures),
     )
 
 

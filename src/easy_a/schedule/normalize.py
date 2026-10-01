@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from datetime import datetime, time
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from easy_a.schedule.parser import ParsedScheduleRow, ScheduleParseError
 
@@ -27,6 +28,64 @@ _TIME_RANGE_RE = re.compile(
     r"(?P<end>\d{1,2}:\d{2}\s*[ap]m)",
     re.IGNORECASE,
 )
+
+PLACEHOLDER_TIME_TOKENS = frozenset({"TBA", "ARR"})
+"""A time cell token meaning "no scheduled time", compared upper-cased."""
+
+SHAPE_PLACEHOLDER = "P"
+SHAPE_RANGE = "R"
+SHAPE_OTHER = "?"
+_SHAPE_TOKEN_LIMIT = 8
+
+
+class RowNormalizationError(ScheduleParseError):
+    """A parsed row that cannot be normalised, naming the failing field and its cell shape.
+
+    A ``ScheduleParseError`` with the same message as before, so every existing handler (the live
+    sweep's error classification above all) behaves identically. ``field`` and ``shape`` exist so
+    the one-off backfill can quarantine and report the row without ever carrying the cell text:
+    ``shape`` is a fixed-vocabulary fingerprint (``time_cell_shape`` or ``non_integer``).
+    """
+
+    def __init__(self, message: str, *, field: str, shape: str) -> None:
+        super().__init__(message)
+        self.field = field
+        self.shape = shape
+
+
+@dataclass(frozen=True)
+class SkippedRow:
+    """A parsed row a pre-normalisation gate excluded: identity and campus, never normalised."""
+
+    crn: str
+    campus: str
+
+
+@dataclass(frozen=True)
+class RowFailure:
+    """A row that passed the gate but failed normalisation (backfill quarantine; no cell text)."""
+
+    position: int
+    """0-based among the response's data rows, the unit the lost-rows guard counts."""
+    crn: str
+    campus: str
+    field: str
+    shape: str
+
+
+def row_failure_from(exc: ValueError, *, position: int, row: ParsedScheduleRow) -> RowFailure:
+    """The quarantine record for a normalisation failure (field and shape only)."""
+    if isinstance(exc, RowNormalizationError):
+        field, shape = exc.field, exc.shape
+    elif isinstance(exc, ValidationError) and exc.errors():
+        first = exc.errors()[0]
+        field = "validation:" + (".".join(str(part) for part in first.get("loc", ())) or "unknown")
+        shape = "invalid_value"
+    else:
+        field, shape = "unknown", "invalid_value"
+    return RowFailure(
+        position=position, crn=row.crn.strip(), campus=row.campus.strip(), field=field, shape=shape
+    )
 
 
 class NormalizedSection(BaseModel):
@@ -97,7 +156,55 @@ def _parse_optional_int(value: str | None, field_name: str) -> int | None:
     try:
         return int(cleaned)
     except ValueError as exc:
-        raise ScheduleParseError(f"Invalid {field_name} value {value!r}.") from exc
+        raise RowNormalizationError(
+            f"Invalid {field_name} value {value!r}.",
+            field=field_name.replace(" ", "_"),
+            shape="non_integer",
+        ) from exc
+
+
+def _is_placeholder_time(value: str) -> bool:
+    """Whether every whitespace-separated component of a time cell is a placeholder.
+
+    ``TBA``, ``ARR`` and the empty cell are the existing placeholder forms; a cell of several of
+    them (``TBA TBA``: two meeting components, both unscheduled) is as unscheduled as one. A mix
+    with a real time or any other token is not a placeholder.
+    """
+    tokens = value.upper().split()
+    return all(token in PLACEHOLDER_TIME_TOKENS for token in tokens)
+
+
+def time_cell_shape(value: str) -> str:
+    """A fixed-vocabulary fingerprint of a time cell: ``R`` range, ``P`` placeholder, ``?`` other.
+
+    Each clock range is one ``R`` and every remaining whitespace-separated token is ``P`` or ``?``,
+    in order and space-separated (``P P``, ``R ?``), capped at eight symbols with a trailing ``+``.
+    It carries the structure of the cell and none of its text.
+    """
+    symbols: list[str] = []
+    cursor = 0
+    text = value.strip()
+    for match in _TIME_RANGE_RE.finditer(text):
+        symbols.extend(_token_shapes(text[cursor : match.start()]))
+        symbols.append(SHAPE_RANGE)
+        cursor = match.end()
+    symbols.extend(_token_shapes(text[cursor:]))
+    if len(symbols) > _SHAPE_TOKEN_LIMIT:
+        return " ".join(symbols[:_SHAPE_TOKEN_LIMIT]) + "+"
+    return " ".join(symbols) or SHAPE_OTHER
+
+
+def _token_shapes(fragment: str) -> list[str]:
+    return [
+        SHAPE_PLACEHOLDER if token.upper() in PLACEHOLDER_TIME_TOKENS else SHAPE_OTHER
+        for token in fragment.split()
+    ]
+
+
+def _invalid_time(value: str) -> RowNormalizationError:
+    return RowNormalizationError(
+        f"Invalid schedule time range {value!r}.", field="time", shape=time_cell_shape(value)
+    )
 
 
 def _parse_time_range(value: str | None) -> tuple[time | None, time | None]:
@@ -105,7 +212,12 @@ def _parse_time_range(value: str | None) -> tuple[time | None, time | None]:
         return None, None
     ranges = list(_TIME_RANGE_RE.finditer(value.strip()))
     if not ranges:
-        raise ScheduleParseError(f"Invalid schedule time range {value!r}.")
+        # Several components that are ALL unscheduled placeholders (``TBA TBA``) are no time, the
+        # same rule as several ranges below. Nothing else changes: a placeholder mixed with any
+        # other token, or any unknown token, is still invalid.
+        if _is_placeholder_time(value):
+            return None, None
+        raise _invalid_time(value)
     # Some sections contain several day/time components in a single source row.
     # The V1 schema has one start/end pair, so leave those fields unset rather
     # than inventing precedence or silently presenting only one meeting.
@@ -115,7 +227,7 @@ def _parse_time_range(value: str | None) -> tuple[time | None, time | None]:
     try:
         return (_parse_clock(match.group("start")), _parse_clock(match.group("end")))
     except ValueError as exc:
-        raise ScheduleParseError(f"Invalid schedule time range {value!r}.") from exc
+        raise _invalid_time(value) from exc
 
 
 def _parse_clock(value: str) -> time:
