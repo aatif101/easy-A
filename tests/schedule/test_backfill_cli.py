@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Generator
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -29,6 +30,7 @@ from easy_a.models import (
     Term,
 )
 from easy_a.rankings.cache import refresh_section_rankings
+from easy_a.rankings.diff import RankingDiff, diff_score_rows
 from easy_a.schedule.backfill_cli import main
 from easy_a.schedule.client import StaffScheduleClient
 from tests.schedule.test_backfill import client_for, run
@@ -276,3 +278,213 @@ def test_what_if_term_must_be_a_live_six_digit_term(
         assert code == 2
         assert capsys.readouterr().out == ""
 
+
+# --- Task 2: atomic apply ------------------------------------------------------------------------
+
+
+def apply_args(*extra: str) -> list[str]:
+    return ["--terms", "202408", "--apply", "--rebuild-term", LIVE_TERM, *extra]
+
+
+def forbidden_client() -> StaffScheduleClient:
+    raise AssertionError("no USF client may be built")
+
+
+def assert_nothing_written(
+    session_factory: sessionmaker[Session],
+    counts_before: dict[str, int],
+    scores_before: dict[str, tuple[Any, ...]],
+) -> None:
+    assert table_counts(session_factory) == counts_before
+    assert stored_scores(session_factory) == scores_before
+
+
+def test_apply_without_rebuild_term_is_a_usage_error_and_makes_no_request(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    seed_what_if(session_factory)
+    counts_before = table_counts(session_factory)
+
+    code = main(
+        ["--terms", "202408", "--apply"],
+        session_factory=session_factory,
+        client_factory=forbidden_client,
+    )
+
+    assert code == 2
+    assert capsys.readouterr().out == ""
+    assert table_counts(session_factory) == counts_before
+
+
+@pytest.mark.parametrize("bad", ["202408", "202701x", "2027", "", "abcdef"])
+def test_rebuild_term_must_be_a_live_six_digit_term(
+    bad: str,
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    seed_what_if(session_factory)
+    counts_before = table_counts(session_factory)
+
+    code = main(
+        ["--terms", "202408", "--apply", "--rebuild-term", bad],
+        session_factory=session_factory,
+        client_factory=forbidden_client,
+    )
+
+    assert code == 2
+    assert capsys.readouterr().out == ""
+    assert table_counts(session_factory) == counts_before
+
+
+def test_expect_inserted_is_only_valid_with_apply(
+    session_factory: sessionmaker[Session],
+) -> None:
+    code = main(
+        ["--terms", "202408", "--dry-run", "--expect-inserted", "2"],
+        session_factory=session_factory,
+        client_factory=forbidden_client,
+    )
+    assert code == 2
+
+
+def test_apply_commits_the_backfill_and_the_rebuilt_cache_together(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    client_factory = historical_client(session_factory)
+    other_before = stored_scores(session_factory)[LIVE_OTHER_CRN]
+
+    code, report = run(
+        apply_args("--expect-inserted", "2"), session_factory, client_factory, capsys
+    )
+
+    assert code == 0
+    assert report["mode"] == "apply"
+    assert report["status"] == "succeeded"
+    assert report["written"] is True
+    assert "what_if" not in report
+    applied = report["applied"]
+    assert applied["rebuild_term"] == LIVE_TERM
+    assert applied["rows_rebuilt"] == 2
+    assert applied["changed"] == 1
+    assert applied["transitions"] == {"course->instructor_course": 1}
+    assert applied["verdicts"] == {"course_level_invariant": "PASS"}
+    assert applied["gate_failures"] == []
+    assert applied["expect_inserted"] == {"expected": 2, "actual": 2, "matched": True}
+
+    counts = table_counts(session_factory)
+    assert counts["Section"] == 4  # two live sections plus the two backfilled ones
+    assert counts["IngestRun"] == 1
+    assert counts["SeatSnapshot"] == 0
+    scores = stored_scores(session_factory)
+    assert scores[LIVE_OU_CRN][1] == "instructor_course"
+    assert scores[LIVE_OTHER_CRN] == other_before
+
+
+def test_apply_takes_the_sweep_lock_before_any_statement(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client_factory = historical_client(session_factory)
+    calls: list[bool] = []
+
+    def lock(session: Session) -> bool:
+        calls.append(session.in_transaction())  # no statement has run on this session yet
+        return True
+
+    monkeypatch.setattr("easy_a.schedule.backfill_cli.try_sweep_lock", lock)
+
+    code, _ = run(apply_args(), session_factory, client_factory, capsys)
+
+    assert code == 0
+    assert calls == [False]
+
+
+def test_busy_sweep_lock_exits_2_with_nothing_written(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client_factory = historical_client(session_factory)
+    counts_before = table_counts(session_factory)
+    scores_before = stored_scores(session_factory)
+    monkeypatch.setattr("easy_a.schedule.backfill_cli.try_sweep_lock", lambda session: False)
+
+    code, report = run(apply_args(), session_factory, client_factory, capsys)
+
+    assert code == 2
+    assert report["status"] == "busy"
+    assert report["error_kind"] == "sweep_lock_busy"
+    assert report["written"] is False
+    assert_nothing_written(session_factory, counts_before, scores_before)
+
+
+def test_expect_inserted_mismatch_rolls_back_and_names_both_counts(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    client_factory = historical_client(session_factory)
+    counts_before = table_counts(session_factory)
+    scores_before = stored_scores(session_factory)
+
+    code, report = run(
+        apply_args("--expect-inserted", "999"), session_factory, client_factory, capsys
+    )
+
+    assert code == 1
+    assert report["status"] == "failed"
+    assert report["error_kind"] == "expect_inserted"
+    assert report["written"] is False
+    assert report["applied"]["expect_inserted"] == {
+        "expected": 999,
+        "actual": 2,
+        "matched": False,
+    }
+    assert report["applied"]["gate_failures"] == ["expect_inserted"]
+    assert_nothing_written(session_factory, counts_before, scores_before)
+
+
+def test_a_course_level_violation_rolls_the_apply_back(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client_factory = historical_client(session_factory)
+    counts_before = table_counts(session_factory)
+    scores_before = stored_scores(session_factory)
+    real_diff = diff_score_rows
+
+    def with_a_violation(before: Any, after: Any, **kwargs: Any) -> RankingDiff:
+        diff = real_diff(before, after, **kwargs)
+        violation = {"crn": LIVE_OTHER_CRN, "changed_fields": ["easiness_score"]}
+        return replace(diff, course_level_violations=(violation,))
+
+    monkeypatch.setattr("easy_a.schedule.backfill_cli.diff_score_rows", with_a_violation)
+
+    code, report = run(apply_args(), session_factory, client_factory, capsys)
+
+    assert code == 1
+    assert report["error_kind"] == "course_level_invariant"
+    assert report["written"] is False
+    assert report["applied"]["verdicts"] == {"course_level_invariant": "FAIL"}
+    assert_nothing_written(session_factory, counts_before, scores_before)
+
+
+def test_a_failed_guard_in_apply_takes_no_lock_and_writes_nothing(
+    session_factory: sessionmaker[Session],
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seed_what_if(session_factory)
+    client_factory, _ = client_for({"202408": []})  # zero parsed rows: the zero_rows guard
+    counts_before = table_counts(session_factory)
+    scores_before = stored_scores(session_factory)
+
+    code, report = run(apply_args(), session_factory, client_factory, capsys)
+
+    assert code == 1
+    assert report["error_kind"] == "guard"
+    assert "applied" not in report
+    assert_nothing_written(session_factory, counts_before, scores_before)

@@ -196,7 +196,12 @@ def test_tracer_one_term_goes_from_whole_term_response_to_joined_rows(
     rows = seed_tracer(session_factory)
     client_factory, requests = client_for({"202408": rows})
 
-    code, report = run(["--terms", "202408", "--apply"], session_factory, client_factory, capsys)
+    code, report = run(
+        ["--terms", "202408", "--apply", "--rebuild-term", "202701"],
+        session_factory,
+        client_factory,
+        capsys,
+    )
 
     assert code == 0
     assert len(requests) == 1
@@ -325,12 +330,21 @@ def test_rerun_over_identical_data_changes_nothing(
 ) -> None:
     rows = graded_rows(session_factory)
     client_factory, _ = client_for({"202408": rows})
-    run(["--terms", "202408", "--apply"], session_factory, client_factory, capsys)
+    run(
+        ["--terms", "202408", "--apply", "--rebuild-term", "202701"],
+        session_factory,
+        client_factory,
+        capsys,
+    )
     before = table_sizes(session_factory)
 
     later = NOW + timedelta(days=1)
     code, report = run(
-        ["--terms", "202408", "--apply"], session_factory, client_factory, capsys, now=later
+        ["--terms", "202408", "--apply", "--rebuild-term", "202701"],
+        session_factory,
+        client_factory,
+        capsys,
+        now=later,
     )
 
     assert code == 0
@@ -353,7 +367,9 @@ def test_changed_instructor_appends_one_row_and_changed_field_counts_as_update(
 ) -> None:
     rows = graded_rows(session_factory)
     first, _ = client_for({"202408": rows})
-    run(["--terms", "202408", "--apply"], session_factory, first, capsys)
+    run(
+        ["--terms", "202408", "--apply", "--rebuild-term", "202701"], session_factory, first, capsys
+    )
 
     changed = [
         RowSpec(crn="89033", subject="MAC", number="1105", instructor="J. Newname"),
@@ -368,7 +384,7 @@ def test_changed_instructor_appends_one_row_and_changed_field_counts_as_update(
     ]
     second, _ = client_for({"202408": changed})
     code, report = run(
-        ["--terms", "202408", "--apply"],
+        ["--terms", "202408", "--apply", "--rebuild-term", "202701"],
         session_factory,
         second,
         capsys,
@@ -393,7 +409,7 @@ def test_changed_instructor_appends_one_row_and_changed_field_counts_as_update(
     ]
     third, _ = client_for({"202408": cosmetic})
     _, report = run(
-        ["--terms", "202408", "--apply"],
+        ["--terms", "202408", "--apply", "--rebuild-term", "202701"],
         session_factory,
         third,
         capsys,
@@ -418,7 +434,12 @@ def test_dry_run_reports_apply_counts_and_changes_nothing(
     assert table_counts(session_factory) == before
     assert before["Section"] == before["SeatSnapshot"] == before["IngestRun"] == 0
 
-    _, applied = run(["--terms", "202408", "--apply"], session_factory, client_factory, capsys)
+    _, applied = run(
+        ["--terms", "202408", "--apply", "--rebuild-term", "202701"],
+        session_factory,
+        client_factory,
+        capsys,
+    )
     assert term_of(dry) == term_of(applied)
     assert table_counts(session_factory)["Section"] == 2
 
@@ -433,7 +454,9 @@ def test_terms_outside_the_allowlist_are_refused_without_a_request(
         raise AssertionError("no client may be built for a refused term")
 
     code = main(
-        ["--terms", term, "--apply"], session_factory=session_factory, client_factory=forbidden
+        ["--terms", term, "--apply", "--rebuild-term", "202701"],
+        session_factory=session_factory,
+        client_factory=forbidden,
     )
 
     assert code == 2
@@ -458,7 +481,7 @@ def test_http_500_on_second_term_stops_with_nothing_written(
     sleeps: list[float] = []
 
     code, report = run(
-        ["--terms", "202408", "202501", "--apply"],
+        ["--terms", "202408", "202501", "--apply", "--rebuild-term", "202701"],
         session_factory,
         lambda: client,
         capsys,
@@ -487,7 +510,12 @@ def test_timeout_is_reported_as_a_coarse_kind(
         raise httpx.ReadTimeout("slow", request=request)
 
     client, requests = usf_client(handler=handler)
-    code, report = run(["--terms", "202408", "--apply"], session_factory, lambda: client, capsys)
+    code, report = run(
+        ["--terms", "202408", "--apply", "--rebuild-term", "202701"],
+        session_factory,
+        lambda: client,
+        capsys,
+    )
 
     assert code == 1
     assert len(requests) == 1
@@ -501,8 +529,8 @@ def test_zero_parsed_rows_fail_the_guard_in_apply_and_dry_run(
     graded_rows(session_factory)
     client_factory, _ = client_for({"202408": []})
 
-    for mode in ("--apply", "--dry-run"):
-        code, report = run(["--terms", "202408", mode], session_factory, client_factory, capsys)
+    for mode in (["--apply", "--rebuild-term", "202701"], ["--dry-run"]):
+        code, report = run(["--terms", "202408", *mode], session_factory, client_factory, capsys)
         assert code == 1
         assert "zero_rows" in term_of(report)["guard_failures"]
         assert count(session_factory, Section) == 0
@@ -517,7 +545,12 @@ def test_unmatched_grade_fraction_above_the_limit_writes_nothing(
     add_grade(session_factory, term_id=2, crn="89035", course_id=10)
     client_factory, _ = client_for({"202408": rows})  # 89035 is missing: 1 of 3 unmatched
 
-    code, report = run(["--terms", "202408", "--apply"], session_factory, client_factory, capsys)
+    code, report = run(
+        ["--terms", "202408", "--apply", "--rebuild-term", "202701"],
+        session_factory,
+        client_factory,
+        capsys,
+    )
     assert code == 1
     assert "unmatched_fraction" in term_of(report)["guard_failures"]
     assert term_of(report)["unmatched_grade_crns"] == 1
@@ -528,7 +561,15 @@ def test_unmatched_grade_fraction_above_the_limit_writes_nothing(
     assert count(session_factory, Section) == 0
 
     code, report = run(
-        ["--terms", "202408", "--apply", "--max-unmatched-fraction", "0.5"],
+        [
+            "--terms",
+            "202408",
+            "--apply",
+            "--rebuild-term",
+            "202701",
+            "--max-unmatched-fraction",
+            "0.5",
+        ],
         session_factory,
         client_factory,
         capsys,
@@ -548,8 +589,8 @@ def test_duplicate_crn_among_rows_to_write_aborts_before_any_write(
     ]
     client_factory, _ = client_for({"202408": rows})
 
-    for mode in ("--apply", "--dry-run"):
-        code, report = run(["--terms", "202408", mode], session_factory, client_factory, capsys)
+    for mode in (["--apply", "--rebuild-term", "202701"], ["--dry-run"]):
+        code, report = run(["--terms", "202408", *mode], session_factory, client_factory, capsys)
         assert code == 1
         assert term_of(report)["guard_failures"] == ["duplicate_crn"]
         assert count(session_factory, Section) == 0
@@ -577,7 +618,12 @@ def test_non_tampa_unattributed_and_mismatched_rows_are_skipped_and_counted(
     ]
     client_factory, _ = client_for({"202408": rows})
 
-    code, report = run(["--terms", "202408", "--apply"], session_factory, client_factory, capsys)
+    code, report = run(
+        ["--terms", "202408", "--apply", "--rebuild-term", "202701"],
+        session_factory,
+        client_factory,
+        capsys,
+    )
 
     assert code == 0
     term = term_of(report)
@@ -620,7 +666,8 @@ def test_sleep_runs_between_terms_and_never_after_the_last(
 
 def test_pause_below_the_floor_is_rejected(session_factory: sessionmaker[Session]) -> None:
     code = main(
-        ["--terms", "202408", "--apply", "--pause-seconds", "5"], session_factory=session_factory
+        ["--terms", "202408", "--apply", "--rebuild-term", "202701", "--pause-seconds", "5"],
+        session_factory=session_factory,
     )
     assert code == 2
 
@@ -697,7 +744,12 @@ def test_backfilled_history_survives_a_live_sweep_untouched(
 ) -> None:
     rows = graded_rows(session_factory)
     client_factory, _ = client_for({"202408": rows})
-    run(["--terms", "202408", "--apply"], session_factory, client_factory, capsys)
+    run(
+        ["--terms", "202408", "--apply", "--rebuild-term", "202701"],
+        session_factory,
+        client_factory,
+        capsys,
+    )
 
     def historical_state() -> list[tuple[object, ...]]:
         with session_factory() as session:
@@ -753,7 +805,12 @@ def test_laboratory_sections_are_stored_and_listed_in_the_histogram(
     ]
     client_factory, _ = client_for({"202408": rows})
 
-    code, report = run(["--terms", "202408", "--apply"], session_factory, client_factory, capsys)
+    code, report = run(
+        ["--terms", "202408", "--apply", "--rebuild-term", "202701"],
+        session_factory,
+        client_factory,
+        capsys,
+    )
 
     assert code == 0
     assert term_of(report)["section_type_histogram"] == {"Class Lecture": 1, "Laboratory": 1}

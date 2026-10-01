@@ -5,7 +5,12 @@ requested grade term with exactly one whole-term StaffScheduleSearch request, ke
 that back a stored grade row and writes Section plus SectionInstructor rows. It is separate from the
 Render worker and accepts only the five historical grade terms.
 
-Exit codes: 0 success or dry run; 1 refused or failed with nothing written; 2 argparse usage error.
+Exit codes: 0 success or dry run; 1 refused or failed with nothing written; 2 argparse usage error,
+or (apply) the sweep lock is held by a live sweep and nothing was written.
+
+``--apply`` needs ``--rebuild-term``: it takes the sweep advisory lock first, writes the backfill,
+rebuilds that term's section_rankings in the same transaction and commits only when the
+course-level invariant holds and any ``--expect-inserted`` count matches (D-04, D-07).
 
 ``--dry-run`` also reports the D-04 what-if (PROJECT.md D-04, D-07) from the same write path as
 apply, inside a transaction that is always rolled back: whether the new code alone reproduces the
@@ -38,6 +43,7 @@ from easy_a.common.lookups import ensure_term
 from easy_a.config import DatabaseConfigError
 from easy_a.db import get_engine, get_session_factory
 from easy_a.models import IngestRun
+from easy_a.rankings.cache import refresh_section_rankings
 from easy_a.rankings.diff import (
     RankingDiff,
     ScoreRow,
@@ -60,9 +66,11 @@ from easy_a.schedule.backfill import (
 from easy_a.schedule.client import StaffScheduleClient, WholeTermResponseError
 from easy_a.schedule.parser import ScheduleParseError
 from easy_a.sync.fetch import FetchedTerm, fetch_whole_term
+from easy_a.sync.lock import try_sweep_lock
 
 EXIT_OK = 0
 EXIT_FAILED = 1
+EXIT_BUSY = 2
 
 DEFAULT_PAUSE_SECONDS = 30.0
 MIN_PAUSE_SECONDS = 10.0
@@ -112,6 +120,16 @@ def _live_term(value: str) -> str:
     return term
 
 
+def _non_negative_int(value: str) -> int:
+    try:
+        number = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"{value!r} is not an integer") from exc
+    if number < 0:
+        raise argparse.ArgumentTypeError("must not be negative")
+    return number
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="backfill_historical_sections",
@@ -137,6 +155,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="Write inside one transaction that is always rolled back, then print counts.",
     )
     mode.add_argument("--apply", action="store_true", help="Write the rows and commit.")
+    parser.add_argument(
+        "--rebuild-term",
+        type=_live_term,
+        default=None,
+        help="Live term whose section_rankings cache --apply rebuilds in the same transaction "
+        "(required with --apply).",
+    )
+    parser.add_argument(
+        "--expect-inserted",
+        type=_non_negative_int,
+        default=None,
+        metavar="N",
+        help="With --apply: roll back unless exactly N sections are inserted in total "
+        "(use the count the reviewed dry run reported).",
+    )
     parser.add_argument(
         "--what-if-term",
         type=_live_term,
@@ -175,7 +208,9 @@ def main(
 ) -> int:
     """Run the CLI and return the exit code. Keyword arguments exist for tests."""
     try:
-        args = build_parser().parse_args(argv)
+        parser = build_parser()
+        args = parser.parse_args(argv)
+        _check_mode_arguments(parser, args)
     except SystemExit as exc:
         return exc.code if isinstance(exc.code, int) else EXIT_OK
 
@@ -198,6 +233,14 @@ def main(
     finally:
         if engine is not None:
             engine.dispose()
+
+
+def _check_mode_arguments(parser: argparse.ArgumentParser, args: argparse.Namespace) -> None:
+    """Cross-argument rules argparse cannot express: exit 2 before any work or request."""
+    if args.apply and args.rebuild_term is None:
+        parser.error("--apply requires --rebuild-term (the live term whose cache is rebuilt)")
+    if args.expect_inserted is not None and not args.apply:
+        parser.error("--expect-inserted only applies to --apply")
 
 
 def _scrub(text: str) -> str:
@@ -296,13 +339,22 @@ def _run(
 
     writes: dict[str, WriteCounts] = {}
     what_if: WhatIf | None = None
+    applied: Applied | None = None
+    committed = False
     if can_write:
         session = session_factory()
         try:
+            if not dry_run and not try_sweep_lock(session):
+                # First locking statement of the transaction (D-22 c): a live sweep holds it.
+                session.rollback()
+                return _emit(args, _busy_report(), EXIT_BUSY)
             before: _WhatIfBefore | None = None
+            stored_before: dict[str, ScoreRow] | None = None
             if dry_run:
                 # Read before any backfill write: the stored cache and the new code's recomputation.
                 before = _what_if_before(session, args.what_if_term)
+            else:
+                stored_before = stored_score_rows(session, args.rebuild_term)
             for term in terms:
                 term_row = ensure_term(session, term)
                 writes[term] = write_term_backfill(
@@ -316,10 +368,19 @@ def _run(
                     session.add(run)
             if before is not None:
                 what_if = _what_if_after(session, args.what_if_term, before)
-            if dry_run:
+            if stored_before is not None:
+                applied = _rebuild_and_diff(
+                    session,
+                    args.rebuild_term,
+                    stored_before,
+                    inserted=sum(counts.inserted for counts in writes.values()),
+                    expected_inserted=args.expect_inserted,
+                )
+            if dry_run or (applied is not None and applied.gate_failures):
                 session.rollback()
             else:
                 session.commit()
+                committed = True
         except SQLAlchemyError as exc:
             session.rollback()
             return _emit(args, _failure("database", detail=str(exc)), EXIT_FAILED)
@@ -329,10 +390,98 @@ def _run(
         finally:
             session.close()
 
-    failed = guard_failed or (what_if is not None and not what_if.gate_passed)
-    report = _report(args, selections, writes, guards, what_if, include_changes=False)
-    file_report = _report(args, selections, writes, guards, what_if, include_changes=True)
-    return _emit(args, report, EXIT_FAILED if failed else EXIT_OK, file_report=file_report)
+    failed = (
+        guard_failed
+        or (what_if is not None and not what_if.gate_passed)
+        or (applied is not None and bool(applied.gate_failures))
+    )
+    outcome = _Outcome(
+        selections=selections,
+        writes=writes,
+        guards=guards,
+        what_if=what_if,
+        applied=applied,
+        committed=committed,
+    )
+    return _emit(
+        args,
+        _report(args, outcome, include_changes=False),
+        EXIT_FAILED if failed else EXIT_OK,
+        file_report=_report(args, outcome, include_changes=True),
+    )
+
+
+def _busy_report() -> dict[str, Any]:
+    return {"status": "busy", "error_kind": "sweep_lock_busy", "written": False}
+
+
+@dataclass(frozen=True)
+class Applied:
+    """The stored-before versus stored-after cache diff of one apply, and its commit gate."""
+
+    rebuild_term: str
+    rows_rebuilt: int
+    diff: RankingDiff
+    inserted: int
+    expected_inserted: int | None
+
+    @property
+    def gate_failures(self) -> list[str]:
+        """Reasons the transaction must roll back (T-10-19): empty means it may commit."""
+        failures: list[str] = []
+        if not self.diff.course_level_invariant:
+            failures.append("course_level_invariant")
+        if self.expected_inserted is not None and self.expected_inserted != self.inserted:
+            failures.append("expect_inserted")
+        return failures
+
+    def to_dict(self, *, include_changes: bool) -> dict[str, Any]:
+        output: dict[str, Any] = self.diff.to_dict(include_changes=include_changes)
+        output.update(
+            rebuild_term=self.rebuild_term,
+            rows_rebuilt=self.rows_rebuilt,
+            gate_failures=self.gate_failures,
+            verdicts={
+                "course_level_invariant": "PASS" if self.diff.course_level_invariant else "FAIL"
+            },
+        )
+        if self.expected_inserted is not None:
+            output["expect_inserted"] = {
+                "expected": self.expected_inserted,
+                "actual": self.inserted,
+                "matched": self.expected_inserted == self.inserted,
+            }
+        return output
+
+
+def _rebuild_and_diff(
+    session: Session,
+    term: str,
+    stored_before: dict[str, ScoreRow],
+    *,
+    inserted: int,
+    expected_inserted: int | None,
+) -> Applied:
+    """Rebuild the term's cache in the caller's transaction and diff it against the stored rows."""
+    rows_rebuilt = refresh_section_rankings(session, term=term)
+    stored_after = stored_score_rows(session, term)
+    return Applied(
+        rebuild_term=term,
+        rows_rebuilt=rows_rebuilt,
+        diff=diff_score_rows(stored_before, stored_after),
+        inserted=inserted,
+        expected_inserted=expected_inserted,
+    )
+
+
+@dataclass(frozen=True)
+class _Outcome:
+    selections: dict[str, TermSelection]
+    writes: dict[str, WriteCounts]
+    guards: dict[str, list[str]]
+    what_if: WhatIf | None
+    applied: Applied | None
+    committed: bool
 
 
 @dataclass(frozen=True)
@@ -444,30 +593,31 @@ def _term_report(
 
 
 def _report(
-    args: argparse.Namespace,
-    selections: dict[str, TermSelection],
-    writes: dict[str, WriteCounts],
-    guards: dict[str, list[str]],
-    what_if: WhatIf | None,
-    *,
-    include_changes: bool,
+    args: argparse.Namespace, outcome: _Outcome, *, include_changes: bool
 ) -> dict[str, Any]:
-    guard_failed = any(guards.values())
+    guard_failed = any(outcome.guards.values())
+    what_if = outcome.what_if
+    applied = outcome.applied
     what_if_failed = what_if is not None and not what_if.gate_passed
+    apply_failures = applied.gate_failures if applied is not None else []
     report: dict[str, Any] = {
-        "status": "failed" if guard_failed or what_if_failed else "succeeded",
-        "written": bool(writes) and not args.dry_run,
+        "status": "failed" if guard_failed or what_if_failed or apply_failures else "succeeded",
+        "written": outcome.committed,
         "terms": {
-            term: _term_report(selection, writes.get(term), guards[term])
-            for term, selection in selections.items()
+            term: _term_report(selection, outcome.writes.get(term), outcome.guards[term])
+            for term, selection in outcome.selections.items()
         },
     }
     if what_if is not None:
         report["what_if"] = what_if.to_dict(include_changes=include_changes)
+    if applied is not None:
+        report["applied"] = applied.to_dict(include_changes=include_changes)
     if guard_failed:
         report["error_kind"] = "guard"
     elif what_if_failed:
         report["error_kind"] = "what_if"
+    elif apply_failures:
+        report["error_kind"] = apply_failures[0]
     return report
 
 
