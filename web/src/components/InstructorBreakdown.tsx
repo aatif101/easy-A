@@ -132,9 +132,12 @@ export function InstructorBreakdown({ ranking, breakdown, id }: InstructorBreakd
   const visibleOthers = otherRows.slice(0, VISIBLE_ROW_CAP - pinnedCount);
   const hiddenOthers = otherRows.slice(VISIBLE_ROW_CAP - pinnedCount);
 
-  const isEmpty = !named && breakdown.instructors.length === 0;
-  const usedInScore = ranking.score_source === "instructor_course";
   const othersCount = Math.round(breakdown.other_instructor_count);
+  // The empty note claims no instructor-level history exists, so it may render
+  // only when nothing is listed AND nothing is collapsed into the Others line (P10-WR-01).
+  const isEmpty = !named && breakdown.instructors.length === 0 && othersCount === 0;
+  const usedInScore = ranking.score_source === "instructor_course";
+  const hasRows = Boolean(pinnedRow) || Boolean(noHistoryName) || visibleOthers.length > 0;
   const cutoff = Math.round(breakdown.collapse_min_effective_n);
 
   const renderRow = (row: InstructorHistoryRow) => (
@@ -160,19 +163,21 @@ export function InstructorBreakdown({ ranking, breakdown, id }: InstructorBreakd
         <>
           <p className="mt-2 text-xs leading-normal text-stone-600">{SOURCE_LINE}</p>
           {!named ? <p className="mt-2 text-xs leading-normal text-stone-600">{STAFF_EXPLAINER}</p> : null}
-          <ul className="mt-4 space-y-2">
-            {pinnedRow ? (
-              <InstructorRow
-                key={pinnedRow.name}
-                row={pinnedRow}
-                pinned
-                usedInScore={usedInScore}
-                scoringMin={breakdown.scoring_min_effective_n}
-              />
-            ) : null}
-            {noHistoryName ? <NoHistoryPinnedRow name={noHistoryName} /> : null}
-            {visibleOthers.map(renderRow)}
-          </ul>
+          {hasRows ? (
+            <ul className="mt-4 space-y-2">
+              {pinnedRow ? (
+                <InstructorRow
+                  key={pinnedRow.name}
+                  row={pinnedRow}
+                  pinned
+                  usedInScore={usedInScore}
+                  scoringMin={breakdown.scoring_min_effective_n}
+                />
+              ) : null}
+              {noHistoryName ? <NoHistoryPinnedRow name={noHistoryName} /> : null}
+              {visibleOthers.map(renderRow)}
+            </ul>
+          ) : null}
           {hiddenOthers.length > 0 ? (
             <details className="mt-2">
               <summary className="min-h-11 cursor-pointer py-3 text-sm font-bold text-spruce focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-spruce">
