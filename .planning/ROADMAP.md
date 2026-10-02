@@ -555,7 +555,7 @@ history, wherever the evidence supports it.
 
 **Depends on**: Phase 9 (live sync keeps current instructor names correct)
 
-**Status**: Planned (2026-09-28), not started
+**Status**: Live 2026-10-02 (PR #37 merged as `bcf1dbb`; the operator-run apply put 8,535 historical sections live and 637 sections of 202701 now score `instructor_course`), pending phase verification and UAT. Success criterion 1 is unmet as measured (3,297 / 1,314 / 2,153 / 2,785 against 3,216 / 1,329 / 2,178 / 2,829) and accepted in writing at D-04; the six UI visual checks are queued, none observed. Evidence: `.planning/phases/10-professor-level-grades/10-ROLLOUT-EVIDENCE.md`
 
 **Scope**
 
@@ -579,7 +579,7 @@ history, wherever the evidence supports it.
 
 **Requirements**: REQ-PROF-01
 
-**Plans:** 8/9 plans executed (tracer-first; Wave 1 ×4 parallel → Wave 2 ×2 → Wave 3 → Wave 4 → Wave 5). D-24 approved 2026-09-30 (CONTEXT D-01).
+**Plans:** 9/9 plans executed (tracer-first; Wave 1 ×4 parallel → Wave 2 ×2 → Wave 3 → Wave 4 → Wave 5). D-24 approved 2026-09-30 (CONTEXT D-01).
 
 Plans:
 **Wave 1**
@@ -604,7 +604,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4)*
 
-- [ ] 10-09-PLAN.md — Deployed-UI check with queued visual UAT (incl. UI-SPEC backstops); STATE/ROADMAP/REQUIREMENTS facts
+- [x] 10-09-PLAN.md — Deployed-UI check with queued visual UAT (incl. UI-SPEC backstops); STATE/ROADMAP/REQUIREMENTS facts
 
 ---
 
@@ -686,7 +686,7 @@ rewrite is planned or approved.
 | REQ-PERF-01 | 7, 8 | ✓ Complete — loopback HTTP p95 277.25 ms at 3,783 sections on hosted Supabase, re-confirmed in Phase 8 end-to-end verification (2026-09-24) |
 | REQ-OPS-01 | 9 | ◐ Hosted beta live 2026-09-30 (Render); CI green on PR #33; hosted single-client p95 212.56 ms; pending phase verification and operator review of the open 30 s sweep-duration gap (`09-15-SUMMARY.md`) |
 | REQ-SYNC-01 | 9 | ◐ Worker live 2026-09-30: 2 hosted sweeps, change-only writes reconcile exactly, 109 removed sections out of search; pending phase verification; open gap: sweeps took 50.69 s and 37.166 s vs the 30 s soak criterion (unresolved) |
-| REQ-PROF-01 | 10 | ○ Planned 2026-09-28 |
+| REQ-PROF-01 | 10 | ◐ Live 2026-10-02: 8,535 historical sections backfilled, 637 sections of 202701 scored `instructor_course`, instructor breakdown served (`ready` 2,506 / `lab_section` 540 / `no_instructor_history` 3 / null 658), deployed bundle carries the block; pending phase verification and UAT; success criterion 1 (join re-measure) unmet as measured and accepted at D-04; six visual checks queued, none observed; first post-apply sweep not yet observed (`10-ROLLOUT-EVIDENCE.md`) |
 
 Backlog requirements (`REQ-ALERT-*`, `REQ-RMP-01`) are deliberately unmapped — they belong to
 candidate later phases.
