@@ -186,7 +186,7 @@ All strings below are the contract text; the executor may not paraphrase them. `
 | Others line | `{M} other instructors with under {C} grades each` |
 | Pinned row, no history | `{Name}` + 14px stone-700 line `No recorded grade history for this instructor in this course.` + `This section's score uses course-wide history.` |
 | Empty state heading | none rendered when the course has no instructor-level history (see Considerations: block is omitted unless the course has its own letter-grade history, D-20) |
-| Empty state body (course has history, zero qualifying instructors and Staff section) | `No instructor-level grade history is recorded for this course. Course-wide history above still applies.` (dashed-note style) |
+| Empty state body (course has history; Staff or unnamed section; no instructor rows and no instructors collapsed into the Others line; amended 2026-10-02, P10-WR-01) | `No instructor-level grade history is recorded for this course. Course-wide history above still applies.` (dashed-note style) |
 | Lab note (D-13) | Heading `Instructors for this course` is NOT shown. Dashed-note: `Instructor history is not shown for lab sections. The figures above are course-wide.` |
 | Loading (only if the breakdown is fetched on expand) | `Loading instructor history…` (`role="status"`, 14px stone-600) |
 | Error (only if fetched on expand) | `Instructor history could not be loaded. Course-wide history above is unaffected.` + button `Try again` |
@@ -309,7 +309,7 @@ Applicable state considerations resolved: 8 covered, 2 backstop, 0 unresolved
 
 | Category | Element(s) | Status | Resolution / Reason |
 |----------|------------|--------|---------------------|
-| empty | instructor list | ✅ covered | Course with own history but no qualifying instructors and a Staff section renders the dashed note `No instructor-level grade history is recorded for this course. Course-wide history above still applies.` A course with no own letter-grade history (`subject_fallback`, `no_letter_grade_history`, `no_course_evidence`) renders no block at all (D-20); `describeEvidence` already states the fallback. Copy in Copywriting Contract. |
+| empty | instructor list | ✅ covered | Course with own history but no qualifying instructors and a Staff section renders the dashed note `No instructor-level grade history is recorded for this course. Course-wide history above still applies.` A course with no own letter-grade history (`subject_fallback`, `no_letter_grade_history`, `no_course_evidence`) renders no block at all (D-20); `describeEvidence` already states the fallback. Copy in Copywriting Contract. A Staff section whose instructors with history are all under the collapse cutoff renders the normal Staff block (heading "Historically taught by", Source line, Staff explainer) followed by the Others line, with no rows and no empty-state note (amended, P10-WR-01). |
 | loading | instructor block (only if lazily fetched) | ✅ covered | `Loading instructor history…` in `role="status"`; course-wide panel stays interactive. Not rendered if data is embedded. |
 | error | instructor block (only if lazily fetched) | ✅ covered | Red-50 inline message + `Try again`; states course-wide history is unaffected. Copy in Copywriting Contract. |
 | populated | instructor list | ✅ covered | Up to 5 rows visible (pinned first, then by n desc); remainder behind native disclosure; Others line for rows under the cutoff. Fixtures: CNT 4419, PSY 2012, MAC 1105. |
@@ -362,3 +362,15 @@ assert on both layouts.
 - [x] Dimension 7 Inventory Provenance: PASS (no component inventory)
 
 **Approval:** approved 2026-09-30 (checker: UI-SPEC VERIFIED, 1 non-blocking FLAG)
+
+---
+
+## Amendments
+
+### 2026-10-02 (UTC): empty-state condition narrowed (P10-WR-01)
+
+- **Source:** 10-VERIFICATION.md gap 2 and 10-REVIEW.md finding P10-WR-01.
+- **What was wrong:** the empty-state body asserted that no instructor-level history exists for the course, while instructors under the collapse cutoff were counted in the Others line directly below it. The original row condition ("zero qualifying instructors") literally mandated that rendering, because "qualifying" meant at or above the collapse cutoff.
+- **What changed:** the empty-state condition now also requires that no instructors are collapsed into the Others line (`other_instructor_count` is 0). A Staff or unnamed section with instructors only under the cutoff renders the normal Staff block followed by the Others line, and the row list is omitted when it has no rows.
+- **Copy:** no locked copy string was added, removed or reworded. The condition cells of the Copywriting Contract "Empty state body" row and the UI Considerations "empty" row changed; the empty-state body string is byte-identical.
+- **Implemented in:** plan 10-10 (`web/src/components/InstructorBreakdown.tsx`, regression test in `InstructorBreakdown.test.tsx`).
