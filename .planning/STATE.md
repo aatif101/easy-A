@@ -2,14 +2,14 @@
 gsd_state_version: "1.0"
 current_plan: 9
 status: design_direction_selected
-stopped_at: Completed 10-08-PLAN.md (apply live; criterion 1 unmet-as-measured but accepted; first post-apply sweep unobserved; next 10-09)
-last_updated: "2026-10-02T02:05:53.783Z"
-state_head: b12cd3cfa74f6bb0bc15f30e209efa721d5cdc90
+stopped_at: Completed 10-09-PLAN.md (deployed bundle carries the block; six visual checks queued; planning facts recorded; next /gsd-verify-work 10)
+last_updated: "2026-10-02T02:12:33.062Z"
+state_head: 1b21447339a95f62c8281ac87e11ce67e53da017
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 45
-  completed_plans: 44
+  completed_plans: 45
   percent: 64
 last_activity: 2026-09-30
 current_phase: 10
@@ -333,7 +333,7 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Completed 10-08-PLAN.md (apply live; criterion 1 unmet-as-measured but accepted; first post-apply sweep unobserved; next 10-09)
+**Stopped at:** Completed 10-09-PLAN.md (deployed bundle carries the block; six visual checks queued; planning facts recorded; next /gsd-verify-work 10)
 Final specification review and student walkthrough remain open. See
 `.planning/sketches/001-student-experience/README.md`.
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
@@ -345,7 +345,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-10-02T02:05:53.703Z
+Last session: 2026-10-02T02:12:20.404Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
@@ -399,6 +399,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 | Phase 10 P06 | 10 min | 3 tasks | 6 files |
 | Phase 10 P07 | about 15 h wall clock | 3 tasks | 28 files |
 | Phase 10 P08 | about 4.7 h wall clock | 3 tasks | 2 files |
+| Phase 10 P09 | 12 min | 2 tasks | 4 files |
 
 ## Decisions
 
@@ -469,3 +470,4 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 - [Phase 10]: 10-08: ROADMAP success criterion 1 is UNMET as measured (3,297 / 1,314 / 2,153 / 2,785 vs 3,216 / 1,329 / 2,178 / 2,829) and stands only as accepted in writing at D-04; the n>=1 recount (pairs 3,153 -63, instructors -40, courses -18, multi-term -17) is an inference, not proof — Recorded as measured; the 58 absent graded CRNs stay unexplained; REQ-PROF-01 not marked complete (requirements.ready-ids: 0/1 ready, 10-09 also declares it)
 - [Phase 10]: 10-08 findings for the owner (not blockers): search payload grew ENC 1101 84,210 to 591,198 bytes (7.0x, gzip 8,398) and default page 99,363 to 247,681 bytes (2.5x, gzip 5,228) with no plan threshold; applied-diff float_noise 0 vs what-if 3,041 unexplained — Growth is the non-null instructor breakdown (reviewed design); browser-side cost not measured; noise is sub-1e-9 and affects no score or rank
 - [Phase 10]: 10-08 open follow-up: the first live worker sweep after the apply is NOT yet observed; check sync-status succeeded and not stale, report_ranking_diff exit 0, instructor_course still 637 — Last sweep (01:08Z) pre-dates the apply (01:35Z-01:42Z); cadence 3,600 s
+- [Phase 10]: 10-09: no visual check is recorded as passed; the 40-character-name backstop is only partly coverable live (longest listed name is 18 characters) and REQ-PROF-01 stays unticked pending verification

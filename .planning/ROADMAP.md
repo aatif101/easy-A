@@ -666,7 +666,7 @@ rewrite is planned or approved.
 | 7 — MVP1-P4 full-scale perf (p95 < 1.5s) | ✓ Complete | 100% |
 | 8 — MVP1-P5 MVP-1 verification | Complete    | 100% |
 | 9 — Hosted beta + live schedule sync | Complete    | 0% |
-| 10 — Professor-level grades | In Progress| 0% |
+| 10 — Professor-level grades | Live 2026-10-02, pending verification and UAT | 9/9 plans |
 
 ---
 
