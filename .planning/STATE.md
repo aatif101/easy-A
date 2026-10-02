@@ -1,15 +1,15 @@
 ---
 gsd_state_version: "1.0"
-current_plan: 8
+current_plan: 9
 status: design_direction_selected
-stopped_at: Completed 10-07-PLAN.md (D-04 approved; next 10-08)
-last_updated: "2026-10-01T21:25:41.823Z"
-state_head: 0819965ad200a12ee44c01c0c47c636c23f3aee2
+stopped_at: Completed 10-08-PLAN.md (apply live; criterion 1 unmet-as-measured but accepted; first post-apply sweep unobserved; next 10-09)
+last_updated: "2026-10-02T02:05:53.783Z"
+state_head: b12cd3cfa74f6bb0bc15f30e209efa721d5cdc90
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 45
-  completed_plans: 43
+  completed_plans: 44
   percent: 64
 last_activity: 2026-09-30
 current_phase: 10
@@ -118,7 +118,7 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: 8
+Current Plan: 9
 Total Plans in Phase: 9
 
 ## Next action
@@ -129,7 +129,9 @@ sweep on the CR-01 fix image succeeded (2026-09-30T23:58:46Z, about 26 s). Still
 warnings WR-01..WR-08 / IN-01..IN-04 (WR-03, the cadence-floor race during worker overlap, is worth fixing
 before Spring 2027 registration), NEB 0001 (fails every sweep), and the optional gate-recovery rehearsal
 (`09-UAT.md` test 5). **Next: Phase 10 (professor-level grades)** via `/gsd-discuss-phase 10`;
-D-24 (instructor-course scoring retune) was approved 2026-09-30. **Phase 10 status (2026-10-01): plan 10-01 complete** (retune + Laboratory rule in code, tests and docs, branch `phase-10-prof-grades`; 720 Python tests passed, 4 skipped); **plan 10-02 complete** (historical backfill CLI `scripts/backfill_historical_sections.py`, tested only against a fake USF client; no live run yet, the operator run is plan 10-08; 742 Python tests passed, 4 skipped); **plan 10-03 complete** (read-only D-04 ranking diff `scripts/report_ranking_diff.py` and join re-measure `scripts/measure_instructor_pairs.py`, tested on seeded SQLite only; no hosted run yet, those are 10-07 and 10-08; 783 Python tests passed, 4 skipped); **plan 10-04 complete** (web `InstructorBreakdown` block in `RankingDetails` per the UI-SPEC, all states and locked copy, synthetic mock-mode breakdowns; 118 frontend tests passed, production build passes; it renders only once plan 10-05 emits `historical_analytics.instructor_breakdown`; held-out 320 px visual checks deferred to 10-09); **plan 10-05 complete** (instructor breakdown embedded in `historical_analytics`, served by the search, section and course APIs; no migration); **plan 10-06 complete** (backfill CLI is now the D-04 rollout instrument: `--dry-run` what-if, `--apply --rebuild-term` atomic under the sweep lock with `--expect-inserted`, `--rollback [--yes]`, `--rebuild-only`, runbook `docs/runbooks/historical-instructor-backfill.md`; tested on SQLite and a fake USF client only, no hosted run yet; 843 Python tests passed, 4 skipped); **plan 10-07 complete (2026-10-01)** (hosted rollout part 1: code-only parity PASS after a 1e-9 float tolerance; four five-term dry runs and 20 USF requests in all, nothing written to the hosted DB; gap fixes: float tolerance, lost-rows diagnostics, anchor repair, all-campus backfill request with allow-list {Tampa, Off-campus - Tampa}, campus gate before normalising, TBA/ARR-only time cells, row quarantine, response save and replay; 1043 Python tests passed, 4 skipped, 1 xfailed). Dry run 4: exit 0, guards all clear, would-insert 8,535, 637 sections change course to instructor_course, course_level_violations 0, `pairs_match_reference` FAIL with small deltas. **D-04 decision: approve (user, 2026-10-01T21:23:24Z, no reason given beyond the word), deltas accepted in writing, allow-list kept**; the approval covers starting plan 10-08 only, NOT the apply, a merge, a push or any live request. Open follow-ups: 58 unmatched graded CRNs and the courses +31 / multi-term +45 deltas unexplained; Spring 2027 live-term campus blind spot (10-GAP-05); the shared-normaliser TBA/ARR change is live-visible (10-GAP-06); WR-03 and NEB 0001 untouched; REQ-PROF-01 not complete. Evidence: `.planning/phases/10-professor-level-grades/10-ROLLOUT-EVIDENCE.md`. **Next: plan 10-08** (merge with green CI, a fresh dry run with empty guard failures, then the operator-run apply with `--expect-inserted`, each step with its own gates).
+D-24 (instructor-course scoring retune) was approved 2026-09-30. **Phase 10 status (2026-10-01): plan 10-01 complete** (retune + Laboratory rule in code, tests and docs, branch `phase-10-prof-grades`; 720 Python tests passed, 4 skipped); **plan 10-02 complete** (historical backfill CLI `scripts/backfill_historical_sections.py`, tested only against a fake USF client; no live run yet, the operator run is plan 10-08; 742 Python tests passed, 4 skipped); **plan 10-03 complete** (read-only D-04 ranking diff `scripts/report_ranking_diff.py` and join re-measure `scripts/measure_instructor_pairs.py`, tested on seeded SQLite only; no hosted run yet, those are 10-07 and 10-08; 783 Python tests passed, 4 skipped); **plan 10-04 complete** (web `InstructorBreakdown` block in `RankingDetails` per the UI-SPEC, all states and locked copy, synthetic mock-mode breakdowns; 118 frontend tests passed, production build passes; it renders only once plan 10-05 emits `historical_analytics.instructor_breakdown`; held-out 320 px visual checks deferred to 10-09); **plan 10-05 complete** (instructor breakdown embedded in `historical_analytics`, served by the search, section and course APIs; no migration); **plan 10-06 complete** (backfill CLI is now the D-04 rollout instrument: `--dry-run` what-if, `--apply --rebuild-term` atomic under the sweep lock with `--expect-inserted`, `--rollback [--yes]`, `--rebuild-only`, runbook `docs/runbooks/historical-instructor-backfill.md`; tested on SQLite and a fake USF client only, no hosted run yet; 843 Python tests passed, 4 skipped); **plan 10-07 complete (2026-10-01)** (hosted rollout part 1: code-only parity PASS after a 1e-9 float tolerance; four five-term dry runs and 20 USF requests in all, nothing written to the hosted DB; gap fixes: float tolerance, lost-rows diagnostics, anchor repair, all-campus backfill request with allow-list {Tampa, Off-campus - Tampa}, campus gate before normalising, TBA/ARR-only time cells, row quarantine, response save and replay; 1043 Python tests passed, 4 skipped, 1 xfailed). Dry run 4: exit 0, guards all clear, would-insert 8,535, 637 sections change course to instructor_course, course_level_violations 0, `pairs_match_reference` FAIL with small deltas. **D-04 decision: approve (user, 2026-10-01T21:23:24Z, no reason given beyond the word), deltas accepted in writing, allow-list kept**; the approval covers starting plan 10-08 only, NOT the apply, a merge, a push or any live request. Open follow-ups: 58 unmatched graded CRNs and the courses +31 / multi-term +45 deltas unexplained; Spring 2027 live-term campus blind spot (10-GAP-05); the shared-normaliser TBA/ARR change is live-visible (10-GAP-06); WR-03 and NEB 0001 untouched; REQ-PROF-01 not complete. Evidence: `.planning/phases/10-professor-level-grades/10-ROLLOUT-EVIDENCE.md`.
+
+**Plan 10-08 complete (2026-10-02): rollout part 2.** PR #37 merged as `bcf1dbb` (2026-10-01T21:33:06Z) with python, web and docker green; Render deployments `success` for api, worker and web (GitHub deployments API; the running container's commit is not exposed by `/health` or `sync-status`, so not independently read). **The operator ran the single apply from their own shell** (`--apply --rebuild-term 202701 --expect-inserted 8535`; the executor never ran it): succeeded, 8,535 historical sections inserted (202408 179, 202501 2,090, 202505 448, 202508 2,840, 202601 2,978), 8,535 backfill instructor rows, 0 seat snapshots, 0 removal marks, one succeeded IngestRun per term. Live 202701 `score_source`: course 2,696 / subject 325 / global 49 / **instructor_course 637**; applied diff identical to the reviewed what-if. Post-apply (2026-10-02T01:56Z-02:03Z, read-only): `report_ranking_diff` exit 0; inventory PASS/PASS, evidence_backed 3,049 (= baseline); `validate_tampa_ingest` PASS; `check_data_quality` 0 errors; `instructor_breakdown` null 658 (= the D-21 exceptions) / ready 2,506 / lab_section 540 / no_instructor_history 3, 0 invariant violations; API probes OK (CNT 4419, PSY 2012 with a pinned row, CHM 2045L `lab_section`); delivery-methods unchanged; hosted p95 273.10 ms (baseline 212.56 ms, bar 1,500 ms). **Not met as measured: ROADMAP success criterion 1** (`measure_instructor_pairs` `pairs_match_reference` FAIL: 3,297 / 1,314 / 2,153 / 2,785 vs 3,216 / 1,329 / 2,178 / 2,829), accepted in writing at D-04 and not re-run; the n >= 1 recount (pairs 3,153 -63, instructors -40, courses -18, multi-term -17) is a finding and an inference only. **Findings for the owner (not blockers):** ENC 1101 search payload 84,210 to 591,198 bytes (7.0x, gzip 8,398) and the default page 99,363 to 247,681 bytes (2.5x, gzip 5,228), no plan threshold, browser cost unmeasured; the applied diff's `float_noise` was 0 against the what-if's 3,041 (unexplained, observation only). **Open follow-up: the first live worker sweep after the apply has NOT been observed** (last sweep 01:08Z pre-dates the apply; cadence 3,600 s). After it runs, check `sync-status?term=202701` is succeeded and not stale, `report_ranking_diff.py --term 202701` still exits 0, and `instructor_course` is still 637. REQ-PROF-01 is not marked complete (`requirements.ready-ids`: 0 of 1 ready; plan 10-09 also declares it). Rollback commands were recorded for reference and not run. **Next: plan 10-09** (deployed-UI check with queued visual UAT, then STATE/ROADMAP/REQUIREMENTS facts). The "Database" figures near the top of this file pre-date the apply; the 2026-10-02 figures in this paragraph supersede them for `section_rankings` and historical sections (12,351 sections in all, 8,535 of them historical).
 
 **Earlier (2026-09-28): live schedule sync, then professor-level grades — planned.** Branch `codex/live-sync-plan` from verified `origin/main` `db8a98a`.
 - Investigation (read-only; hosted DB not written): `.planning/research/instructor-grade-feasibility-2026-09-28.md`.
@@ -284,7 +286,7 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Completed 10-07-PLAN.md (D-04 approved; next 10-08)
+**Stopped at:** Completed 10-08-PLAN.md (apply live; criterion 1 unmet-as-measured but accepted; first post-apply sweep unobserved; next 10-09)
 Final specification review and student walkthrough remain open. See
 `.planning/sketches/001-student-experience/README.md`.
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
@@ -296,7 +298,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-10-01T21:25:41.752Z
+Last session: 2026-10-02T02:05:53.703Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
@@ -349,6 +351,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 | Phase 10 P05 | 35 min | 3 tasks | 9 files |
 | Phase 10 P06 | 10 min | 3 tasks | 6 files |
 | Phase 10 P07 | about 15 h wall clock | 3 tasks | 28 files |
+| Phase 10 P08 | about 4.7 h wall clock | 3 tasks | 2 files |
 
 ## Decisions
 
@@ -415,3 +418,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 - [Phase 10]: 10-06: rollback preview performs the real deletion and cache rebuild inside a rolled-back transaction under the sweep lock; eligibility needs backfill-only instructor rows, no seat snapshot, no syllabus link, historical terms only — Preview and commit cannot differ; T-10-20
 - [Phase 10]: 10-07: D-04 approved by the operator with the pairs_match_reference deltas accepted in writing (n>=1 -63, n>=60 -15, n>=30 -25, n>=15 -44, named -127 = 58 unmatched + 69 non-allow-listed campus CRNs; courses +31 and multi-term +45 unexplained); allow-list {Tampa, Off-campus - Tampa} kept — User chose approve, no written reason given. Covers starting 10-08 only; does not authorise apply, merge, push or live requests. --expect-inserted 8535 valid only for a rerun with empty guard failures
 - [Phase 10]: 10-07: gap fixes found by live dry runs, each user-decided: ranking-diff float tolerance 1e-9, lost-rows diagnostics, unterminated-anchor repair, all-campus backfill request with allow-list, campus gate before normalising, TBA/ARR-only time cells (shared normaliser), row quarantine guard, response save and replay — Dry runs 1 to 3 failed or tripped guards on real data (20 USF requests in total, nothing written); live sync request stays campus=T. Open: 58 unmatched CRNs, courses/multi-term deltas, Spring 2027 campus blind spot (10-GAP-05), TBA TBA live-visible change (10-GAP-06), WR-03 and NEB 0001 untouched
+- [Phase 10]: 10-08: apply run once by the operator (not the executor) at bcf1dbb: 8,535 sections and backfill instructor rows live, 637 sections now instructor_course; applied diff identical to the reviewed what-if — D-05 assigns the hosted write to the operator; --expect-inserted 8535 matched; every required post-apply gate passed (ranking diff exit 0, D-21 PASS/PASS 3,049, quality 0 errors, 0 breakdown invariant violations, p95 273.10 ms)
+- [Phase 10]: 10-08: ROADMAP success criterion 1 is UNMET as measured (3,297 / 1,314 / 2,153 / 2,785 vs 3,216 / 1,329 / 2,178 / 2,829) and stands only as accepted in writing at D-04; the n>=1 recount (pairs 3,153 -63, instructors -40, courses -18, multi-term -17) is an inference, not proof — Recorded as measured; the 58 absent graded CRNs stay unexplained; REQ-PROF-01 not marked complete (requirements.ready-ids: 0/1 ready, 10-09 also declares it)
+- [Phase 10]: 10-08 findings for the owner (not blockers): search payload grew ENC 1101 84,210 to 591,198 bytes (7.0x, gzip 8,398) and default page 99,363 to 247,681 bytes (2.5x, gzip 5,228) with no plan threshold; applied-diff float_noise 0 vs what-if 3,041 unexplained — Growth is the non-null instructor breakdown (reviewed design); browser-side cost not measured; noise is sub-1e-9 and affects no score or rank
+- [Phase 10]: 10-08 open follow-up: the first live worker sweep after the apply is NOT yet observed; check sync-status succeeded and not stale, report_ranking_diff exit 0, instructor_course still 637 — Last sweep (01:08Z) pre-dates the apply (01:35Z-01:42Z); cadence 3,600 s

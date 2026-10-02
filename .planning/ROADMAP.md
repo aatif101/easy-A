@@ -579,7 +579,7 @@ history, wherever the evidence supports it.
 
 **Requirements**: REQ-PROF-01
 
-**Plans:** 7/9 plans executed (tracer-first; Wave 1 ×4 parallel → Wave 2 ×2 → Wave 3 → Wave 4 → Wave 5). D-24 approved 2026-09-30 (CONTEXT D-01).
+**Plans:** 8/9 plans executed (tracer-first; Wave 1 ×4 parallel → Wave 2 ×2 → Wave 3 → Wave 4 → Wave 5). D-24 approved 2026-09-30 (CONTEXT D-01).
 
 Plans:
 **Wave 1**
@@ -600,7 +600,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3)*
 
-- [ ] 10-08-PLAN.md — Rollout 2: merge with green CI, operator-run apply with --expect-inserted, post-apply verification (re-measure, D-21, quality, p95)
+- [x] 10-08-PLAN.md — Rollout 2: merge with green CI, operator-run apply with --expect-inserted, post-apply verification (re-measure, D-21, quality, p95)
 
 **Wave 5** *(blocked on Wave 4)*
 
