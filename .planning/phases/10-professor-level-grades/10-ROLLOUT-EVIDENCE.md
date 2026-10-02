@@ -618,3 +618,193 @@ Every sampled search item (41 on the ENC 1101 page and 50 on the default page, 9
 ### Baseline conclusion
 
 The deployed code changes no live score (ranking diff identical), D-21 inventory passes with 3,049 evidence-backed sections and 658 exceptions, the API serves no instructor history, and the payload sizes and delivery-method list are recorded for the post-apply comparison. Task 2 (the operator-run apply) was not prepared or run.
+
+## Apply (D-05)
+
+The operator ran the single apply from their own shell at merge commit `bcf1dbb`: `--apply --rebuild-term 202701 --expect-inserted 8535` with `--report-json .planning/phases/10-professor-level-grades/10-APPLY-REPORT.json`. The executor did not run it and made no USF request and no hosted write. Everything below was read from that report or from READ ONLY hosted transactions (`SET TRANSACTION READ ONLY`, `transaction_read_only` = on) taken 2026-10-02T01:56Z (UTC; the apply itself ran 2026-10-02 01:35:48Z to about 01:42:21Z by the ingest-run timestamps, cache rebuilt 01:40:22Z). The user pasted the same JSON summary; the executor re-read the file.
+
+Verdict: **PASS on every Task 2 item.**
+
+### Report file
+
+| Check | Result |
+|-------|--------|
+| `10-APPLY-REPORT.json` | exists, 427,464 bytes, valid JSON (keys applied, fetch_seconds, mode, request, status, terms, written) |
+| Leak scan | 0 occurrences of "://" and 0 of "pooler" (untracked; committed on this branch with the evidence, see below) |
+| status / mode / written | `succeeded` / `apply` / `true` |
+| `expect_inserted` | expected 8,535, actual 8,535, matched true |
+| gate | gated true, `gate_failures` empty, `course_level_invariant` PASS, `course_level_violations` 0 |
+| rows_rebuilt | 3,707 (total_before 3,707, total_after 3,707, missing_in_after none, extra_in_after none) |
+| fetch_seconds | 202408 19.567, 202501 16.674, 202505 28.590, 202508 31.782, 202601 41.266 (137.9 s in all); five whole-term requests, no retry |
+
+### Hosted counts against the reviewed dry run 4
+
+| Term | Dry run 4 `to_write` | Hosted sections | Match | section_instructors rows | distinct section_id | Per-term report `inserted` / `instructor_rows_added` / `unmatched_grade_crns` |
+|------|---------------------:|----------------:|-------|-------------------------:|--------------------:|--------------------------------------------|
+| 202408 | 179 | 179 | yes | 179 | 179 | 179 / 179 / 0 |
+| 202501 | 2,090 | 2,090 | yes | 2,090 | 2,090 | 2,090 / 2,090 / 0 |
+| 202505 | 448 | 448 | yes | 448 | 448 | 448 / 448 / 0 |
+| 202508 | 2,840 | 2,840 | yes | 2,840 | 2,840 | 2,840 / 2,840 / 24 |
+| 202601 | 2,978 | 2,978 | yes | 2,978 | 2,978 | 2,978 / 2,978 / 34 |
+| Total | 8,535 | 8,535 | yes | 8,535 | 8,535 | 8,535 / 8,535 / 58 |
+
+Every per-term field of the apply report (fetched_rows, rows_by_campus, campus_allowed_rows, non_tampa and its labels, histograms, response_bytes, unmatched, staff_or_blank, all guard counters) is identical to dry run 4's `10-WHATIF-DIFF.json`, including `response_bytes` per term, so the USF responses did not change between the two runs; `guard_failures` is empty and `row_normalisation_failures` is 0 in every term.
+
+| Check | Result |
+|-------|--------|
+| SectionInstructor rows on the 8,535 historical sections | 8,535 rows, 8,535 distinct section_id (no duplicates), 0 historical sections without an instructor row |
+| Source of those rows | exactly one distinct value, `usf_schedule_backfill` |
+| seat_snapshots on historical sections | **0** |
+| non-null `removed_at` on historical sections | **0** |
+| section_rankings rows for historical terms | 0 (the cache holds 202701 only) |
+| IngestRun | one `succeeded` row per term, source `usf_schedule_backfill:202408` ... `:202601`, `error_message` null; records_seen / inserted / updated / failed: 179 / 179 / 0 / 0; 2,096 / 2,090 / 0 / 6; 465 / 448 / 0 / 17; 2,863 / 2,840 / 0 / 23; 3,001 / 2,978 / 0 / 23 (records_seen is the matched graded CRNs, records_failed the graded CRNs on a non-allow-listed campus: 6, 17, 23, 23 match `non_tampa`); all five rows carry one `started_at` (2026-10-02 01:35:48Z, one transaction) |
+| Whole-table totals | sections 12,351 (= 3,816 + 8,535); section_instructors 12,973 (= 4,438 + 8,535, so the apply touched no 202701 instructor row); seat_snapshots 4,377 (unchanged); section_rankings 3,707 (unchanged); ingest_runs 146 (137 at dry run 4 + 5 backfill rows + 4 live sweeps since; the rows are history); alembic `0004_sync_removed_at` (unchanged) |
+| 202701 sections | 3,816 in all (unchanged from dry run 4), of which 3,707 active and 109 with `removed_at` set (all removal marks pre-date this plan) |
+
+### 202701 section_rankings score_source split
+
+| score_source | Pre-apply baseline (2026-10-01T21:41Z) | Post-apply (2026-10-02T01:56Z) | Change |
+|--------------|---------------------------------------:|-------------------------------:|-------:|
+| course | 3,333 | 2,696 | -637 |
+| subject | 325 | 325 | 0 |
+| global | 49 | 49 | 0 |
+| instructor_course | 0 | **637** | +637 |
+| total | 3,707 | 3,707 | 0 |
+
+The 637 expected by the what-if are exactly the 637 now served; every row left `course` for `instructor_course` and nothing else moved. All 3,707 cache rows carry one `refreshed_at` (2026-10-02 01:40:22Z, the apply's rebuild).
+
+### Applied diff against the reviewed what-if (D-04)
+
+The applied diff compares the stored cache before and after the rebuild; the what-if compared the stored cache with an in-transaction recomputation. Both are over the same 3,707 sections.
+
+| Item | Reviewed what-if (dry run 4) | Applied (report) | Difference |
+|------|------------------------------|------------------|------------|
+| changed | 637 | 637 | none |
+| transitions | course -> instructor_course 637 | course -> instructor_course 637 | none |
+| course_level_violations | 0 | 0 | none |
+| course_level_invariant | PASS | PASS | none |
+| informational_changes | 3,019 | 3,019 | none |
+| rank_shift | max 2,135, median 36 | max 2,135, median 36 | none |
+| abs_delta max / p90 | 2.619 / 0.1476 | 2.619 / 0.1476 | none (max identical; p90 differs by 2e-15) |
+| abs_delta mean | 0.046054672537338595 | 0.046054672537336694 | 1.9e-15 (float noise) |
+| abs_delta median | 3.55e-15 | 0.0 | float noise |
+| abs_delta buckets: 0 / (0, 0.25] / (0.25, 0.5] / (0.5, 1] / (1, 2] / > 2 | 650 / 2,801 / 164 / 79 / 11 / 2 | 3,070 / 381 / 164 / 79 / 11 / 2 | 2,420 sections move from "(0, 0.25]" to "0" (3,070 - 650 = 2,801 - 381 = 2,420); every bucket above 0.25 identical |
+| float_noise | count 3,041, max 5.33e-15 | count 0, max 0.0 | see below |
+| top 50 changes | list | same 50 CRNs, same order | none |
+| the 637 `changes` entries | list | same 637 CRNs; every field equal (floats within 1e-9, none outside) | none |
+
+Explanation of the only differences. The 637 changed sections, their transitions, deltas, ranks, effective_n values and the 50 top changes are the same as reviewed, so the sweep drift the brief asked about did not move any figure: the live term's section set was 3,707 active sections (3,816 in all) at both measurements and no 202701 instructor row was added in between. The only differences are in the sub-1e-9 float representation: the what-if saw 3,041 sections whose stored (worker-computed) score differs from the recomputation by up to 5.33e-15 (noise that predates this phase and that the runbook documents), while the applied before/after diff sees none. The buckets and median differ solely because of that 2,420-section noise population. The report does not say why the applied before/after diff reports zero noise while a later independent recomputation still sees some (Post-apply verification, item 2, finds 3,666 noise rows at max 5.33e-15); it is recorded as an observation, not explained, and has no effect on any score, rank or label beyond 1e-9.
+
+## Post-apply verification
+
+Recorded 2026-10-02 (UTC) by the plan 10-08 continuation executor, 01:56Z to 02:03Z. Every database access was a READ ONLY transaction, every API call a public GET, and no USF request was made. No file under `failed-responses/` was touched.
+
+**Summary of verdicts: all required checks PASS (items 2, 3, 4, 5, 8; item 7 and 6 recorded). One recorded check does not match its reference and is carried as a finding, not a failure of a required gate: item 1 (success criterion 1) is UNMET as measured, with exactly the deltas that D-04 accepted in writing on 2026-10-01T21:23:24Z. The payload of the two search pages grew 2.5x and 7.0x (item 7), p95 rose from 212.56 to 273.10 ms and stays far below 1,500 ms (item 8). No rollback is indicated. For reference only, the runbook's rollback commands are `uv run python scripts/backfill_historical_sections.py --rollback --rebuild-term 202701 --yes` (data) and a constants revert plus `--rebuild-only --rebuild-term 202701` (scores); nothing was run.**
+
+| # | Check | Verdict |
+|---|-------|---------|
+| 1 | `measure_instructor_pairs.py --before-term 202701` against the 2026-09-28 reference | exit 1, `pairs_match_reference` FAIL: success criterion 1 UNMET, deltas as accepted at D-04 (finding) |
+| 2 | `report_ranking_diff.py --term 202701` | PASS, exit 0 |
+| 3 | `inventory_tampa_grades.py` and `validate_tampa_ingest.py` | PASS, exit 0 both; evidence_backed 3,049 equals the baseline |
+| 4 | `check_data_quality.py --term 202701` | PASS, 0 errors |
+| 5 | historical_analytics breakdown counts and invariant | PASS, 0 violations |
+| 6 | public API probes CNT 4419, PSY 2012, a lab section | recorded, consistent |
+| 7 | payload bytes and delivery methods | delivery-methods identical; search pages 2.5x and 7.0x larger (finding) |
+| 8 | `benchmark_rankings_search.py` remote, 50 iterations | PASS, p95 273.10 ms (< 1,500 ms) |
+
+### 1. Join re-measure vs 2026-09-28 (D-06)
+
+`uv run python scripts/measure_instructor_pairs.py --before-term 202701` at 2026-10-02T01:56:28Z: exit 1, `verdict` FAIL, `matches_reference` false. The numbers are identical, field by field, to dry run 4's in-transaction re-measure (the backfill wrote what the dry run said it would), and the deltas are the ones the D-04 decision accepted.
+
+| Measure | Post-apply | Reference | Delta |
+|---------|-----------:|----------:|------:|
+| pairs (`pairs_total`, includes n = 0) | 3,297 | 3,216 | +81 |
+| pairs, n >= 1 | 3,153 | 3,216 | -63 |
+| n >= 60 | 1,314 | 1,329 | -15 |
+| n >= 30 | 2,153 | 2,178 | -25 |
+| n >= 15 | 2,785 | 2,829 | -44 |
+| n >= 5 | 3,145 | 3,208 | -63 |
+| instructors | 1,790 | 1,796 | -6 |
+| courses | 1,148 | 1,117 | +31 |
+| multi-term pairs | 1,484 | 1,439 | +45 |
+| n >= 30 and multi-term | 1,292 | 1,308 | -16 |
+| term span 1 / 2 / 3 / 4 / 5 | 1,813 / 992 / 372 / 115 / 5 | 1,777 / 965 / 359 / 110 / 5 | +36 / +27 / +13 / +5 / 0 |
+| grade rows total / with a section / named / Staff or blank | 8,662 / 8,535 / 8,534 / 1 | 8,662 / not given / 8,661 / not given | 0 / n.a. / -127 / n.a. |
+
+**Success criterion 1 (the re-measure matching 3,216 / 1,329 / 2,178 / 2,829) is UNMET.** Measured 3,297 / 1,314 / 2,153 / 2,785 (deltas +81 / -15 / -25 / -44).
+
+Causes, each stated as a finding:
+
+- **-127 named grade rows: established.** 58 graded CRNs are absent from the whole-term responses (202508: 24, 202601: 34) and 69 graded CRNs are scheduled on a non-allow-listed campus (Off Campus Special Programs 26, St. Petersburg 18, Off-campus - St. Petersburg 10, Sarasota-Manatee 9, Off-campus - Sarasota-Manatee 6); 58 + 69 = 127. Why the 58 are absent is still unexplained (D-04 open follow-up 1).
+- **n >= 60 / 30 / 15 / 5 / 1 shortfalls (-15 / -25 / -44 / -63 / -63) and the instructor, multi-term and term-span shortfalls: consistent with, not proven to come from, those 127 missing rows.** Every like-for-like figure is below the reference and the direction is uniform; the executor did not re-run the join without the 127 rows to attribute each pair.
+- **Headline +81 pairs, +31 courses, +45 multi-term pairs, -6 instructors: largely a definition artifact (new finding, an inference).** `pairs_total` includes 144 pairs whose students number zero (n = 0, for example sections graded only with non-letter grades); the reference's 3,216 equals its own n >= 1, which suggests it excluded them. A read-only recount on the same hosted data, restricted to pairs with n >= 1, gives pairs 3,153 (-63), instructors 1,756 (-40), courses 1,099 (-18) and multi-term pairs 1,422 (-17): all shortfalls, none a surplus. The 144 n = 0 pairs add 49 courses that no n >= 1 pair has and 62 multi-term pairs. This turns D-04 open follow-ups 2 (courses +31, multi-term +45) from "unexplained" into "explained by the n = 0 pairs, if the reference counted n >= 1 only"; the reference's own basis for instructors, courses and multi-term was not re-checked against the 2026-09-28 report's code, so this stays an inference.
+- Section types of the join: Class Lecture 5,309, Laboratory 1,617, Other 1,017, Discussion 179, Internship 162, Individual Performance 89, Directed Individual Study 83, Supervised Teaching 52, Supervised Research 27 (sums to 8,535), the same as dry run 4.
+
+The apply was accepted with these deltas at D-04, so this is a recorded gap, not a regression introduced by the apply.
+
+### 2. Cache equals recomputation
+
+`uv run python scripts/report_ranking_diff.py --term 202701` at 2026-10-02T01:57:17Z: **exit 0**; verdicts `identical` PASS and `course_level_invariant` PASS. total_before = total_after = 3,707; missing_in_after and extra_in_after none; changed 0 (beyond 1e-9); transitions none; rank_shift 0; course_level_violations none; informational_changes 0; float_noise count 3,666, max abs delta 5.33e-15 (baseline before the apply: 3,671 rows, same max). The worker's recomputation and the apply's rebuilt cache agree.
+
+### 3. D-21 and ingest totals
+
+- `uv run python scripts/inventory_tampa_grades.py --term 202701`: exit 0, `integrity` PASS and `d21_grade_coverage` PASS, observed 2026-10-02T01:57:35Z. **evidence_backed sections 3,049, equal to the Task 1 baseline (3,049)**, exceptions 658 (no_rows 374 + non_letter_grade 284), courses evidence_backed 1,081 / exception_no_rows 244 / exception_non_letter_grade 49, 3,707 sections and 3,707 cache rows, 1,374 courses, grade rows 8,662 (202408 179, 202501 2,096, 202505 465, 202508 2,887, 202601 3,035), `stale_cache` false, non_tampa_section_count 0, unattributed_grade_rows 0, bucket_sum_mismatch_rows 0, rows_at_or_after_term 0. Every figure equals the baseline; no sweep drift to explain.
+- `uv run python scripts/validate_tampa_ingest.py --term 202701`: exit 0; `PASS suffix-exact`, `PASS reconciliation`, `PASS honest-coverage (verified non-letter-grade exceptions: 284)`; INFO auto-added (D-05) 16 courses (AML 4111, ARH 4301, ART 3781C, ART 4930, DIG 4972, ECH 4535, FIL 4839, FIN 4934, FRE 2201, HUM 4368, HUM 4391, HUM 4434, HUM 4890, LDR 3363, LDR 4204, POT 4936).
+
+### 4. Data quality
+
+`uv run python scripts/check_data_quality.py --term 202701`: exit 0, 3,707 sections, **Errors 0**, Warnings 1,140 (all `low_confidence_ranking`), Info 49 (all `no_historical_analytics`). No pre-apply count of these warnings was recorded, so no before/after comparison is claimed.
+
+### 5. historical_analytics breakdown (202701 section_rankings, 3,707 rows)
+
+| instructor_breakdown | Pre-apply baseline | Post-apply |
+|----------------------|-------------------:|-----------:|
+| null | 3,707 | **658** |
+| `ready` | 0 | **2,506** |
+| `lab_section` | 0 | **540** |
+| `no_instructor_history` | 0 | **3** |
+| total with a breakdown | 0 | 3,049 |
+
+The 3,049 sections with a breakdown equal the 3,049 evidence-backed sections of the inventory, and the 658 null breakdowns equal the 658 D-21 exception sections (no_rows 374 + non_letter_grade 284).
+
+Invariant, over the 637 `instructor_course` rows: 637 of 637 have status `ready`, exactly one `is_current` row, that row `scored` true, its `easiness_score` equal to the row's `easiness_score` (maximum absolute difference 5.33e-15, inside the 1e-9 tolerance; 525 rows are not bit-identical, the rest are) and its `effective_n` equal (maximum absolute difference 0.0). **Violations: 0** (no blocker). The 2,412 breakdown-carrying rows that are not `instructor_course` are all `course` rows; 1,869 of them are `ready` (the course-level figure is served and the instructors are listed), which is the designed behaviour.
+
+### 6. Public API probes
+
+Public GETs at 2026-10-02T01:59Z to 02:00Z, HTTP 200. Names are not recorded.
+
+| Probe | Items | score_source | Breakdown status / rows | Notes |
+|-------|------:|--------------|-------------------------|-------|
+| `search?term=202701&subject=CNT&course_number=4419` (6,334 bytes) | 2 (CRN 14250, 14251) | both `course` | `ready`, 4 instructor rows each, 4 scored | current instructor has no history (`current_instructor_has_history` false, no `is_current` row, so no pinned row); the four rows have effective_n 203 / 175 / 109 / 44, term_count 2 / 2 / 1 / 1, first_term 202501 / 202501 / 202508 / 202508, last_term 202601 / 202601 / 202508 / 202508; item effective_n 531.0, easiness 8.068, term_count 3, section_count 6 |
+| `search?term=202701&subject=PSY&course_number=2012` (52,219 bytes) | 10 | 5 `instructor_course` (CRN 12188, 12189, 12193, 12194, 12195), 5 `course` (11224, 12197, 12198, 12200, 12202) | all `ready`, 14 instructor rows each, 14 scored | `instructor_course` items: pinned (`is_current`) row effective_n 351.0, term_count 1, first_term and last_term 202508, scored true, easiness_score 8.9426; item easiness 8.943 and effective_n 351.0 equal it; `course` items: item effective_n 2,793.0, easiness 8.792, term_count 5, section_count 63, current instructor has no history |
+| `search?term=202701&subject=CHM&course_number=2045L` (96,724 bytes) | 40 | all `course` | all 40 `lab_section`, 0 instructor rows, no current instructor | lab rule: labs stay at course level and carry no instructor history |
+
+Provenance on every breakdown: `source` `grade_distributions+section_instructors`, `freshness` `historical`, `source_term` null, detail "instructor-level history from terms before 202701; laboratory sections excluded; USF lists one instructor per section". The item-level `historical_analytics.provenance` source is `grade_distributions` and the item's `instructor_provenance` source is `section_instructors` (freshness `current`, source_term 202701).
+
+### 7. Payload sizes and delivery methods
+
+Body bytes as received without compression, same method as the baseline.
+
+| Request | Baseline (pre-apply) | Post-apply | Ratio | SHA-256 now |
+|---------|---------------------:|-----------:|------:|-------------|
+| `search?term=202701&subject=ENC&course_number=1101&limit=50` | 84,210 | **591,198** | 7.02x | `71264cdd76ba5605c5770814c6af660bc22c32e83b800f7dfdc013e0311a088b` |
+| `search?term=202701&limit=50` (default page) | 99,363 | **247,681** | 2.49x | `e22c9aa116dafa6db660d56af52588455ec24524e656c39f9a49aaab60aeb628` |
+| `/api/v1/metadata/delivery-methods` | 175 | 175 | 1.00x | `870eed9100ddfbd460599f5cf53918fc0dcdf4f35ab36c7b1c81e6062c50d4a3` (same as baseline) |
+
+**Findings.** (a) `delivery-methods` is byte-identical to the baseline (AD, CL, HB, PD, same labels): **no new delivery code**, and none of the 8,535 new sections' delivery methods (CL, AD, HB, PD, NULL) added one. (b) The search pages grew because `instructor_breakdown` is no longer null. On the ENC 1101 page all 41 items carry a 62-row breakdown of about 13,500 bytes each (2,542 rows in all, 41 items 15,703 bytes on average against 2,054 before); on the default page the 50 items carry 1 to 22 rows each (698 rows in all, breakdown about 3,239 bytes on average, 5,368 bytes per item against 1,987 before). The non-breakdown part of an item is unchanged in size (about 2,100 to 2,200 bytes). Score mix on the two pages: ENC 1101 16 `instructor_course` and 25 `course`; default page 7 and 43. (c) With `Accept-Encoding: gzip` the same pages are 8,398 bytes (ENC 1101) and 5,228 bytes (default page) on the wire, so the practical transfer cost is small; no pre-apply compressed size was recorded to compare. (d) The growth is a consequence of the reviewed design (every section lists all instructors of its course) and has no plan threshold; it is recorded for the owner, not treated as a failure. The browser-side cost of a 591 KB uncompressed JSON for a 41-section course was not measured.
+
+### 8. Hosted search benchmark
+
+`uv run python scripts/benchmark_rankings_search.py --remote-url https://easy-a-api.onrender.com --iterations 50` at 2026-10-02T02:01:00Z: exit 0, 3,707 sections (hosted API total), 5 warmups, single client over public HTTPS.
+
+| | Baseline (2026-09-30T18:30Z, 3,698 sections) | Post-apply | Change |
+|--|---------------------------------------------:|-----------:|-------:|
+| p50 | 131.53 ms | 129.98 ms | -1.55 ms |
+| p95 | 212.56 ms | **273.10 ms** | +60.54 ms (+28%) |
+| max | 371.92 ms | 435.95 ms | +64.03 ms |
+
+**p95 273.10 ms is under the 1,500 ms bar: PASS.** The p95 and max rose while the median is flat, consistent with the larger bodies (item 7) but not attributed: one 50-call run from one workstation cannot separate payload growth from network variance. Browser and concurrent-user latency: not measured.
+
+### Live sweep after the apply (runbook section 4, last bullet)
+
+Not yet observable at the time of writing. `sync-status?term=202701` at 2026-10-02T02:01Z: `last_status` succeeded, `is_stale` false, `last_run_at` 01:08:46Z, `last_success_at` 01:09:10Z, `failures_last_24h` 0, `last_records_failed` 1 (the one unapplied row per sweep noted before the apply). That run pre-dates the apply (01:35Z to 01:42Z) and the cadence is 3,600 s, so the first sweep after the apply was still due and its result is **not** recorded here. What is verified now is the state it will find: 0 historical sections with `removed_at` set, `report_ranking_diff` exit 0, 202701 sections 3,816 unchanged. Open check for the operator or the next session: after the first post-apply sweep, `sync-status` must read succeeded and not stale, `report_ranking_diff.py --term 202701` must still exit 0, and the `instructor_course` count must still be 637 (a worker rebuild must keep the instructor-level scores because it runs the deployed code).
