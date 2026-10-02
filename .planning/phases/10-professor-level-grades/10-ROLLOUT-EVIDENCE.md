@@ -808,3 +808,76 @@ Body bytes as received without compression, same method as the baseline.
 ### Live sweep after the apply (runbook section 4, last bullet)
 
 Not yet observable at the time of writing. `sync-status?term=202701` at 2026-10-02T02:01Z: `last_status` succeeded, `is_stale` false, `last_run_at` 01:08:46Z, `last_success_at` 01:09:10Z, `failures_last_24h` 0, `last_records_failed` 1 (the one unapplied row per sweep noted before the apply). That run pre-dates the apply (01:35Z to 01:42Z) and the cadence is 3,600 s, so the first sweep after the apply was still due and its result is **not** recorded here. What is verified now is the state it will find: 0 historical sections with `removed_at` set, `report_ranking_diff` exit 0, 202701 sections 3,816 unchanged. Open check for the operator or the next session: after the first post-apply sweep, `sync-status` must read succeeded and not stale, `report_ranking_diff.py --term 202701` must still exit 0, and the `instructor_course` count must still be 637 (a worker rebuild must keep the instructor-level scores because it runs the deployed code).
+
+## Deployed UI
+
+Recorded 2026-10-02T02:09Z (UTC) by the plan 10-09 executor. Public GETs only: the static site (`https://easy-a-web.onrender.com/`, its index and one JavaScript asset) and the public search API (`https://easy-a-api.onrender.com/api/v1/rankings/search`, 20 pages of 200 items to read all 202701 items; about 13 MB in all, 1 s apart). No USF request, no database connection, no write. Instructor names are not recorded here: only CRN, course and the name's character length. No browser was driven, so nothing in this section is a visual check.
+
+Verdict: **PASS for the bundle-copy check (all three required strings are in the deployed bundle).** The six visual checks below are **queued for end-of-phase UAT and none is marked passed**. Two findings change how UAT must run two of them (the 40-character name does not exist in live data; ENC 1101 has no Others line).
+
+### Deployed bundle
+
+| Item | Value |
+|------|-------|
+| `GET /` | HTTP 200, 600 bytes; `index.html` references `/assets/index-sH87Oudy.js` (module script) and `/assets/index-DEXpzv9k.css` |
+| JavaScript asset | `/assets/index-sH87Oudy.js`, HTTP 200, 242,919 bytes (the pre-merge local build in this file reported index JS 242.92 kB; the same size) |
+| SHA-256 of the asset as fetched | `792d26992987c3524247f781dab1f4068f1fa37e70e55c405c18d26319079e8e` |
+| API base compiled in | `easy-a-api.onrender.com`; the placeholder host used by the local gate build (`example.onrender.com`) occurs 0 times |
+
+Copy strings searched with a fixed-string grep (each count is the number of matching lines in the minified bundle):
+
+| String | Found |
+|--------|------:|
+| `Instructors for this course` | 1 |
+| `Historically taught by` | 1 |
+| `USF lists one instructor per section; co-taught courses are attributed to the listed instructor.` (verbatim D-15 caveat) | 1 |
+| `Instructor history is not shown for lab sections. The figures above are course-wide.` | 1 (checked as a fragment, the text is in the bundle) |
+| `Show all` | 1 |
+| `Used in this section's score` and `Not used in this section's score.` | present (the Staff check expects the first not to appear in a Staff block; that is a rendering condition, not something a bundle grep can show) |
+| `Not scored` | 1 |
+| `break-words` | 9 occurrences |
+
+What this establishes: the deployed web build contains the instructor block's copy and points at the live API. What it does not establish: that the block renders, wraps or lays out correctly in a browser; that is the queued UAT below.
+
+### What the live API serves (the data the UI will render)
+
+All 202701 items read from the public search API: 3,707 items, 3,707 distinct CRNs. Status split of `historical_analytics.instructor_breakdown`: `ready` 2,506 (637 `instructor_course` plus 1,869 `course`), `lab_section` 540, `no_instructor_history` 3, null 658 (284 `course` with no breakdown, 325 `subject`, 49 `global`). These equal the counts under "Post-apply verification" item 5 (null 658, ready 2,506, lab_section 540, no_instructor_history 3). No fallback-scored (`subject` or `global`) item has a breakdown. 623 `ready` sections have `other_instructor_count` above 0.
+
+### UAT targets (for the queued human checks)
+
+Open `https://easy-a-web.onrender.com`, search the course code (and pick the CRN), term Spring 2027 (202701).
+
+| Human check | Target | Subject, course | CRN | What the live API says about it |
+|-------------|--------|-----------------|-----|---------------------------------|
+| 1. Named-instructor section | Primary | PSY 2012 | 12188 (also 12189, 12193, 12194, 12195) | `instructor_course`; breakdown `ready`, 14 rows; the current instructor has history and is the first row (`is_current`, `scored`, `effective_n` 351.0, 1 term, 202508 to 202508); all 14 rows scored; 10 rows have a single term; `other_instructor_count` 0 |
+| 1. Named-instructor section | Secondary, no pinned row | CNT 4419 | 14250 (also 14251) | `course`; `ready`, 4 rows; the current instructor has no history, so there is no highlighted "This section" row (this is the designed no-pinned-row state, not a defect) |
+| 1. Single-term instructor row | Same page as above | PSY 2012 | 12188 | the pinned row has `term_count` 1 (reads "1 term"); ADV 3101 CRN 13127 is a single-row, three-term course for the one-row, no-"Show all" case |
+| 2. Staff section with a ready breakdown | Primary | IDH 4950 | 12497 (also 12498 to 12503, 12505) | `course`; the section's instructor is Staff; `ready`, 14 rows, `other_instructor_count` 1, `current_instructor_has_history` false, no `is_current` row |
+| 3. Lab section | Primary | CHM 2045L | 11528 (also 11529, 11530) | breakdown `lab_section`, 0 rows (CHM 2211L CRN 11287 is another) |
+| 3. Fallback-scored section (no instructor block) | `subject` source | SYG 3235 | 20075 | `score_source` `subject`, no breakdown |
+| 3. Fallback-scored section (no instructor block) | `global` source | CHD 4537 | 13112 | `score_source` `global`, no breakdown (CLT 3511 CRN 20322 is another) |
+| 4. More than five instructors | Primary | ENC 1101 | 14045 (41 sections; others 14114, 14124) | `instructor_course`; `ready`, 62 rows (12 unscored, 26 with a single term), current instructor has history; **`other_instructor_count` 0 on all 41 ENC 1101 sections, so no Others line can appear there** (see finding A) |
+| 4. Others line with counts only | Substitute for the ENC 1101 Others expectation | ANT 4930 | 10805 | `instructor_course`; 6 rows (so "Show all 6 instructors" holds one row), `other_instructor_count` 4 (cutoff 15 grades) |
+| 4. Others line, many rows | Alternative | BSC 4933 | 18286 (also 13615, 18288, 20246) | `instructor_course`; 10 rows, `other_instructor_count` 9 |
+| 5. Long instructor name (backstop 1) | Longest name in live data, visible without expanding | CRW 3312 | 13723 | `course`; `ready`, 4 rows; the section's own instructor is the highlighted first row and its name is **18 characters** (the longest in the data) |
+| 5. Long instructor name, hidden behind "Show all" | Same length, a row inside the disclosure | IDH 4950 | 12497 | the 18-character name is row 13 of 14 (inside the "Show all 14 instructors" disclosure) |
+| 6. InfoTip clipping at 320 px (backstop 2) | Any block with a right-aligned InfoTip | PSY 2012 | 12188 | the block has exactly the one InfoTip |
+
+Longest listed instructor name across every breakdown row of all 3,707 items: **18 characters** (appears in IDH 4950, IDH 4200 CRN 12477, CRW 3312, ENC 1102 CRN 19230, CRW 3112 CRN 13909 and CRW 3111 CRN 13907 among others). The longest `instructor` value on any search item is also 18 characters.
+
+Findings that affect UAT:
+
+- **A. ENC 1101 shows no Others line.** The plan's fourth human check expects "the Others line shows counts only" on an ENC 1101 section, but every ENC 1101 section has `other_instructor_count` 0 (all 62 rows listed qualify). The Others line is exercised on ANT 4930 CRN 10805 or BSC 4933 CRN 18286 instead. On ENC 1101 the check is limited to "at most five rows visible", the "Show all 62 instructors" disclosure, keyboard operation (Enter and Space) and the focus ring.
+- **B. The 40-character-name backstop cannot be run with real data.** UI-SPEC long-text row 1 calls for a held-out check at 320 px with a 40-character name. The longest listed name is 18 characters. UAT can run the 320 px wrap check with the 18-character names above (real data, short of the spec length), and a 40-character case needs the text edited in the browser's developer tools or a mock-data build. The backstop is therefore only partly coverable live, and passing it with an 18-character name must not be recorded as the 40-character result.
+- **C. CNT 4419 is not a named-instructor-with-history target.** Its two sections are `course`-sourced with no pinned row (the current instructor has no history), so it does not show the highlighted "This section" row. PSY 2012 CRN 12188 is used for that.
+
+### Queued human checks (end-of-phase UAT; NOT passed)
+
+These are the six `<human-check>` items of plan 10-09 Task 1, carried to `/gsd-verify-work 10`. None has been observed by anyone; the status of each is **queued**.
+
+1. **Named-instructor block (desktop and 320 px).** On the site, search PSY 2012 and expand CRN 12188 (CNT 4419 CRN 14250 for the no-pinned-row state). Expect the "Instructors for this course" block directly under the course-wide figures; the current instructor first, highlighted, labelled "This section"; rows reading "{pct}% A · {n} grades · {k} terms ({first}–{last})"; and the Easiness score, or "Not scored" with "Under N grades". Status: queued.
+2. **Staff section.** Expand IDH 4950 CRN 12497: heading "Historically taught by", the explainer saying the instructors do not affect this section's score, no highlighted row, nothing saying "Used in this section's score". Status: queued.
+3. **Lab and fallback sections.** Expand CHM 2045L CRN 11528: only the note "Instructor history is not shown for lab sections. The figures above are course-wide." Expand SYG 3235 CRN 20075 and CHD 4537 CRN 13112: no instructor block at all. Status: queued.
+4. **More than five instructors.** Expand ENC 1101 CRN 14045: at most five rows visible; "Show all 62 instructors" opens with Enter or Space and is focus-visible. Expand ANT 4930 CRN 10805 (and BSC 4933 CRN 18286) for the Others line, which shows counts only (finding A). Status: queued.
+5. **Backstop, UI-SPEC long-text 1.** At 320 px, CRW 3312 CRN 13723 (18-character name, visible) and IDH 4950 CRN 12497 (18-character name inside the disclosure): the name wraps onto further lines with no ellipsis, clipping or horizontal scroll. The 40-character case needs an edited text node (finding B). Status: queued, partly coverable.
+6. **Backstop, UI-SPEC long-text 2.** At 320 px, focus or hover the "i" InfoTip in the block (PSY 2012 CRN 12188): the full co-teaching caveat appears without clipping off-screen. Status: queued.
