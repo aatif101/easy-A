@@ -579,7 +579,7 @@ history, wherever the evidence supports it.
 
 **Requirements**: REQ-PROF-01
 
-**Plans:** 9/11 plans executed (tracer-first; Wave 1 ×4 parallel → Wave 2 ×2 → Wave 3 → Wave 4 → Wave 5; gap closure 10-10 and 10-11 planned 2026-10-02 as one wave). D-24 approved 2026-09-30 (CONTEXT D-01).
+**Plans:** 10/11 plans executed (tracer-first; Wave 1 ×4 parallel → Wave 2 ×2 → Wave 3 → Wave 4 → Wave 5; gap closure 10-10 and 10-11 planned 2026-10-02 as one wave). D-24 approved 2026-09-30 (CONTEXT D-01).
 
 Plans:
 **Wave 1**
@@ -608,7 +608,7 @@ Plans:
 
 **Gap closure** *(from 10-VERIFICATION.md gaps; one wave, file-disjoint)*
 
-- [ ] 10-10-PLAN.md — P10-WR-01: a Staff panel whose instructors are all under the collapse cutoff shows the Others line, never "no instructor-level history" (red-green vitest, one-condition fix, condition-only UI-SPEC amendment; shipping is an operator merge)
+- [x] 10-10-PLAN.md — P10-WR-01: a Staff panel whose instructors are all under the collapse cutoff shows the Others line, never "no instructor-level history" (red-green vitest, one-condition fix, condition-only UI-SPEC amendment; shipping is an operator merge)
 - [ ] 10-11-PLAN.md — Owner decision on success criterion 1 (override, amend or other, in the owner's words); 58 absent graded CRNs as an explicit open item; operator-run UAT 7 prevalence scan
 
 ---
@@ -671,7 +671,7 @@ rewrite is planned or approved.
 | 7 — MVP1-P4 full-scale perf (p95 < 1.5s) | ✓ Complete | 100% |
 | 8 — MVP1-P5 MVP-1 verification | Complete    | 100% |
 | 9 — Hosted beta + live schedule sync | Complete    | 0% |
-| 10 — Professor-level grades | Live 2026-10-02, pending verification and UAT | 9/9 plans |
+| 10 — Professor-level grades | Live 2026-10-02, pending verification and UAT (gap closure 10-10 done, 10-11 open) | 10/11 plans |
 
 ---
 
