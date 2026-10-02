@@ -579,7 +579,7 @@ history, wherever the evidence supports it.
 
 **Requirements**: REQ-PROF-01
 
-**Plans:** 9/9 plans executed (tracer-first; Wave 1 ×4 parallel → Wave 2 ×2 → Wave 3 → Wave 4 → Wave 5). D-24 approved 2026-09-30 (CONTEXT D-01).
+**Plans:** 9/11 plans executed (tracer-first; Wave 1 ×4 parallel → Wave 2 ×2 → Wave 3 → Wave 4 → Wave 5; gap closure 10-10 and 10-11 planned 2026-10-02 as one wave). D-24 approved 2026-09-30 (CONTEXT D-01).
 
 Plans:
 **Wave 1**
@@ -605,6 +605,11 @@ Plans:
 **Wave 5** *(blocked on Wave 4)*
 
 - [x] 10-09-PLAN.md — Deployed-UI check with queued visual UAT (incl. UI-SPEC backstops); STATE/ROADMAP/REQUIREMENTS facts
+
+**Gap closure** *(from 10-VERIFICATION.md gaps; one wave, file-disjoint)*
+
+- [ ] 10-10-PLAN.md — P10-WR-01: a Staff panel whose instructors are all under the collapse cutoff shows the Others line, never "no instructor-level history" (red-green vitest, one-condition fix, condition-only UI-SPEC amendment; shipping is an operator merge)
+- [ ] 10-11-PLAN.md — Owner decision on success criterion 1 (override, amend or other, in the owner's words); 58 absent graded CRNs as an explicit open item; operator-run UAT 7 prevalence scan
 
 ---
 
