@@ -2,14 +2,14 @@
 gsd_state_version: "1.0"
 current_plan: 11
 status: design_direction_selected
-stopped_at: Completed 10-10-PLAN.md
-last_updated: "2026-10-02T07:46:32.378Z"
-state_head: 95e317d4bc92b339c05ea40bf7401657baea7b78
+stopped_at: Completed 10-11-PLAN.md
+last_updated: "2026-10-04T00:46:10.089Z"
+state_head: a4d3403d9b97dd74e37e6175494d7defe69a058b
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 47
-  completed_plans: 46
+  completed_plans: 47
   percent: 64
 last_activity: 2026-09-30
 current_phase: 10
@@ -174,7 +174,7 @@ Total Plans in Phase: 11
 
 ## Next action
 
-**Current (2026-10-02): Phase 10 code is merged (PR #37, `bcf1dbb`) and the operator-run apply is live; plan 10-09 (deployed-UI bundle check, queued visual UAT, planning facts) is complete. Next: Phase 10 verification and UAT, `/gsd-verify-work 10`.** The UAT must run the six queued UI-SPEC visual checks with the CRN targets in `10-ROLLOUT-EVIDENCE.md` ("Deployed UI"; none observed yet), and the verifier must treat ROADMAP success criterion 1 (`pairs_match_reference`) as unmet as measured, accepted at D-04, not as passed. REQ-PROF-01 stays unticked until verification passes. Still open (carried, none resolved): the first live worker sweep after the apply has not been observed; the Phase 9 carry-overs WR-03 (cadence-floor race during worker overlap), NEB 0001 (fails every sweep) and the optional gate-recovery rehearsal (`09-UAT.md` test 5); the 30 s sweep-duration gap (sweeps took 50.69 s and 37.166 s, not accepted or resolved); the 58 absent graded CRNs; the search payload growth (7.0x ENC 1101, 2.5x default page).
+**Current (2026-10-02): Phase 10 code is merged (PR #37, `bcf1dbb`) and the operator-run apply is live; plan 10-09 (deployed-UI bundle check, queued visual UAT, planning facts) is complete. Next: Phase 10 verification and UAT, `/gsd-verify-work 10`.** Gap-closure plans 10-10 (P10-WR-01 fix, committed on `phase-10-post-merge`, not yet deployed) and 10-11 (owner override of success criterion 1 recorded 2026-10-03, 58-CRN open item, UAT 7 recorded as not run) are complete; 11 of 11 plans. The UAT must run the six queued UI-SPEC visual checks with the CRN targets in `10-ROLLOUT-EVIDENCE.md` ("Deployed UI"; none observed yet), and the verifier must treat ROADMAP success criterion 1 (`pairs_match_reference`) as unmet as measured, accepted at D-04, not as passed. REQ-PROF-01 stays unticked until verification passes. Still open (carried, none resolved): the first live worker sweep after the apply has not been observed; the Phase 9 carry-overs WR-03 (cadence-floor race during worker overlap), NEB 0001 (fails every sweep) and the optional gate-recovery rehearsal (`09-UAT.md` test 5); the 30 s sweep-duration gap (sweeps took 50.69 s and 37.166 s, not accepted or resolved); the 58 absent graded CRNs; the search payload growth (7.0x ENC 1101, 2.5x default page).
 
 **Earlier (2026-10-01): Phase 9 is COMPLETE** (verification `passed`, UAT 4 passed + 1 optional deferred
 follow-up, security 58/58 closed; PR #33 and #35 merged, hosted beta live on `046aa5d`). The first hosted
@@ -354,7 +354,7 @@ later phases / optional research unless explicitly approved.
 
 ## Session Continuity
 
-**Stopped at:** Completed 10-10-PLAN.md
+**Stopped at:** Completed 10-11-PLAN.md
 Final specification review and student walkthrough remain open. See
 `.planning/sketches/001-student-experience/README.md`.
 Stale Phase 08 handoff (`HANDOFF.json`, `.continue-here.md`) removed after resumption.
@@ -366,7 +366,7 @@ committed the measurement script and 07-02 grade batching, then ended mid-measur
 session resumed from the commits and the untracked perf report, batched the per-section rebuild
 lookups, tuned the serve path (07-03), and recorded the final evidence.
 
-Last session: 2026-10-02T07:46:32.304Z
+Last session: 2026-10-04T00:46:09.963Z
 / 1,402 courses / 3,783 sections, 0 non-Tampa, 0 quality errors) → scale validation (all 3 checks
 pass). The operator authorized the live run and it completed. Two operational fixes landed in the
 orchestrator: `--subject-timeout` (a stalled subject no longer freezes the run) and deferring the
@@ -422,6 +422,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 | Phase 10 P08 | about 4.7 h wall clock | 3 tasks | 2 files |
 | Phase 10 P09 | 12 min | 2 tasks | 4 files |
 | Phase 10 P10 | 3 min | 2 tasks | 4 files |
+| Phase 10 P11 | 20 min | 3 tasks | 4 files |
 
 ## Decisions
 
