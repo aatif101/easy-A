@@ -233,7 +233,7 @@ Kept for traceability. Verified present in code at `62fb2f1`.
 
 ## Phase 10 — professor-level grades
 
-- [ ] **REQ-PROF-01**: A named instructor's own grade history for a course is shown next to the
+- [x] **REQ-PROF-01**: A named instructor's own grade history for a course is shown next to the
   course-wide history wherever evidence supports it.
   *Acceptance*: Historical sections/instructors backfilled for the five grade terms (D-22e);
   instructor-level figures show denominator, term count and source; Laboratory sections and
