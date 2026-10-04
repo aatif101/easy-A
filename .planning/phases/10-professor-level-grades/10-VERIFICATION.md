@@ -1,7 +1,7 @@
 ---
 phase: 10-professor-level-grades
 verified: 2026-10-04T00:49:37Z
-status: human_needed
+status: passed
 score: 13/15 must-haves verified
 covered_files:
   - .planning/phases/10-professor-level-grades/10-01-PLAN.md
@@ -42,12 +42,17 @@ covered_files:
   - web/src/components/RankingDetails.tsx
   - web/src/types/rankings.ts
   - web/src/utils/rankings.ts
+
 covered_digest: "v2:sha256:b3c868c3ec3aeb5d85d7bd64e57c2db38608ac6390e1793c9f0f75fe94164ae3"
 behavior_unverified: 1
 overrides_applied: 1
+
 # Evidence note (sourced from 10-ROLLOUT-EVIDENCE.md "Unmatched graded CRNs"; not part of the owner's reason):
+
 # the 58 graded CRNs absent from USF's whole-term responses are, by grade suffix, C 36, L 10, D 8, S 3, O 1 (not all labs).
+
 # accepted_at below: the owner's reply was dated 2026-10-03; the time of day was not recorded, 00:00:00Z is a format placeholder.
+
 overrides:
   - must_have: "ROADMAP success criterion 1: historical join coverage re-measured against the DB matches the 2026-09-28 report (3,216 pairs; 1,329 / 2,178 / 2,829 at n >= 60 / 30 / 15)"
     reason: "i don't think this really is a problem at all. labs are really hard to get the distritbution out of and i get the other supervised teaching types as well. i think we can clsoe the phase then? cause honeslty i dont see a problem."

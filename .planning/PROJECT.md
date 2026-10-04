@@ -113,7 +113,7 @@ plausible-looking result.
 
 - [ ] **REQ-OPS-01** — Deployable, observable, reproducible hosted beta
 - [ ] **REQ-SYNC-01** — Near-live seats, instructor names and section add/remove (Phase 9, D-22/D-23)
-- [ ] **REQ-PROF-01** — Professor-level grade history (Phase 10; scoring change only via D-24)
+- [x] **REQ-PROF-01** — Professor-level grade history (Phase 10; scoring change only via D-24)
 
 ### Later / optional
 
