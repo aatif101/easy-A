@@ -15,6 +15,7 @@
 
 These items predate or are independent of the cached-ranking implementation and were not changed
 under the executor's scope boundary.
+  status: acknowledged
 
 ## Plan 03.5-03 verification environment
 
@@ -29,6 +30,7 @@ under the executor's scope boundary.
   import cycle: `analytics.queries -> common.instructors -> easy_a.models -> rankings.cache ->
   rankings.service -> analytics.queries`. Plan 03.5-01 introduced the cache registration seam;
   Plan 03.5-03 does not alter that model/package import graph.
+  status: acknowledged
 
 ## Plan 03.5-05 (resolutions and deferrals)
 
@@ -42,3 +44,4 @@ under the executor's scope boundary.
 - **FOLLOW-UP:** `benchmark_rankings_search.py` labels environment/pooler only from `--url`; a
   `DATABASE_URL`-driven run cannot be certified as Supabase. Derive the label from the resolved
   engine URL.
+  status: acknowledged
