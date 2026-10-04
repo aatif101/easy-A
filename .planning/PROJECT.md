@@ -109,10 +109,10 @@ plausible-looking result.
 - [x] **REQ-PERF-01** — ✓ Phase 8 (loopback p95 277 ms on hosted Supabase). Ranking search p95 < ~1.5s against Supabase at full ~3,782-section scale
   (MVP1-P4). Phase 3.5 delivered the SQL rewrite; the full-scale target is the remaining gate.
 
-### After MVP 1 — hosted beta
+### After MVP 1 — hosted beta (shipped in v1.0)
 
-- [ ] **REQ-OPS-01** — Deployable, observable, reproducible hosted beta
-- [ ] **REQ-SYNC-01** — Near-live seats, instructor names and section add/remove (Phase 9, D-22/D-23)
+- [x] **REQ-OPS-01** — Deployable, observable, reproducible hosted beta
+- [x] **REQ-SYNC-01** — Near-live seats, instructor names and section add/remove (Phase 9, D-22/D-23)
 - [x] **REQ-PROF-01** — Professor-level grade history (Phase 10; scoring change only via D-24)
 
 ### Later / optional
@@ -363,4 +363,4 @@ Treat it as input, never as an approved requirement.
 | Approve the D-24 instructor-course retune | At n = 30 the binomial SE of an A-rate (about 9 pp) matches the measured 8.9 pp between-instructor spread; a prior of 60 plus a gate of 60 was doubly conservative. | Approved 2026-09-30; live only after the Phase 10 D-04 diff review |
 
 ---
-*Last updated: 2026-09-30 for Phase 10 planning — D-24 approved (instructor-course retune); earlier: 2026-09-24 after Phase 8, MVP-1 verified end to end under D-21.*
+*Last updated: 2026-10-04 after v1.0 (MVP 1) milestone — all 13 requirements validated except REQ-TEST-01 (partial by design); next milestone not yet defined (`/gsd-new-milestone`). Earlier: 2026-09-30 D-24 approved; 2026-09-24 MVP-1 verified end to end under D-21.*

@@ -1,20 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_plan: Not started
-status: design_direction_selected
+status: Awaiting next milestone
 stopped_at: Phase 10 complete — all phases complete
-last_updated: "2026-10-04T21:14:05.863Z"
-state_head: d3ef8d90f19bb448ee96ce7c23f9897f9f9954a5
+last_updated: "2026-10-04T21:23:04.993Z"
+last_activity: 2026-10-04
+last_activity_desc: Milestone v1.0 completed and archived
+state_head: 3fd567ab16c8d5fc9a8fc39ff4afdc9dfb7d3cb0
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 47
   completed_plans: 47
   percent: 64
-last_activity: 2026-09-30
 current_phase: 10
 current_phase_name: Professor-level grades
-last_activity_desc: Plan 09-15 complete; hosted beta live on Render, two sweeps soaked, 30 s sweep-duration gap open for operator decision
 ---
 
 # Project State
@@ -169,8 +168,10 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 ## Current Position
 
-Current Plan: Not started
-Total Plans in Phase: 11
+Phase: Milestone v1.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-10-04 — Milestone v1.0 completed and archived
 
 ## Next action
 
@@ -496,3 +497,19 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 - [Phase 10]: 10-09: no visual check is recorded as passed; the 40-character-name backstop is only partly coverable live (longest listed name is 18 characters) and REQ-PROF-01 stays unticked pending verification
 - [Phase 10]: 10-10: InstructorBreakdown empty note requires othersCount === 0; collapsed-only Staff state renders heading, Source line, Staff explainer and Others line; UI-SPEC amended by condition only (P10-WR-01)
 - [Phase 10]: 10-11: Phase 10 SC1 owner decision (override, 2026-10-03, aatif101): owner's words, verbatim, "i don't think this really is a problem at all. labs are really hard to get the distritbution out of and i get the other supervised teaching types as well. i think we can clsoe the phase then? cause honeslty i dont see a problem." — recorded as an `overrides:` entry in 10-VERIFICATION.md frontmatter (must_have = the gap-1 truth verbatim); ROADMAP criterion 1 text and CONTEXT D-07's exact-match wording are unchanged and the criterion stays unmet as measured, accepted by override. Evidence note (sourced from 10-ROLLOUT-EVIDENCE.md "Unmatched graded CRNs", not part of the owner's reason): the 58 absent graded CRNs by grade suffix are C 36, L 10, D 8, S 3, O 1, so not all labs. Re-verification (`/gsd-verify-work 10`) must still run; REQ-PROF-01 and Phase 10 are NOT marked complete
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
+
+## Deferred Items
+
+Items acknowledged and deferred at milestone close, most recent first:
+
+| Category | Item | Status | Deferred At | Milestone |
+|----------|------|--------|-------------|-----------|
+| context_questions | 03.5/03.5-CONTEXT.md | 7 questions | 2026-10-04 | v1.0 |
+| deferred_items | 03.5/deferred-items.md: Plan 03.5-01 verification environment | acknowledged | 2026-10-04 | v1.0 |
+| deferred_items | 03.5/deferred-items.md: Plan 03.5-03 verification environment | acknowledged | 2026-10-04 | v1.0 |
+| deferred_items | 03.5/deferred-items.md: Plan 03.5-05 (resolutions and deferrals) | acknowledged | 2026-10-04 | v1.0 |
+| deferred_items | 06/deferred-items.md: 06-01 pre-existing ruff E501 / mypy errors | acknowledged | 2026-10-04 | v1.0 |

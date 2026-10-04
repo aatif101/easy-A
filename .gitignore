@@ -25,3 +25,4 @@ research/raw/
 # Raw whole-term USF responses kept by the backfill CLI's --save-failed-response (they name
 # instructors); local diagnosis only, never commit
 .planning/phases/10-professor-level-grades/failed-responses/
+.planning/milestones/*/10-professor-level-grades/failed-responses/

@@ -14,3 +14,4 @@ boundary (only auto-fix issues directly caused by the current task's changes).
   running `uv run mypy tests/test_database_config.py` in isolation, with no `scripts/`
   involvement — unrelated to this plan's `scripts/generate_tampa_targets.py` addition or the
   `scripts/__init__.py` fix. Not fixed here.
+  status: acknowledged
