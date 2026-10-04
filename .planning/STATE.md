@@ -116,6 +116,11 @@ these supersede the 2026-09-30 `section_rankings` and `sections` figures above)*
   shared-normaliser TBA/ARR change (10-GAP-06); the applied diff's `float_noise` 0 against the
   what-if's 3,041 (observation only). No rollback indicated, none run. REQ-PROF-01 is live and
   pending phase verification, not complete (D-06).
+- **P10-WR-01 live prevalence (UAT 7): not run** (count B not measured; no live request made); left
+  to `/gsd-verify-work 10`. Source: `10-ROLLOUT-EVIDENCE.md`, "P10-WR-01 prevalence (UAT 7)".
+- **Phase 10 SC1 (2026-10-03):** the owner chose override; recorded in `10-VERIFICATION.md`
+  frontmatter, decision log in "Decisions". Re-verification (`/gsd-verify-work 10`) must still run;
+  REQ-PROF-01 and Phase 10 are not marked complete.
 
 - Term 202701 (as of 2026-09-22, Phase 06 full ingest): **3,783 sections, all campus=Tampa, across
   1,401 represented courses / 212 subjects. 0 non-Tampa rows. Quality: 0 errors.** (Live count
