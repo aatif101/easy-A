@@ -111,7 +111,8 @@ these supersede the 2026-09-30 `section_rankings` and `sections` figures above)*
 - **Open:** the first live worker sweep after the apply has NOT been observed (last sweep 01:08Z
   pre-dates the apply; cadence 3,600 s). After it, `sync-status?term=202701` must be succeeded and not
   stale, `report_ranking_diff.py --term 202701` must exit 0 and `instructor_course` must still be 637.
-  Also open: the 58 absent graded CRNs; the Spring 2027 live-term campus blind spot (10-GAP-05); the
+  Also open: the 58 absent graded CRNs (see "Still open", "58 absent graded CRNs (Phase 10, open, not
+  blocking)"); the Spring 2027 live-term campus blind spot (10-GAP-05); the
   shared-normaliser TBA/ARR change (10-GAP-06); the applied diff's `float_noise` 0 against the
   what-if's 3,041 (observation only). No rollback indicated, none run. REQ-PROF-01 is live and
   pending phase verification, not complete (D-06).
@@ -304,6 +305,21 @@ are in `.planning/ARCHIVE.md`. They describe the earlier local beta DB and are n
   rebuild wrapped into `refresh_data`; cleanup cascade covers `section_rankings`.
 
 ## Still open
+
+- **58 absent graded CRNs (Phase 10, open, not blocking).** Established (all from
+  `.planning/phases/10-professor-level-grades/10-ROLLOUT-EVIDENCE.md`, "Five-term dry run 4 (D-07)",
+  "Unmatched graded CRNs, and the earlier non-"Other" gap" and "Join re-measure vs 2026-09-28"): 58
+  graded CRNs (202508: 24, 202601: 34; 0.67% of the 8,662 grade rows) have no section in USF's
+  whole-term responses, so the backfill could not attribute an instructor to them. 8,662 grade CRNs =
+  8,535 written + 69 scheduled on campuses outside the allow-list {Tampa, Off-campus - Tampa} + 58
+  absent; the 69 and the 58 account exactly for the -127 named grade rows against the 2026-09-28
+  reference (58 + 69 = 127). Their grade-suffix split is C 36, L 10, D 8, S 3, O 1 (202508: C 14, L 5,
+  D 4, S 1; 202601: C 22, L 5, D 4, S 2, O 1), so they are not "all labs". What is not established: why USF's
+  whole-term responses omit them (the cause is not established); no label check of those CRNs was
+  made, and their course names have not been queried. What closing it would take: either an offline check against the git-ignored
+  dry-run 4 responses saved during plan 10-07 (no USF request), or a new narrow USF request, which is
+  outside the spent D-22(e) one-time backfill and needs explicit owner authorisation (AGENTS.md).
+  Neither is planned.
 
 - ~~**Grade-history coverage for the remaining courses**~~ **RESOLVED under D-21 (locked
   2026-09-23, verified in Phase 8, 2026-09-24)** — the 1,212-section gap from the three-college

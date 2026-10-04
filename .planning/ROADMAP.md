@@ -577,6 +577,8 @@ history, wherever the evidence supports it.
    1,329 / 2,178 / 2,829 at n ≥ 60 / 30 / 15)
 2. Every instructor-level figure shows its denominator, term count and source (D-06, D-07)
 
+**Open item (not blocking):** 58 graded CRNs (202508: 24, 202601: 34) are absent from USF's whole-term responses; why is not established and no label check of those CRNs was made. Source: `10-ROLLOUT-EVIDENCE.md` ("Five-term dry run 4 (D-07)"); detail in `.planning/STATE.md` "Still open".
+
 **Requirements**: REQ-PROF-01
 
 **Plans:** 10/11 plans executed (tracer-first; Wave 1 ×4 parallel → Wave 2 ×2 → Wave 3 → Wave 4 → Wave 5; gap closure 10-10 and 10-11 planned 2026-10-02 as one wave). D-24 approved 2026-09-30 (CONTEXT D-01).
