@@ -555,7 +555,7 @@ history, wherever the evidence supports it.
 
 **Depends on**: Phase 9 (live sync keeps current instructor names correct)
 
-**Status**: Planned (2026-09-28), not started
+**Status**: Live 2026-10-02 (PR #37 merged as `bcf1dbb`; the operator-run apply put 8,535 historical sections live and 637 sections of 202701 now score `instructor_course`), pending phase verification and UAT. Success criterion 1 is unmet as measured (3,297 / 1,314 / 2,153 / 2,785 against 3,216 / 1,329 / 2,178 / 2,829) and accepted in writing at D-04; the six UI visual checks are queued, none observed. Evidence: `.planning/phases/10-professor-level-grades/10-ROLLOUT-EVIDENCE.md`
 
 **Scope**
 
@@ -575,11 +575,14 @@ history, wherever the evidence supports it.
 
 1. Historical join coverage re-measured against the DB matches the 2026-09-28 report (3,216 pairs;
    1,329 / 2,178 / 2,829 at n ≥ 60 / 30 / 15)
+   Phase 10 SC1 owner decision (2026-10-03, aatif101): override recorded in 10-VERIFICATION.md frontmatter; criterion text unchanged. Evidence note (sourced from `10-ROLLOUT-EVIDENCE.md`, not part of the owner's reason): the 58 absent graded CRNs by grade suffix are C 36, L 10, D 8, S 3, O 1.
 2. Every instructor-level figure shows its denominator, term count and source (D-06, D-07)
+
+**Open item (not blocking):** 58 graded CRNs (202508: 24, 202601: 34) are absent from USF's whole-term responses; why is not established and no label check of those CRNs was made. Source: `10-ROLLOUT-EVIDENCE.md` ("Five-term dry run 4 (D-07)"); detail in `.planning/STATE.md` "Still open".
 
 **Requirements**: REQ-PROF-01
 
-**Plans:** 7/9 plans executed (tracer-first; Wave 1 ×4 parallel → Wave 2 ×2 → Wave 3 → Wave 4 → Wave 5). D-24 approved 2026-09-30 (CONTEXT D-01).
+**Plans:** 11/11 plans executed (tracer-first; Wave 1 ×4 parallel → Wave 2 ×2 → Wave 3 → Wave 4 → Wave 5; gap closure 10-10 and 10-11 planned 2026-10-02 as one wave). D-24 approved 2026-09-30 (CONTEXT D-01).
 
 Plans:
 **Wave 1**
@@ -600,11 +603,16 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3)*
 
-- [ ] 10-08-PLAN.md — Rollout 2: merge with green CI, operator-run apply with --expect-inserted, post-apply verification (re-measure, D-21, quality, p95)
+- [x] 10-08-PLAN.md — Rollout 2: merge with green CI, operator-run apply with --expect-inserted, post-apply verification (re-measure, D-21, quality, p95)
 
 **Wave 5** *(blocked on Wave 4)*
 
-- [ ] 10-09-PLAN.md — Deployed-UI check with queued visual UAT (incl. UI-SPEC backstops); STATE/ROADMAP/REQUIREMENTS facts
+- [x] 10-09-PLAN.md — Deployed-UI check with queued visual UAT (incl. UI-SPEC backstops); STATE/ROADMAP/REQUIREMENTS facts
+
+**Gap closure** *(from 10-VERIFICATION.md gaps; one wave, file-disjoint)*
+
+- [x] 10-10-PLAN.md — P10-WR-01: a Staff panel whose instructors are all under the collapse cutoff shows the Others line, never "no instructor-level history" (red-green vitest, one-condition fix, condition-only UI-SPEC amendment; shipping is an operator merge)
+- [x] 10-11-PLAN.md — Owner decision on success criterion 1 (override, amend or other, in the owner's words); 58 absent graded CRNs as an explicit open item; operator-run UAT 7 prevalence scan
 
 ---
 
@@ -666,7 +674,7 @@ rewrite is planned or approved.
 | 7 — MVP1-P4 full-scale perf (p95 < 1.5s) | ✓ Complete | 100% |
 | 8 — MVP1-P5 MVP-1 verification | Complete    | 100% |
 | 9 — Hosted beta + live schedule sync | Complete    | 0% |
-| 10 — Professor-level grades | In Progress| 0% |
+| 10 — Professor-level grades | Live 2026-10-02, pending verification and UAT (gap closure 10-10 and 10-11 done; SC1 owner override recorded 2026-10-03) | 11/11 plans |
 
 ---
 
@@ -686,7 +694,7 @@ rewrite is planned or approved.
 | REQ-PERF-01 | 7, 8 | ✓ Complete — loopback HTTP p95 277.25 ms at 3,783 sections on hosted Supabase, re-confirmed in Phase 8 end-to-end verification (2026-09-24) |
 | REQ-OPS-01 | 9 | ◐ Hosted beta live 2026-09-30 (Render); CI green on PR #33; hosted single-client p95 212.56 ms; pending phase verification and operator review of the open 30 s sweep-duration gap (`09-15-SUMMARY.md`) |
 | REQ-SYNC-01 | 9 | ◐ Worker live 2026-09-30: 2 hosted sweeps, change-only writes reconcile exactly, 109 removed sections out of search; pending phase verification; open gap: sweeps took 50.69 s and 37.166 s vs the 30 s soak criterion (unresolved) |
-| REQ-PROF-01 | 10 | ○ Planned 2026-09-28 |
+| REQ-PROF-01 | 10 | ◐ Live 2026-10-02: 8,535 historical sections backfilled, 637 sections of 202701 scored `instructor_course`, instructor breakdown served (`ready` 2,506 / `lab_section` 540 / `no_instructor_history` 3 / null 658), deployed bundle carries the block; pending phase verification and UAT; success criterion 1 (join re-measure) unmet as measured and accepted at D-04; six visual checks queued, none observed; first post-apply sweep not yet observed (`10-ROLLOUT-EVIDENCE.md`) |
 
 Backlog requirements (`REQ-ALERT-*`, `REQ-RMP-01`) are deliberately unmapped — they belong to
 candidate later phases.

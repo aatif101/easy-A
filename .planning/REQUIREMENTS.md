@@ -239,6 +239,18 @@ Kept for traceability. Verified present in code at `62fb2f1`.
   instructor-level figures show denominator, term count and source; Laboratory sections and
   invisible co-teaching are labeled. Any change to instructor-course scoring requires D-24
   approval (amends D-02). Phase 10.
+  *Evidence (2026-10-02, source `10-ROLLOUT-EVIDENCE.md`; not verified complete, checkbox left
+  unticked until phase verification passes, D-06):* operator-run apply live: 8,535 historical sections backfilled for the five grade
+  terms (202408 179, 202501 2,090, 202505 448, 202508 2,840, 202601 2,978) with 8,535 backfill
+  instructor rows; 637 sections of 202701 now scored `instructor_course` (D-24, approved
+  2026-09-30); instructor breakdown served for 3,049 sections (`ready` 2,506, `lab_section` 540,
+  `no_instructor_history` 3; 658 null, equal to the D-21 exceptions); Laboratory sections are
+  excluded from instructor history and labelled `lab_section`; the co-teaching caveat is the one
+  InfoTip in the block and its text is in the deployed bundle. **Join re-measure against 2026-09-28
+  fails as measured** (`pairs_match_reference`: 3,297 / 1,314 / 2,153 / 2,785 against 3,216 / 1,329 /
+  2,178 / 2,829), accepted in writing at D-04 and not re-run. **Not yet observed:** the six queued UI
+  visual checks (two backstops included) and the first live worker sweep after the apply. See
+  `.planning/phases/10-professor-level-grades/10-ROLLOUT-EVIDENCE.md`.
 
 ---
 

@@ -163,6 +163,37 @@ test("Staff section with no qualifying instructors shows the dashed empty note",
   });
 });
 
+test("Staff section with every instructor under the collapse cutoff: Others line under the historical heading, no empty note (P10-WR-01)", () => {
+  // Exact shape build_instructor_breakdown returns when every instructor with
+  // history is under the collapse cutoff and nobody is pinned.
+  const breakdown = makeBreakdown({
+    status: "ready",
+    instructors: [],
+    current_instructor: null,
+    current_instructor_has_history: false,
+    other_instructor_count: 2,
+    collapse_min_effective_n: 15,
+  });
+  const { detailRegions } = renderExpanded(withBreakdown(breakdown, { instructor: null }));
+  eachRegion(detailRegions, (region) => {
+    const block = within(region).getByRole("region", { name: HEADING_STAFF });
+    expect(within(block).getByRole("heading", { name: HEADING_STAFF })).toBeVisible();
+    expect(within(block).getByText(/^Source: USF InfoCenter grade reports/)).toBeVisible();
+    expect(
+      within(block).getByText(
+        "This section's instructor is not yet named. These instructors taught this course in past terms. They do not affect this section's score.",
+      ),
+    ).toBeVisible();
+    expect(within(block).getByText("2 other instructors with under 15 grades each")).toBeVisible();
+    expect(within(block).queryByText(/No instructor-level grade history is recorded/)).toBeNull();
+    expect(within(block).queryAllByRole("list")).toHaveLength(0);
+    expect(within(block).queryAllByRole("listitem")).toHaveLength(0);
+    expect(within(block).queryAllByText("This section")).toHaveLength(0);
+    expect(within(block).queryAllByText(USED_IN_SCORE)).toHaveLength(0);
+    expect(within(block).getAllByRole("button", { name: CAVEAT })).toHaveLength(1);
+  });
+});
+
 test("lab section: only the dashed note, no heading, no tip, no rows (D-13)", () => {
   const breakdown = makeBreakdown({ status: "lab_section", instructors: [], current_instructor: null });
   const { detailRegions } = renderExpanded(withBreakdown(breakdown));
