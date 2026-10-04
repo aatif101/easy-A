@@ -575,6 +575,7 @@ history, wherever the evidence supports it.
 
 1. Historical join coverage re-measured against the DB matches the 2026-09-28 report (3,216 pairs;
    1,329 / 2,178 / 2,829 at n ≥ 60 / 30 / 15)
+   Phase 10 SC1 owner decision (2026-10-03, aatif101): override recorded in 10-VERIFICATION.md frontmatter; criterion text unchanged. Evidence note (sourced from `10-ROLLOUT-EVIDENCE.md`, not part of the owner's reason): the 58 absent graded CRNs by grade suffix are C 36, L 10, D 8, S 3, O 1.
 2. Every instructor-level figure shows its denominator, term count and source (D-06, D-07)
 
 **Open item (not blocking):** 58 graded CRNs (202508: 24, 202601: 34) are absent from USF's whole-term responses; why is not established and no label check of those CRNs was made. Source: `10-ROLLOUT-EVIDENCE.md` ("Five-term dry run 4 (D-07)"); detail in `.planning/STATE.md` "Still open".

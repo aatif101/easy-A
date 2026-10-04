@@ -40,6 +40,14 @@ covered_files:
 covered_digest: "v2:sha256:5198a9a66b384c6f435c9fda5a23c67d9ad68533a927e5e8308b6381aef57b62"
 behavior_unverified: 1
 overrides_applied: 0
+# Evidence note (sourced from 10-ROLLOUT-EVIDENCE.md "Unmatched graded CRNs"; not part of the owner's reason):
+# the 58 graded CRNs absent from USF's whole-term responses are, by grade suffix, C 36, L 10, D 8, S 3, O 1 (not all labs).
+# accepted_at below: the owner's reply was dated 2026-10-03; the time of day was not recorded, 00:00:00Z is a format placeholder.
+overrides:
+  - must_have: "ROADMAP success criterion 1: historical join coverage re-measured against the DB matches the 2026-09-28 report (3,216 pairs; 1,329 / 2,178 / 2,829 at n >= 60 / 30 / 15)"
+    reason: "i don't think this really is a problem at all. labs are really hard to get the distritbution out of and i get the other supervised teaching types as well. i think we can clsoe the phase then? cause honeslty i dont see a problem."
+    accepted_by: "aatif101"
+    accepted_at: "2026-10-03T00:00:00Z"
 gaps:
   - truth: "ROADMAP success criterion 1: historical join coverage re-measured against the DB matches the 2026-09-28 report (3,216 pairs; 1,329 / 2,178 / 2,829 at n >= 60 / 30 / 15)"
     status: failed
