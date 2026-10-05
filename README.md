@@ -56,9 +56,11 @@ Copy `.env.example` to `.env` for local development and adjust values if needed.
 
 ## Frontend
 
-The Sprint 4 frontend is a React, TypeScript, Vite, and Tailwind CSS app under
-`web/`. It provides a responsive section-ranking table, server-backed filters,
-pagination, and expandable policy and analytics details.
+The frontend is a React, TypeScript, Vite, and Tailwind CSS app under `web/`. One search box
+takes a CRN, a course code (`ENC 1101`) or a subject (`PSY`); Gen Ed areas can be browsed
+directly. Every section shows its current instructor's A share in that course, with the grade
+count behind it, and lets students copy the CRN for OASIS. Routes live in the query string
+(`?q=ENC%201101`, `?gened=social-sciences`).
 
 ```powershell
 cd web
@@ -74,6 +76,15 @@ Set frontend variables in `web/.env.local` (see `web/.env.example`):
 | Local real API | `false` | `http://localhost:8000` |
 | Hosted beta | `false` | Explicit hosted HTTPS API base URL |
 
+To run the local UI against the hosted API, whose CORS policy only admits the deployed site,
+let the Vite dev server proxy `/api`:
+
+```powershell
+$env:EASY_A_DEV_PROXY = "https://easy-a-api.onrender.com"
+$env:VITE_API_BASE_URL = "http://localhost:5173"
+npm run dev
+```
+
 Only the exact value `true` enables labeled synthetic fixtures, even if an API
 URL is also present. Otherwise an absolute HTTP(S) API URL is required. Missing
 configuration and API failures are visible errors; neither falls back to fixtures.
@@ -86,10 +97,9 @@ configure the API's `EASY_A_ALLOWED_FRONTEND_ORIGINS` to include the exact front
 origin (scheme, host, port). The browser must be able to reach the API; HTTPS
 frontends require HTTPS APIs. No hosting provider is required.
 
-The typed client loads terms, subjects, GenEd attributes, and delivery methods
-from the metadata endpoints, then sends selected filters to
-`GET /api/v1/rankings/search`. It uses the API's `items`, `total`, `limit`, and
-`offset` fields for results and pagination. A configured API failure is shown as
+The typed client loads terms from the metadata endpoint, then loads every matching section from
+`GET /api/v1/rankings/search` (paging through `limit`/`offset`) so it can sort by A share on the
+client; CRN lookups use `GET /api/v1/rankings/section`. A configured API failure is shown as
 an error and is not silently replaced by mock data. Frontend quality commands are:
 
 ```powershell

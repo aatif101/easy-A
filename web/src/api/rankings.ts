@@ -9,6 +9,7 @@ import type {
   RankingMetadata,
   RankingQuery,
   RankingsSearchResponse,
+  SectionLoader,
   SectionRanking,
   SubjectMetadata,
   SyncStatus,
@@ -169,6 +170,19 @@ export const fetchRankings: RankingLoader = async (query, signal) => {
   return fetchJson<RankingsSearchResponse>(url, signal);
 };
 
+/** One section by CRN, or null when the term has no such CRN. */
+export const fetchSection: SectionLoader = async (term, crn, signal) => {
+  if (isUsingMockData) {
+    return syntheticRankings.find((ranking) => ranking.term === term && ranking.crn === crn) ?? null;
+  }
+  const url = endpointUrl("/api/v1/rankings/section");
+  url.searchParams.set("term", term);
+  url.searchParams.set("crn", crn);
+  const response = await fetch(url, { headers: { Accept: "application/json" }, signal });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`API request failed with status ${response.status}.`);
+  return (await response.json()) as SectionRanking;
+};
 
 export const fetchCoverage: CoverageLoader = async (term, signal) => {
   if (isUsingMockData) return term === "202701" ? syntheticCoverage : [];

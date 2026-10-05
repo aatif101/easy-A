@@ -3,34 +3,48 @@
 @tailwind utilities;
 
 :root {
-  color: #18231f;
-  background: #f4f1e8;
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-}
-
-* {
-  box-sizing: border-box;
-}
-
-html {
-  scroll-behavior: smooth;
+  color: #303434;
+  background: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
-  background:
-    linear-gradient(rgba(24, 35, 31, 0.025) 1px, transparent 1px),
-    #f4f1e8;
-  background-size: 100% 28px;
+  font-family: "Public Sans", system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 button,
 input,
 select {
   font: inherit;
+  color: inherit;
+}
+
+a {
+  color: #006747;
+}
+
+a:hover {
+  color: #005432;
+}
+
+:focus-visible {
+  outline: 2px solid #006747;
+  outline-offset: 2px;
+}
+
+/* The search box draws the ring on its wrapper so it surrounds the icon too. */
+.search-field:has(input:focus-visible) {
+  outline: 2px solid #006747;
+  outline-offset: 2px;
+}
+
+.search-field input:focus-visible {
+  outline: none;
 }
 
 .skip-link {
@@ -39,76 +53,25 @@ select {
   top: -4rem;
   z-index: 100;
   border-radius: 0.375rem;
-  background: #18231f;
+  background: #303434;
   padding: 0.75rem 1rem;
   color: white;
-  font-weight: 700;
-  transition: top 150ms ease;
+  font-weight: 600;
 }
 
 .skip-link:focus {
   top: 1rem;
 }
 
-@layer components {
-  .eyebrow {
-    @apply font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-spruce;
-  }
-
-  .filter-label {
-    @apply text-xs font-bold uppercase tracking-[0.08em] text-stone-600;
-  }
-
-  th {
-    @apply whitespace-nowrap px-4 py-3 font-sans font-bold;
-  }
-
-  tbody td {
-    @apply border-b border-rule px-4 py-4 align-middle;
-  }
-
-  .ranking-row {
-    @apply transition-colors hover:bg-amber-50/60;
-  }
-
-  .detail-panel {
-    @apply border-b border-rule bg-paper/80 p-5 md:p-7;
-  }
-
-  .detail-panel dt {
-    @apply text-[11px] font-bold uppercase tracking-[0.08em] text-stone-500;
-  }
-
-  .detail-panel dd {
-    @apply mt-1 text-sm font-bold text-ink;
-  }
-
-  .detail-heading {
-    @apply font-display text-lg font-bold text-ink;
-  }
-
-  .source-label {
-    @apply rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-900;
-  }
-
-  .source-label-historical {
-    @apply border-amber-300 bg-amber-50 text-amber-950;
-  }
+.tabular {
+  font-variant-numeric: tabular-nums;
 }
 
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
   }
 }
-
-/* Keep long metadata inside narrow cards, grid tracks, and table cells. */
-.filter-label { min-width: 0; }
-article, td, .detail-panel { overflow-wrap: anywhere; }
-.detail-panel div { min-width: 0; }
-input[type="range"] { min-width: 0; }

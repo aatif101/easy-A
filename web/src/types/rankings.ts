@@ -154,6 +154,14 @@ export type RankingLoader = (
   signal?: AbortSignal,
 ) => Promise<RankingsSearchResponse>;
 
+export type SectionLoader = (
+  term: string,
+  crn: string,
+  signal?: AbortSignal,
+) => Promise<SectionRanking | null>;
+
+export type TermsLoader = (signal?: AbortSignal) => Promise<TermMetadata[]>;
+
 export interface TermMetadata {
   term: string;
   term_name: string;

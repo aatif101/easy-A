@@ -1,259 +1,110 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
-import { fetchCoverage, fetchMetadata, fetchRankings, fetchSyncStatus, isUsingMockData } from "./api/rankings";
-import { CoverageNotice } from "./components/CoverageNotice";
-import { FilterBar } from "./components/FilterBar";
-import { EmptyRankings } from "./components/EmptyRankings";
-import { RankingTable } from "./components/RankingTable";
-import { SyncStatus } from "./components/SyncStatus";
+import { fetchRankings, fetchSection, fetchSyncStatus, fetchTerms, isUsingMockData } from "./api/rankings";
+import { SearchBox } from "./components/SearchBox";
+import { LoadError, Loading } from "./components/Status";
 import { SYNTHETIC_FIXTURE_NOTICE } from "./fixtures/rankings";
-import type {
-  CoverageLoader,
-  MetadataLoader,
-  RankingLoader,
-  RankingMetadata,
-  RankingsSearchResponse,
-  SyncStatusLoader,
-} from "./types/rankings";
-import {
-  hasActiveFilters,
-  initialFilters,
-  parseCourseSearch,
-  type RankingFilters,
-} from "./utils/rankings";
-
-const PAGE_SIZE = 50;
+import { inAppClick, readRoute, routeHref, type Route } from "./lib/route";
+import { useLoad } from "./lib/useLoad";
+import { HomePage } from "./pages/HomePage";
+import { GenEdResults, SearchResults } from "./pages/ResultsPage";
+import type { RankingLoader, SectionLoader, SyncStatusLoader, TermsLoader } from "./types/rankings";
 
 interface AppProps {
-  coverageLoader?: CoverageLoader;
   rankingLoader?: RankingLoader;
-  metadataLoader?: MetadataLoader;
+  sectionLoader?: SectionLoader;
+  termsLoader?: TermsLoader;
   syncStatusLoader?: SyncStatusLoader;
   mockMode?: boolean;
 }
 
-const newestTerm = (metadata: RankingMetadata): string | null => {
-  return metadata.terms.toSorted((left, right) => right.term.localeCompare(left.term))[0]?.term ?? null;
+const minutesAgo = (iso: string): string => {
+  const minutes = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 60_000));
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  return hours < 48 ? `${hours} h ago` : `${Math.round(hours / 24)} days ago`;
 };
 
-const emptyPage: RankingsSearchResponse = { items: [], total: 0, limit: PAGE_SIZE, offset: 0 };
-
 export default function App({
-  coverageLoader = fetchCoverage,
   rankingLoader = fetchRankings,
-  metadataLoader = fetchMetadata,
+  sectionLoader = fetchSection,
+  termsLoader = fetchTerms,
   syncStatusLoader = fetchSyncStatus,
   mockMode = isUsingMockData,
 }: AppProps) {
-  const [metadata, setMetadata] = useState<RankingMetadata | null>(null);
-  const [metadataLoading, setMetadataLoading] = useState(true);
-  const [metadataError, setMetadataError] = useState<string | null>(null);
-  const [metadataVersion, setMetadataVersion] = useState(0);
-  const [term, setTerm] = useState<string | null>(null);
-  const [filters, setFilters] = useState<RankingFilters>(initialFilters);
-  const [page, setPage] = useState<RankingsSearchResponse>(emptyPage);
-  const [offset, setOffset] = useState(0);
-  const [rankingsLoading, setRankingsLoading] = useState(false);
-  const [rankingsError, setRankingsError] = useState<string | null>(null);
-  const [expandedCrn, setExpandedCrn] = useState<string | null>(null);
-  const [requestVersion, setRequestVersion] = useState(0);
+  const [route, setRoute] = useState<Route>(() => readRoute(window.location.search));
 
   useEffect(() => {
-    const controller = new AbortController();
-    setMetadataLoading(true);
-    setMetadataError(null);
-    metadataLoader(controller.signal)
-      .then((result) => {
-        if (controller.signal.aborted) return;
-        setOffset(0);
-        setMetadata(result);
-        setTerm((current) =>
-          current && result.terms.some(({ term: code }) => code === current)
-            ? current
-            : newestTerm(result),
-        );
-      })
-      .catch((reason: unknown) => {
-        if (!controller.signal.aborted) {
-          setMetadata(null);
-          setTerm(null);
-          setMetadataError(
-            reason instanceof Error ? reason.message : "Unable to load filter metadata.",
-          );
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setMetadataLoading(false);
-      });
-    return () => controller.abort();
-  }, [metadataLoader, metadataVersion]);
+    const onPop = () => setRoute(readRoute(window.location.search));
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
 
-  const query = useMemo(() => {
-    if (!term) return null;
-    const parsedSearch = parseCourseSearch(filters.courseSearch);
-    return {
-      term,
-      subject: parsedSearch.subject || filters.subject || undefined,
-      course_number: parsedSearch.courseNumber,
-      gened_code: filters.genedCode || undefined,
-      delivery_method: filters.deliveryMethod || undefined,
-      seats_open: filters.openSeatsOnly || undefined,
-      min_easiness: filters.minimumEasiness > 0 ? filters.minimumEasiness : undefined,
-      confidence: filters.confidence === "all" ? undefined : filters.confidence,
-      sort: filters.sort,
-      limit: PAGE_SIZE,
-      offset,
-    };
-  }, [filters, offset, term]);
+  const navigate = useCallback((next: Route) => {
+    window.history.pushState(null, "", routeHref(next));
+    setRoute(next);
+    window.scrollTo({ top: 0 });
+  }, []);
 
-  useEffect(() => {
-    if (!query) return;
-    const controller = new AbortController();
-    setRankingsLoading(true);
-    setRankingsError(null);
-    setExpandedCrn(null);
-    rankingLoader(query, controller.signal)
-      .then((result) => {
-        if (controller.signal.aborted) return;
-        // Data can shrink between page requests. Restart once from the first page.
-        if (result.items.length === 0 && query.offset > 0) {
-          setOffset(0);
-          return;
-        }
-        setPage(result);
-      })
-      .catch((reason: unknown) => {
-        if (!controller.signal.aborted) {
-          setPage({ ...emptyPage, offset: query.offset });
-          setRankingsError(
-            reason instanceof Error ? reason.message : "Unable to load rankings.",
-          );
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setRankingsLoading(false);
-      });
-    return () => controller.abort();
-  }, [query, rankingLoader, requestVersion]);
+  const [terms, retryTerms] = useLoad("terms", (signal) => termsLoader(signal));
+  const term =
+    terms.status === "ready"
+      ? terms.data.map(({ term: code }) => code).toSorted().at(-1) ?? null
+      : null;
+  const termName = terms.status === "ready" ? terms.data.find((item) => item.term === term)?.term_name ?? term : null;
+  const [sync] = useLoad(term && !mockMode ? `sync:${term}` : null, (signal) => syncStatusLoader(term ?? "", signal));
 
-  const selectedTerm = metadata?.terms.find(({ term: code }) => code === term);
-  const firstShown = page.total === 0 ? 0 : page.offset + 1;
-  const lastShown = Math.min(page.offset + page.items.length, page.total);
-  const canGoBack = page.offset > 0;
-  const canGoForward = page.offset + page.limit < page.total;
-
-  const changeFilters = (nextFilters: RankingFilters) => {
-    setFilters(nextFilters);
-    setOffset(0);
-  };
-
-  const changeTerm = (nextTerm: string) => {
-    setTerm(nextTerm);
-    setOffset(0);
-  };
-
-  const toggleDetails = (crn: string) => {
-    setExpandedCrn((current) => (current === crn ? null : crn));
-  };
+  const loaders = { rankingLoader, sectionLoader, navigate };
+  const searchValue = route.view === "search" ? route.q : "";
 
   return (
-    <div className="min-h-screen bg-paper text-ink">
-      <header className="border-b border-rule bg-[#faf8f1] px-4 py-6 md:px-6">
-        <div className="mx-auto flex max-w-[1500px] flex-col gap-5 md:flex-row md:items-end md:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <span aria-hidden="true" className="grid size-10 place-items-center rounded-sm bg-spruce font-display text-xl font-black text-white">A</span>
-              <p className="font-mono text-xs font-bold uppercase tracking-[0.2em] text-spruce">Easy-A Beta · USF Tampa</p>
+    <div className="min-h-screen bg-white text-ink">
+      <header className="border-b border-line">
+        <div className="mx-auto flex max-w-[1240px] flex-wrap items-center gap-4 px-6 py-3">
+          <a
+            href={window.location.pathname}
+            onClick={inAppClick(navigate, { view: "home" })}
+            className="text-xl font-bold tracking-[-0.01em] text-ink no-underline"
+            aria-label="Easy-A home"
+          >
+            easy<span className="text-green">A</span>
+          </a>
+          {route.view !== "home" ? (
+            <div className="order-3 w-full min-[720px]:order-none min-[720px]:w-auto min-[720px]:max-w-[560px] min-[720px]:flex-1">
+              <SearchBox size="compact" initialValue={searchValue} onSearch={(q) => navigate({ view: "search", q })} />
             </div>
-            <h1 className="mt-4 max-w-3xl font-display text-4xl font-bold leading-none tracking-tight text-ink md:text-5xl">Find the section that fits.</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-stone-600 md:text-base">Compare historical outcomes, current section information, course format, and evidence-backed policy signals in one honest view.</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {mockMode ? <span className="rounded-sm border border-brass/50 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-950">{SYNTHETIC_FIXTURE_NOTICE}</span> : <span className="rounded-sm border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-950">API mode</span>}
-            <span className="rounded-sm border border-stone-300 bg-white px-3 py-1.5 font-mono text-xs text-stone-600">Beta · rankings preview</span>
-          </div>
+          ) : null}
+          <span className="ml-auto text-sm text-slate">{termName ? `${termName} · Tampa` : "USF Tampa"}</span>
         </div>
       </header>
 
-      {metadataLoading ? (
-        <div className="border-b border-rule bg-white/60 px-4 py-4 text-center text-sm font-semibold text-stone-600" role="status" aria-live="polite">Loading terms and filters…</div>
-      ) : null}
-
-      {metadataError ? (
-        <section className="mx-auto mt-6 max-w-[1452px] rounded-lg border border-red-200 bg-red-50 p-6" role="alert">
-          <h2 className="font-display text-xl font-bold text-red-950">Metadata unavailable</h2>
-          <p className="mt-2 text-sm text-red-900">Terms and filter options could not be loaded. {metadataError}</p>
-          <button type="button" className="mt-4 rounded-md bg-red-900 px-4 py-2 text-sm font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-900" onClick={() => setMetadataVersion((version) => version + 1)}>Try metadata again</button>
-        </section>
-      ) : null}
-
-      {!metadataLoading && !metadataError && metadata && metadata.terms.length === 0 ? (
-        <section className="mx-auto mt-6 max-w-[1452px] rounded-lg border border-amber-300 bg-amber-50 p-6" role="status">
-          <h2 className="font-display text-xl font-bold text-amber-950">No academic terms available</h2>
-          <p className="mt-2 text-sm text-amber-900">The API returned no term metadata, so rankings cannot be searched yet.</p>
-        </section>
-      ) : null}
-
-      {metadata && term ? (
-        <FilterBar filters={filters} metadata={metadata} onFiltersChange={changeFilters} term={term} onTermChange={changeTerm} />
-      ) : null}
-
-      <main id="main-content" className="mx-auto max-w-[1500px] px-4 py-7 md:px-6 md:py-10" tabIndex={-1}>
-        {metadata && term ? (
-          <>
-            <SyncStatus key={term} term={term} loader={syncStatusLoader} synthetic={mockMode} />
-            <CoverageNotice key={term} term={term} subject={query?.subject} courseNumber={query?.course_number} loader={coverageLoader} />
-            <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="eyebrow">Ranked sections</p>
-                <h2 className="mt-1 font-display text-2xl font-bold">{selectedTerm?.term_name ?? term} course index</h2>
-              </div>
-              {!rankingsLoading && !rankingsError ? <p className="text-sm font-semibold text-stone-600" aria-live="polite">Showing {firstShown}–{lastShown} of {page.total} sections</p> : null}
-            </div>
-
-            {rankingsLoading ? (
-              <div className="rounded-lg border border-rule bg-white p-8 shadow-ledger" role="status" aria-label="Loading course rankings" aria-live="polite">
-                <div className="h-3 w-28 animate-pulse rounded bg-stone-200" />
-                <div className="mt-5 space-y-3" aria-hidden="true">{[1, 2, 3, 4].map((item) => <div className="h-14 animate-pulse rounded bg-stone-100" key={item} />)}</div>
-                <span className="sr-only">Loading course rankings</span>
-              </div>
-            ) : null}
-
-            {rankingsError ? (
-              <section className="rounded-lg border border-red-200 bg-red-50 p-6" role="alert">
-                <h2 className="font-display text-xl font-bold text-red-950">Rankings are unavailable</h2>
-                <p className="mt-2 text-sm text-red-900">{rankingsError}</p>
-                <button type="button" className="mt-4 rounded-md bg-red-900 px-4 py-2 text-sm font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-900" onClick={() => setRequestVersion((version) => version + 1)}>Try again</button>
-              </section>
-            ) : null}
-
-            {!rankingsLoading && !rankingsError && page.items.length > 0 ? (
-              <RankingTable rankings={page.items} rankOffset={page.offset} expandedCrn={expandedCrn} onToggle={toggleDetails} />
-            ) : null}
-
-            <nav aria-label="Course results pages" className="mt-5 flex items-center justify-between gap-4 border-t border-rule pt-5">
-              <button type="button" className="rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-bold text-ink aria-disabled:cursor-not-allowed aria-disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-spruce" aria-disabled={rankingsLoading || !!rankingsError || !canGoBack} onClick={() => { if (!rankingsLoading && !rankingsError && canGoBack) setOffset(Math.max(0, page.offset - page.limit)); }}>Previous</button>
-              <span className="text-center text-xs font-semibold text-stone-600" aria-live="polite" aria-atomic="true">{rankingsLoading ? "Loading sections..." : rankingsError ? "Results unavailable" : `Showing ${firstShown}\u2013${lastShown} of ${page.total} sections`}</span>
-              <button type="button" className="rounded-md border border-stone-300 bg-white px-4 py-2 text-sm font-bold text-ink aria-disabled:cursor-not-allowed aria-disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-spruce" aria-disabled={rankingsLoading || !!rankingsError || !canGoForward} onClick={() => { if (!rankingsLoading && !rankingsError && canGoForward) setOffset(page.offset + page.limit); }}>Next</button>
-            </nav>
-
-            {!rankingsLoading && !rankingsError && page.items.length === 0 ? (
-              <EmptyRankings filtered={hasActiveFilters(filters)} termLabel={selectedTerm?.term_name ?? term} onReset={() => changeFilters(initialFilters)} />
-            ) : null}
-          </>
+      <main id="main-content" className="mx-auto max-w-[1240px] px-6 pb-16 pt-8">
+        {mockMode ? (
+          <p role="status" className="mb-4 rounded-md border border-line bg-wash px-3 py-2 text-sm">
+            {SYNTHETIC_FIXTURE_NOTICE}
+          </p>
+        ) : null}
+        {terms.status === "loading" ? <Loading label="Loading…" /> : null}
+        {terms.status === "error" ? <LoadError onRetry={retryTerms} /> : null}
+        {term ? (
+          route.view === "home" ? (
+            <HomePage term={term} rankingLoader={rankingLoader} navigate={navigate} />
+          ) : route.view === "search" ? (
+            <SearchResults key={route.q} term={term} q={route.q} {...loaders} />
+          ) : (
+            <GenEdResults key={route.area} term={term} area={route.area} {...loaders} />
+          )
         ) : null}
       </main>
 
-      <footer className="border-t border-rule px-4 py-6 text-xs leading-relaxed text-stone-600">
-        <details className="mx-auto max-w-3xl rounded-md bg-white/50 px-4 py-3">
-          <summary className="cursor-pointer font-bold text-spruce focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-spruce">About Easy-A Beta</summary>
-          <ul className="mt-3 list-disc space-y-1 pl-5">
-            <li>Rankings use historical aggregate outcomes; scores are estimates, not guarantees.</li>
-            <li>Current seat counts and instructor assignments can change.</li>
-            <li>Historical syllabus policies may differ from the current term.</li>
-            <li>USF ODS approved use of aggregate InfoCenter grade-distribution data for this project; this does not imply USF endorsement of Easy-A.</li>
-          </ul>
-        </details>
+      <footer className="mx-auto max-w-[1240px] border-t border-line px-6 pb-10 pt-5 text-[13px] text-slate">
+        <p>
+          Grades from USF InfoCenter reports, Fall 2024–Spring 2026. Past grades describe past classes, not yours.
+          {sync.status === "ready" && sync.data.last_success_at
+            ? ` Seats checked ${minutesAgo(sync.data.last_success_at)}; confirm in OASIS.`
+            : " Confirm seats in OASIS."}
+        </p>
+        <p className="mt-1">Independent student project. Not affiliated with the University of South Florida.</p>
       </footer>
     </div>
   );
