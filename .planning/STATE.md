@@ -1,11 +1,11 @@
 ---
 gsd_state_version: "1.0"
-status: RMP search links ready for PR review
-stopped_at: User-directed RMP search links verified across all instructor displays
-last_updated: "2026-10-07T18:58:56Z"
+status: RMP search links PR open for review
+stopped_at: PR 42 open; awaiting owner review
+last_updated: "2026-10-07T19:04:31Z"
 last_activity: 2026-10-07
-last_activity_desc: Site-wide RMP search links verified; user authorized commit, push and PR
-state_head: 0155a1398ea0de44ac178cddf0d8b5ce671f4dbf
+last_activity_desc: Site-wide RMP search links committed, pushed and opened as PR 42
+state_head: cd28a32ac8e9d0ff711d31b86020bfd7756feddf
 progress:
   total_phases: 11
   completed_phases: 7
@@ -48,8 +48,10 @@ lives in `ARCHIVE.md`.
 - Pre-existing `web/package-lock.json` modification preserved byte-for-byte (SHA256
   `161F2B69CB1EC8CF0B72CC8BA54903528842A802C011CD6F499F80FE5D377779`),
   and untracked `.pytest-tmp-codex-20260914a/` left untouched and excluded from the feature commit.
-- **Next action:** create the review PR, then owner review. User explicitly authorized commit,
-  push and PR creation on 2026-10-07; merge and deployment remain unauthorized.
+- Feature commit `cd28a32` pushed; [PR #42](https://github.com/aatif101/easy-A/pull/42)
+  is open for review against `main`, with all nine intended files and no unrelated work.
+- **Next action:** owner review of PR #42. User explicitly authorized commit, push and PR
+  creation on 2026-10-07; merge and deployment remain unauthorized.
   Milestone v1.0 remains archived; no new milestone was created for this bounded task.
 
 ## Current state — as of 2026-09-30 (database facts retain their observation dates)
@@ -200,8 +202,8 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 Phase: Milestone v1.0 complete
 Plan: —
-Status: RMP search links ready for PR review
-Last activity: 2026-10-07 — site-wide search links verified; commit, push and PR authorized
+Status: RMP search links PR open for review
+Last activity: 2026-10-07 — site-wide search links verified and opened as PR #42
 
 ## Historical next action (superseded by current user-directed work above)
 
@@ -530,7 +532,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 
 ## Operator Next Steps
 
-- Create the `codex/rmp-search-links` review PR, then await owner review; no merge/deploy authorized.
+- Review PR #42 on `codex/rmp-search-links`; no merge/deploy authorized.
 - When a new milestone is requested, start it with /gsd-new-milestone.
 
 ## Deferred Items
