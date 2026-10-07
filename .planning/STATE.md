@@ -1,11 +1,11 @@
 ---
 gsd_state_version: "1.0"
-status: USF Bull header PR open for review
-stopped_at: PR 43 open; awaiting owner review
-last_updated: "2026-10-07T19:18:47Z"
+status: Expanded search verified; preparing pull request
+stopped_at: User authorized pull request creation; hosted verification unavailable
+last_updated: "2026-10-07T20:32:00Z"
 last_activity: 2026-10-07
-last_activity_desc: Official standalone Bull header committed, pushed and opened as PR 43
-state_head: d86bc648f79aa7b95cdd53664a61b4bc6c6c5ddc
+last_activity_desc: Expanded course and instructor search implemented and verified locally
+state_head: b4daecd608b415490cbb9382be5f95a71512ef8a
 progress:
   total_phases: 11
   completed_phases: 7
@@ -22,7 +22,45 @@ current_phase_name: Professor-level grades
 rules live in `PROJECT.md` `<decisions>`; the phase sequence lives in `ROADMAP.md`; dated history
 lives in `ARCHIVE.md`.
 
-## Current user-directed work — USF Bull header (2026-10-07)
+## Current user-directed work — expanded search (2026-10-07)
+
+- Fetched `origin/main` = `b4daecd608b415490cbb9382be5f95a71512ef8a` (includes merged
+  Bull header PR #43). Branch `codex/expanded-search` starts directly there, in the clean
+  worktree `C:/Users/kanis/OneDrive/Documents/Projects/easy-A-expanded-search`.
+  Implementation is prepared for a pull request at the user's explicit request.
+  Pending RMP work is separate.
+- Added database-only course/instructor discovery and historical grade-record endpoints;
+  supports CRN, course code, subject, number, real catalog titles, numeral title variants
+  and stored instructor names. Course/instructor matches are labeled separately and paged.
+  Existing section comparison, scoring, rank ordering, grade attribution and dependencies stay.
+- No college identity is stored. Matching names across courses remain separate, with an
+  ambiguity explanation; no initials expansion or overall professor score. Staff/unavailable
+  and ambiguous assignments are excluded. Missing own-course records never become priors.
+- Fresh checks: **42 new backend tests**, **124 focused regression tests passed**;
+  full backend **1075 passed / 10 failed / 4 skipped / 1 xfailed** on locked Python 3.12.
+  All ten failures reproduced on untouched `origin/main` (Windows backfill/worker and parser
+  negative controls). Ruff passed; mypy on new modules passed; full mypy retains four
+  existing Windows platform errors. Frontend **46 tests passed**; lint/typecheck/build passed.
+- UI inspected over explicitly synthetic local fixtures at 1440×1000 and 320×844;
+  keyboard selection, long names/titles, comparison navigation and history reviewed,
+  no mobile horizontal overflow. One preview request returned 500, retry and ten repeats
+  succeeded; recorded in report. Final browser inspection had no page errors.
+- Synthetic in-process FastAPI/SQLite search p95 **170.68–225.12 ms** (50 calls per query,
+  3782 generated current / 8600 generated historical sections). Not a hosted measurement.
+  Supabase credentials failed authentication; PostgreSQL/hosted/live-data checks unavailable.
+- Evidence and complete changed-file/API/identity summary:
+  `.planning/evidence/expanded-search/REPORT.md`, screenshots and test/benchmark logs alongside it.
+  Original `web/package-lock.json` SHA256 remains
+  `161F2B69CB1EC8CF0B72CC8BA54903528842A802C011CD6F499F80FE5D377779`;
+  `.pytest-tmp-codex-20260914a/` preserved. Original checkout only gains this continuation note.
+- **Next action:** commit, push and open the expanded-search PR, explicitly authorized by the
+  user on October 7. Fresh focused backend and frontend checks passed again before publication.
+  Working read-only database access is needed for PostgreSQL/hosted verification.
+  Merge and deployment are not authorized. No new milestone was created.
+
+## Previous user-directed work — USF Bull header (2026-10-07; historical)
+
+PR #43 is now merged in the fetched baseline above. The review action below is historical.
 
 - Fetched `origin/main` = `0155a1398ea0de44ac178cddf0d8b5ce671f4dbf` (PR #41).
   Isolated branch `codex/usf-bull-header` starts directly there. PR #42's RMP work stays

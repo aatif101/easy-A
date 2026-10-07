@@ -13,7 +13,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 
 from easy_a.api.dependencies import get_api_session_factory, get_db_session
-from easy_a.api.routes import metadata, rankings
+from easy_a.api.routes import discovery, metadata, rankings
 from easy_a.api.schemas import HealthResponse
 from easy_a.config import get_settings
 from easy_a.schema_guard import require_sync_schema
@@ -108,6 +108,7 @@ def create_app() -> FastAPI:
 
     app.include_router(rankings.router)
     app.include_router(metadata.router)
+    app.include_router(discovery.router)
     return app
 
 

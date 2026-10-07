@@ -4,16 +4,20 @@ import { SectionTable, type SectionRow } from "../components/SectionTable";
 import { LoadError, Loading, Notice } from "../components/Status";
 import { loadAllSections } from "../lib/loadAll";
 import { inAppClick, type Route } from "../lib/route";
-import { GEN_ED_AREAS, REQUIREMENT_CODES, findGenEdArea, parseSearch } from "../lib/search";
+import { GEN_ED_AREAS, REQUIREMENT_CODES, findGenEdArea } from "../lib/search";
 import { sortSections, toSectionView, type SectionSort } from "../lib/section";
 import { useLoad } from "../lib/useLoad";
 import type { RankingLoader, SectionLoader, SectionRanking } from "../types/rankings";
+import type { DiscoveryLoader, HistoryLoader } from "../types/search";
+import { DiscoveryPage } from "./DiscoveryPage";
 
 interface Loaders {
   term: string;
   rankingLoader: RankingLoader;
   sectionLoader: SectionLoader;
   navigate: (route: Route) => void;
+  discoveryLoader: DiscoveryLoader;
+  historyLoader: HistoryLoader;
 }
 
 const toRows = (items: SectionRanking[]): SectionRow[] =>
@@ -103,7 +107,7 @@ function SectionsView({
   );
 }
 
-function CourseResults({ subject, courseNumber, term, rankingLoader, navigate }: Loaders & { subject: string; courseNumber: string }) {
+function CourseResults({ subject, courseNumber, term, rankingLoader, navigate, discoveryLoader, historyLoader }: Loaders & { subject: string; courseNumber: string }) {
   const [state, retry] = useLoad(`${term}:${subject}:${courseNumber}`, (signal) =>
     loadAllSections(rankingLoader, [{ term, subject, course_number: courseNumber }], signal),
   );
@@ -112,13 +116,13 @@ function CourseResults({ subject, courseNumber, term, rankingLoader, navigate }:
   if (state.status === "error") return <LoadError onRetry={retry} />;
   if (state.data.length === 0) {
     return (
-      <Notice title={`No Spring 2027 sections of ${code}`}>
+      <><Notice title={`No Spring 2027 sections of ${code}`}>
         Check the course code, or{" "}
         <a href={`?q=${subject}`} onClick={inAppClick(navigate, { view: "search", q: subject })}>
           see every {subject} section
         </a>
         .
-      </Notice>
+      </Notice><div className="mt-6"><DiscoveryPage term={term} q={code} discoveryLoader={discoveryLoader} historyLoader={historyLoader} navigate={navigate} /></div></>
     );
   }
   const first = state.data[0];
@@ -224,16 +228,15 @@ function CrnResult({ crn, term, sectionLoader, navigate }: Loaders & { crn: stri
 }
 
 export function SearchResults(props: Loaders & { q: string }) {
-  const parsed = parseSearch(props.q);
-  if (parsed.kind === "crn") return <CrnResult {...props} crn={parsed.crn} />;
-  if (parsed.kind === "course") {
-    return <CourseResults {...props} subject={parsed.subject} courseNumber={parsed.courseNumber} />;
+  const [state, retry] = useLoad(`${props.term}:${props.q}`, signal => props.discoveryLoader(props.term, props.q, 0, signal));
+  if (state.status === "loading") return <Loading label="Searching courses and instructors…" />;
+  if (state.status === "error") return <LoadError onRetry={retry} />;
+  const data = state.data;
+  if (data.kind === "subject" && !data.course_total && data.instructor_total) return <DiscoveryPage {...props} initialData={data} />;
+  if (data.kind === "crn" && data.crn) return <CrnResult {...props} crn={data.crn} />;
+  if (data.kind === "course") {
+    return <CourseResults {...props} subject={data.subject} courseNumber={data.course_number} />;
   }
-  if (parsed.kind === "subject") return <SubjectResults {...props} subject={parsed.subject} />;
-  return (
-    <Notice title={`Nothing matches "${props.q}"`}>
-      Search by CRN (<span className="font-mono">14028</span>), course (<span className="font-mono">ENC 1101</span>), or
-      subject (<span className="font-mono">PSY</span>).
-    </Notice>
-  );
+  if (data.kind === "subject") return <><SubjectResults {...props} subject={data.subject} /><div className="mt-6"><DiscoveryPage {...props} initialData={data} instructorsOnly /></div></>;
+  return <DiscoveryPage {...props} initialData={data} />;
 }

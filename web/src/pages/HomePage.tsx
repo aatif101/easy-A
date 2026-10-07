@@ -55,6 +55,7 @@ export function HomePage({ term, rankingLoader, navigate }: HomePageProps) {
       </h1>
       <div className="max-w-3xl">
         <SearchBox onSearch={(q) => navigate({ view: "search", q })} />
+        <p className="mt-2 text-sm text-slate">Search a CRN, course code or number, title, subject, or professor’s listed name. Try ENC 1101, 2045L, Program Design, or calculus 1.</p>
       </div>
 
       <section className="mt-12" aria-labelledby="top-heading">
