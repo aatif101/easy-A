@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { CopyCrnButton } from "../components/CopyCrnButton";
 import { GradeBar, GradeLegend } from "../components/GradeBar";
@@ -13,6 +13,7 @@ import { useLoad } from "../lib/useLoad";
 import type { RankingLoader, SectionRanking } from "../types/rankings";
 
 const SHOWN = 8;
+const DEFAULT_AREA = "social-sciences";
 
 interface HomePageProps {
   term: string;
@@ -21,7 +22,40 @@ interface HomePageProps {
 }
 
 export function HomePage({ term, rankingLoader, navigate }: HomePageProps) {
-  const [areaId, setAreaId] = useState("social-sciences");
+  const [areaId, setAreaId] = useState(DEFAULT_AREA);
+  const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const popoverId = useId();
+
+  useEffect(() => {
+    if (!open) return;
+    popoverRef.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus();
+    const dismissOutside = (event: MouseEvent) => {
+      if (event.target instanceof Node && !buttonRef.current?.contains(event.target) && !popoverRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+    const dismissWithEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+        buttonRef.current?.focus();
+      }
+    };
+    document.addEventListener("mousedown", dismissOutside);
+    document.addEventListener("keydown", dismissWithEscape);
+    return () => {
+      document.removeEventListener("mousedown", dismissOutside);
+      document.removeEventListener("keydown", dismissWithEscape);
+    };
+  }, [open]);
+
+  const selectArea = (id: string) => {
+    setAreaId(id);
+    setOpen(false);
+    buttonRef.current?.focus();
+  };
   const area = GEN_ED_AREAS.find((item) => item.id === areaId) ?? GEN_ED_AREAS[0];
   const [state, retry] = useLoad(`${term}:${area.id}`, (signal) =>
     loadAllSections(rankingLoader, area.codes.map((code) => ({ term, gened_code: code })), signal),
@@ -54,8 +88,49 @@ export function HomePage({ term, rankingLoader, navigate }: HomePageProps) {
       <h1 className="mb-4 text-[28px] font-semibold leading-tight" style={{ textWrap: "balance" }}>
         Who gives the most A's?
       </h1>
-      <div className="max-w-3xl">
-        <SearchBox onSearch={(q) => navigate({ view: "search", q })} />
+      <div className="relative max-w-3xl">
+        <SearchBox
+          onSearch={(q) => navigate({ view: "search", q })}
+          rightButton={
+            <button
+              ref={buttonRef}
+              type="button"
+              aria-label="GenEd filters"
+              aria-haspopup="dialog"
+              aria-expanded={open}
+              aria-controls={open ? popoverId : undefined}
+              onClick={() => setOpen((value) => !value)}
+              className={`relative h-[52px] w-10 shrink-0 rounded-lg border border-silver text-xl text-ink hover:bg-wash ${areaId !== DEFAULT_AREA ? "bg-wash" : "bg-white"}`}
+            >
+              <span aria-hidden="true">⋮</span>
+              {areaId !== DEFAULT_AREA ? <span aria-hidden="true" className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-green" /> : null}
+            </button>
+          }
+        />
+        {open ? (
+          <div
+            ref={popoverRef}
+            id={popoverId}
+            role="dialog"
+            aria-label="GenEd filters"
+            className="absolute right-0 top-[60px] z-20 flex max-h-[60vh] w-64 max-w-full flex-col gap-2 overflow-y-auto rounded-lg border border-line bg-white p-3 shadow-lg"
+          >
+            {GEN_ED_AREAS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                aria-pressed={item.id === area.id}
+                onClick={() => selectArea(item.id)}
+                className={`rounded-lg border px-3 py-2 text-left text-sm font-medium ${item.id === area.id ? "border-ink bg-ink text-white" : "border-silver bg-white text-ink hover:bg-wash"}`}
+              >
+                {item.label}
+              </button>
+            ))}
+            <button type="button" onClick={() => selectArea(DEFAULT_AREA)} className="rounded-lg px-3 py-2 text-left text-sm text-slate hover:bg-wash">
+              Clear filters
+            </button>
+          </div>
+        ) : null}
         <p className="mt-2 text-sm text-slate">Search a CRN, course code or number, title, subject, or professor’s listed name. Try ENC 1101, 2045L, Program Design, or calculus 1.</p>
       </div>
 
@@ -65,25 +140,6 @@ export function HomePage({ term, rankingLoader, navigate }: HomePageProps) {
             {label} sections with high A rates
           </h2>
           <span className="text-[13px] text-slate">Instructor's past grades in that course</span>
-        </div>
-
-        <div role="group" aria-label="Gen Ed requirement" className="mb-3 flex flex-wrap gap-1.5">
-          {GEN_ED_AREAS.map((item) => {
-            const on = item.id === area.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                aria-pressed={on}
-                onClick={() => setAreaId(item.id)}
-                className={`h-9 rounded-full border px-3.5 text-sm font-medium ${
-                  on ? "border-ink bg-ink text-white" : "border-silver bg-white text-ink hover:bg-wash"
-                }`}
-              >
-                {item.label}
-              </button>
-            );
-          })}
         </div>
 
         {state.status === "loading" ? <Loading label={`Loading ${label} sections…`} /> : null}

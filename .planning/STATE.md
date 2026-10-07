@@ -1,11 +1,11 @@
 ---
 gsd_state_version: "1.0"
-status: Expanded search PR 44 open for review
-stopped_at: PR 44 review fixes pushed; awaiting owner review
-last_updated: "2026-10-07T22:00:00Z"
+status: PR 45 web CI repair verified locally
+stopped_at: Publishing GenEd menu repair; GitHub CI is authoritative for remote status
+last_updated: "2026-10-07T21:40:54Z"
 last_activity: 2026-10-07
-last_activity_desc: PR 44 merged with main (PR 42), review fixes applied, verified on hosted DB
-state_head: 0136bc1
+last_activity_desc: Repaired malformed JSX and GenEd filter interaction; integrated fetched main
+state_head: b6255e16184a2e41c0ff4b2babdb7b4fa5d0e91a
 progress:
   total_phases: 11
   completed_phases: 7
@@ -22,7 +22,27 @@ current_phase_name: Professor-level grades
 rules live in `PROJECT.md` `<decisions>`; the phase sequence lives in `ROADMAP.md`; dated history
 lives in `ARCHIVE.md`.
 
-## Current user-directed work — expanded search, PR #44 (2026-10-07)
+## Current user-directed work — PR #45 web CI repair (2026-10-07)
+
+- [PR #45](https://github.com/aatif101/easy-A/pull/45), remote branch
+  `feat/gened-filters-menu`, failed its push web job at ESLint: malformed JSX in
+  `SearchBox.tsx` and `HomePage.tsx` (run `37685713975`, job `113012867654`).
+- Repair worktree: `C:/Users/kanis/OneDrive/Documents/Projects/easy-A-pr45-ci-fix`,
+  local branch `codex/pr45-ci-fix`. Integrated fetched `origin/main` at `b6255e1`
+  so merged expanded search and RMP links are preserved; resolved HomePage/state conflicts.
+- Restored valid JSX, search sizing and correctly typed GenEd ranking queries. Popover
+  clicks now preserve selection, with focus on opening/closing, Escape, outside dismissal,
+  bounded mobile layout and an active-filter indicator. No backend, dependency or scoring edits.
+- Fresh local checks: `npm ci`, lint, typecheck, **119 frontend tests**, and the production
+  build passed under Node 24. Three new interaction tests cover selecting/clearing filters,
+  mouse dismissal, keyboard/focus behavior and ordinary search submission.
+- Browser checked over explicit synthetic fixtures at 320×844 and 1440×1000: menu selection,
+  keyboard opening/Escape/focus return and zero horizontal overflow; no page errors.
+- **Next action:** review PR #45 and its latest GitHub checks. User authorized fixing and
+  pushing this PR; merge and deployment are not authorized. Original checkout's pre-existing
+  lockfile change and pytest temporary directory remain untouched.
+
+## Previous user-directed work — expanded search, PR #44 (2026-10-07; merged)
 
 - `codex/expanded-search` adds `/api/v1/search` (course number, catalog title, stored instructor
   name) and `/api/v1/search/history` (per-CRN grade records). Full write-up:
