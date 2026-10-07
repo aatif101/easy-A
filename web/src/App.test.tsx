@@ -117,6 +117,28 @@ describe("course search", () => {
   });
 });
 
+describe("search routing", () => {
+  beforeEach(() => {
+    discoveryLoader.mockClear();
+  });
+
+  it.each(["/?q=ENC%201101", "/?q=ENC", "/?q=22222"])(
+    "loads sections for %s without waiting on discovery", async (url) => {
+      renderApp(url, loaderFor(encSections), async () => encSections[1]);
+      expect(await screen.findByRole("table")).toBeInTheDocument();
+      expect(discoveryLoader).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([["/?q=calculus%201", "calculus 1"], ["/?q=1101", "1101"], ["/?q=LEE", "LEE"]])(
+    "sends title, number and non-subject searches to discovery: %s", async (url, q) => {
+      renderApp(url, loaderFor(encSections));
+      expect(await screen.findByText(`Nothing matches "${q}"`)).toBeInTheDocument();
+      expect(discoveryLoader).toHaveBeenCalledWith("202701", q, 0, expect.anything());
+    },
+  );
+});
+
 describe("CRN search", () => {
   it("shows the section and links to the whole course", async () => {
     const sectionLoader: SectionLoader = vi.fn(async (_term, crn) => (crn === "22222" ? encSections[1] : null));

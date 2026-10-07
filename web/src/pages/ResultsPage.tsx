@@ -4,7 +4,7 @@ import { SectionTable, type SectionRow } from "../components/SectionTable";
 import { LoadError, Loading, Notice } from "../components/Status";
 import { loadAllSections } from "../lib/loadAll";
 import { inAppClick, type Route } from "../lib/route";
-import { GEN_ED_AREAS, REQUIREMENT_CODES, findGenEdArea } from "../lib/search";
+import { GEN_ED_AREAS, REQUIREMENT_CODES, findGenEdArea, parseSearch } from "../lib/search";
 import { sortSections, toSectionView, type SectionSort } from "../lib/section";
 import { useLoad } from "../lib/useLoad";
 import type { RankingLoader, SectionLoader, SectionRanking } from "../types/rankings";
@@ -142,19 +142,15 @@ function CourseResults({ subject, courseNumber, term, rankingLoader, navigate, d
   );
 }
 
-function SubjectResults({ subject, term, rankingLoader, navigate }: Loaders & { subject: string }) {
+function SubjectResults(props: Loaders & { subject: string; q: string }) {
+  const { subject, term, rankingLoader, navigate } = props;
   const [state, retry] = useLoad(`${term}:${subject}`, (signal) =>
     loadAllSections(rankingLoader, [{ term, subject, sort: "course" }], signal),
   );
   if (state.status === "loading") return <Loading label={`Loading ${subject} sections…`} />;
   if (state.status === "error") return <LoadError onRetry={retry} />;
-  if (state.data.length === 0) {
-    return (
-      <Notice title={`No Spring 2027 sections in ${subject}`}>
-        Subjects are three letters, like <span className="font-mono">PSY</span> or <span className="font-mono">ENC</span>.
-      </Notice>
-    );
-  }
+  // Three letters with no sections may be a name or title ("Lee"); the backend decides.
+  if (state.data.length === 0) return <DiscoveryPage {...props} />;
   return (
     <>
       <h1 className="mb-5 text-2xl font-semibold">{subject} sections</h1>
@@ -227,16 +223,16 @@ function CrnResult({ crn, term, sectionLoader, navigate }: Loaders & { crn: stri
   );
 }
 
+/**
+ * CRNs, course codes and subjects load sections directly, as before, so the common searches never
+ * wait on (or break with) discovery. Numbers, titles and professor names go to discovery.
+ */
 export function SearchResults(props: Loaders & { q: string }) {
-  const [state, retry] = useLoad(`${props.term}:${props.q}`, signal => props.discoveryLoader(props.term, props.q, 0, signal));
-  if (state.status === "loading") return <Loading label="Searching courses and instructors…" />;
-  if (state.status === "error") return <LoadError onRetry={retry} />;
-  const data = state.data;
-  if (data.kind === "subject" && !data.course_total && data.instructor_total) return <DiscoveryPage {...props} initialData={data} />;
-  if (data.kind === "crn" && data.crn) return <CrnResult {...props} crn={data.crn} />;
-  if (data.kind === "course") {
-    return <CourseResults {...props} subject={data.subject} courseNumber={data.course_number} />;
+  const parsed = parseSearch(props.q);
+  if (parsed.kind === "crn") return <CrnResult {...props} crn={parsed.crn} />;
+  if (parsed.kind === "course") {
+    return <CourseResults {...props} subject={parsed.subject} courseNumber={parsed.courseNumber} />;
   }
-  if (data.kind === "subject") return <><SubjectResults {...props} subject={data.subject} /><div className="mt-6"><DiscoveryPage {...props} initialData={data} instructorsOnly /></div></>;
-  return <DiscoveryPage {...props} initialData={data} />;
+  if (parsed.kind === "subject") return <SubjectResults {...props} subject={parsed.subject} />;
+  return <DiscoveryPage {...props} />;
 }

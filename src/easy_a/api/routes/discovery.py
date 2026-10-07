@@ -13,7 +13,7 @@ from easy_a.analytics.scoring import ScoreConfig
 from easy_a.api.dependencies import BannerTerm, DbSession
 from easy_a.common.section_types import LABORATORY_SECTION_TYPES
 from easy_a.models import Course, GradeDistribution, Section, SectionInstructor, Term
-from easy_a.search import parse_query, text_match
+from easy_a.search import SearchQuery, parse_query, text_match
 
 router = APIRouter(prefix="/api/v1/search", tags=["search"])
 IDENTITY_NOTE = (
@@ -152,6 +152,11 @@ def discover(
     offset: Annotated[int, Query(ge=0, le=10000)] = 0,
 ) -> SearchResponse:
     query = parse_query(q)
+    if query.kind == "subject" and not session.scalar(
+        select(exists().where(Course.subject == query.subject))
+    ):
+        # Three letters that are not a subject ("Lee") are a title or name search.
+        query = SearchQuery("text", query.text)
     courses = select(Course, current_count(term).label("current_sections"))
     if query.kind == "crn":
         courses = courses.where(
@@ -203,7 +208,8 @@ def discover(
         .join(assigned, assigned.c.section_id == Section.id)
         .where(Term.banner_code <= term, (Term.banner_code < term) | Section.removed_at.is_(None))
         .where((Term.banner_code == term) | Section.id.in_(safe_historical_assignments()))
-        .where(text_match(assigned.c.name, query.text) if query.text else false())
+        # Names only for free text: "ENC" must not list R. Benchekroun or L. Spencer.
+        .where(text_match(assigned.c.name, query.text) if query.kind == "text" else false())
         .group_by(Course.id, assigned.c.name)
     )
     instructor_total = session.scalar(select(func.count()).select_from(instructors.subquery())) or 0

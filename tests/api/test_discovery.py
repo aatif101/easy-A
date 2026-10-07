@@ -122,6 +122,8 @@ def discovery_client() -> Generator[TestClient, None, None]:
         )
         seed(12, 3, 1, ["Removed Person"], removed=True)
         seed(13, 5, 2, ["Zero Grades"], grades=0)
+        # A current name containing the MAC subject code.
+        seed(30, 5, 1, ["C. Maclean"])
         session.flush()
         zero = session.query(GradeDistribution).filter_by(crn="20013").one()
         zero.b_count = 0
@@ -222,7 +224,18 @@ def test_unavailable_ambiguous_and_stale_names_excluded(
 
 
 def test_short_instructor_name_can_match_subject_shaped_query(discovery_client: TestClient) -> None:
-    assert search(discovery_client, "New")["instructor_total"] == 1
+    result = search(discovery_client, "New")
+    assert result["kind"] == "text"
+    assert result["instructor_total"] == 1
+
+
+@pytest.mark.parametrize("q", ["MAC", "mac", "ENC 1101", "1101", "14028"])
+def test_code_shaped_queries_never_match_instructor_names(
+    discovery_client: TestClient, q: str
+) -> None:
+    # A real subject, course code, number or CRN is not a name fragment.
+    assert search(discovery_client, "maclean")["instructor_total"] == 1
+    assert search(discovery_client, q)["instructor_total"] == 0
 
 
 def test_pagination_both_categories(discovery_client: TestClient) -> None:

@@ -30,7 +30,13 @@ describe("expanded search", () => {
     const instructors = screen.getByRole("region", { name: "Instructor results" });
     expect(within(courses).getByRole("heading", { name: /ABC 1101/ })).toBeInTheDocument();
     expect(within(courses).getByText(/No current sections/)).toBeInTheDocument();
-    expect(within(instructors).getAllByText(/Listed instructor: J. Smith/)).toHaveLength(2);
+    const names = within(instructors).getAllByText("J. Smith");
+    expect(names).toHaveLength(2);
+    for (const name of names) {
+      expect(name.parentElement).toHaveTextContent(/^Listed instructor: J\. Smith/);
+      expect(name.nextElementSibling).toHaveAccessibleName(/J\. Smith/);
+      expect(name.nextElementSibling).toHaveAttribute("href", expect.stringContaining("ratemyprofessors.com"));
+    }
     expect(within(instructors).getByText(note)).toBeInTheDocument();
     await userEvent.click(within(courses).getByRole("link", { name: "Compare current sections" }));
     expect(navigate).toHaveBeenCalledWith({ view: "search", q: "ENC 1101" });
