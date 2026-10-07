@@ -1,11 +1,11 @@
 ---
 gsd_state_version: "1.0"
-status: RMP search links PR open for review
-stopped_at: PR 42 open; awaiting owner review
-last_updated: "2026-10-07T19:04:31Z"
+status: RMP profile links PR open for review
+stopped_at: PR 42 updated with main (PR 43 merged); awaiting owner review
+last_updated: "2026-10-07T21:30:00Z"
 last_activity: 2026-10-07
-last_activity_desc: Site-wide RMP search links committed, pushed and opened as PR 42
-state_head: cd28a32ac8e9d0ff711d31b86020bfd7756feddf
+last_activity_desc: RMP profile links committed; main (PR 43) merged into PR 42
+state_head: b4daecd
 progress:
   total_phases: 11
   completed_phases: 7
@@ -24,7 +24,7 @@ lives in `ARCHIVE.md`.
 
 ## Current user-directed work — 2026-10-07
 
-- PR #42 (`codex/rmp-search-links`, based on `origin/main` `0155a13`): an "RMP ↗" link beside
+- PR #42 (`codex/rmp-search-links`, up to date with `main` `b4daecd`): an "RMP ↗" link beside
   every named instructor (home-page picks, section table and cards, instructor history).
 - Owner amended D-08 for D-17 (see `PROJECT.md`): `scripts/match_rmp_profiles.py` looks up each
   distinct last name once on RMP's public search (rate-limited, cached in git-ignored `.cache/rmp/`)
@@ -32,6 +32,8 @@ lives in `ARCHIVE.md`.
   matches open the professor's own page; everyone else gets a USF search on the last name.
   Corrections: `src/easy_a/rmp/overrides.json`.
 - **Next action:** owner review of PR #42; merge and deploy not yet authorized.
+- PR #43 (USF Bull header logo) merged to `main` as `b4daecd` on 2026-10-07; source and
+  provenance in `web/src/assets/README.md`.
 
 ## Current state — as of 2026-09-30 (database facts retain their observation dates)
 
@@ -181,8 +183,8 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 Phase: Milestone v1.0 complete
 Plan: —
-Status: RMP search links PR open for review
-Last activity: 2026-10-07 — site-wide search links verified and opened as PR #42
+Status: RMP profile links PR open for review
+Last activity: 2026-10-07 — PR #43 merged; RMP profile links added to PR #42
 
 ## Historical next action (superseded by current user-directed work above)
 

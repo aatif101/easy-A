@@ -45,6 +45,30 @@ afterEach(() => {
   window.history.replaceState(null, "", "/");
 });
 
+describe("header brand", () => {
+  it.each(["/", "/?q=ENC%201101"])("shows the standalone Bull beside the existing name at %s", (url) => {
+    renderApp(url);
+    const home = within(screen.getByRole("banner")).getByRole("link", { name: "Easy-A home" });
+    const logo = within(home).getByRole("img", { name: "USF Bull logo" });
+    expect(logo).toHaveAttribute("src", expect.stringContaining("usf-bull.svg"));
+    expect(logo).toHaveAttribute("width", "56");
+    expect(logo).toHaveAttribute("height", "56");
+    expect(logo.nextElementSibling).toHaveTextContent(/^easyA$/);
+    expect(home).toHaveTextContent(/^easyA$/);
+    expect(home).not.toHaveTextContent(/USF|University of South Florida/i);
+  });
+
+  it("keeps the brand as one keyboard-accessible home link", async () => {
+    const user = userEvent.setup();
+    renderApp("/?q=ENC%201101");
+    const home = screen.getByRole("link", { name: "Easy-A home" });
+    await user.tab();
+    expect(home).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(await screen.findByRole("heading", { name: "Who gives the most A's?" })).toBeInTheDocument();
+  });
+});
+
 describe("course search", () => {
   it("lists every section with the most A's first and missing history last", async () => {
     renderApp("/?q=ENC%201101");
