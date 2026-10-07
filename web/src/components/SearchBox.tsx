@@ -27,12 +27,12 @@ export function SearchBox({ initialValue = "", onSearch, size = "large" }: Searc
           <circle cx="11" cy="11" r="7" />
           <path d="M20 20l-3.5-3.5" />
         </svg>
-        <span className="sr-only">Search classes by CRN, course, or subject</span>
+        <span className="sr-only">Search classes by CRN, course, subject, number, title, or professor</span>
         <input
           type="search"
           value={value}
           onChange={(event) => setValue(event.target.value)}
-          placeholder="Course or CRN"
+          placeholder="Course, CRN, or professor"
           autoComplete="off"
           spellCheck={false}
           className={`min-w-0 flex-1 border-0 bg-transparent text-ink placeholder:text-slate ${large ? "text-[17px]" : "text-base"}`}

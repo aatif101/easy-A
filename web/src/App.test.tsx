@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import App from "./App";
+import { parseSearch } from "./lib/search";
 import { section } from "./test/builders";
 import type { RankingLoader, RankingQuery, SectionLoader, SectionRanking } from "./types/rankings";
 
@@ -11,6 +12,10 @@ const terms = async () => [
   { term: "202701", term_name: "Spring 2027", year: 2027, season: "Spring" },
 ];
 const syncStatus = vi.fn();
+const discoveryLoader = vi.fn(async (_term: string, q: string) => {
+  const parsed = parseSearch(q);
+  return { as_of: "2026-10-07T12:00:00Z", kind: parsed.kind, subject: parsed.kind === "subject" || parsed.kind === "course" ? parsed.subject : "", course_number: parsed.kind === "course" ? parsed.courseNumber : "", crn: parsed.kind === "crn" ? parsed.crn : null, courses: [], instructors: [], course_total: 0, instructor_total: 0, limit: 20, offset: 0, identity_note: "Separate course identities" };
+});
 
 const encSections: SectionRanking[] = [
   section("11111", "Low Grader", 0.42),
@@ -33,7 +38,7 @@ const loaderFor = (items: SectionRanking[]): RankingLoader =>
 const renderApp = (url: string, rankingLoader = loaderFor(encSections), sectionLoader: SectionLoader = vi.fn(async () => null)) => {
   window.history.replaceState(null, "", url);
   return render(
-    <App rankingLoader={rankingLoader} sectionLoader={sectionLoader} termsLoader={terms} syncStatusLoader={syncStatus} mockMode={false} />,
+    <App rankingLoader={rankingLoader} sectionLoader={sectionLoader} termsLoader={terms} syncStatusLoader={syncStatus} discoveryLoader={discoveryLoader} mockMode={false} />,
   );
 };
 
@@ -110,6 +115,28 @@ describe("course search", () => {
     renderApp("/?q=psychology");
     expect(await screen.findByText('Nothing matches "psychology"')).toBeInTheDocument();
   });
+});
+
+describe("search routing", () => {
+  beforeEach(() => {
+    discoveryLoader.mockClear();
+  });
+
+  it.each(["/?q=ENC%201101", "/?q=ENC", "/?q=22222"])(
+    "loads sections for %s without waiting on discovery", async (url) => {
+      renderApp(url, loaderFor(encSections), async () => encSections[1]);
+      expect(await screen.findByRole("table")).toBeInTheDocument();
+      expect(discoveryLoader).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([["/?q=calculus%201", "calculus 1"], ["/?q=1101", "1101"], ["/?q=LEE", "LEE"]])(
+    "sends title, number and non-subject searches to discovery: %s", async (url, q) => {
+      renderApp(url, loaderFor(encSections));
+      expect(await screen.findByText(`Nothing matches "${q}"`)).toBeInTheDocument();
+      expect(discoveryLoader).toHaveBeenCalledWith("202701", q, 0, expect.anything());
+    },
+  );
 });
 
 describe("CRN search", () => {

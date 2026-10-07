@@ -1,0 +1,30 @@
+{
+  "environment": "Python 3.12 Windows; in-process FastAPI TestClient + SQLite; synthetic only",
+  "generated_courses": 1402,
+  "generated_current_sections": 3782,
+  "generated_historical_sections_and_grades": 8600,
+  "warmups_per_query": 5,
+  "samples_per_query": 50,
+  "results": {
+    "1101": {
+      "p50_ms": 159.46,
+      "p95_ms": 170.68,
+      "max_ms": 218.64
+    },
+    "calculus 1": {
+      "p50_ms": 200.46,
+      "p95_ms": 216.74,
+      "max_ms": 284.12
+    },
+    "Program Design": {
+      "p50_ms": 193.71,
+      "p95_ms": 225.12,
+      "max_ms": 240.24
+    },
+    "Synthetic Instructor 12": {
+      "p50_ms": 211.16,
+      "p95_ms": 219.65,
+      "max_ms": 289.52
+    }
+  }
+}

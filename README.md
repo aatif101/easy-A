@@ -57,10 +57,36 @@ Copy `.env.example` to `.env` for local development and adjust values if needed.
 ## Frontend
 
 The frontend is a React, TypeScript, Vite, and Tailwind CSS app under `web/`. One search box
-takes a CRN, a course code (`ENC 1101`) or a subject (`PSY`); Gen Ed areas can be browsed
+takes a CRN, course code (`ENC 1101`), subject (`PSY`), course number (`1101`, `2045L`),
+catalog title (`Program Design`), or stored instructor name; Gen Ed areas can be browsed
 directly. Every section shows its current instructor's A share in that course, with the grade
 count behind it, and lets students copy the CRN for OASIS. Routes live in the query string
 (`?q=ENC%201101`, `?gened=social-sciences`).
+
+Expanded search uses `GET /api/v1/search?term=202701&q=calculus%201` and returns independently
+paginated course and instructor-course matches (20 per category by default, maximum 50).
+The backend in `src/easy_a/search.py` owns production interpretation, case/spacing/punctuation
+normalization and literal title-token matching. The only common-name normalization is numeral
+tokens `1`–`4` ↔ `I`–`IV`, matched against stored catalog titles with token boundaries; there
+are no invented course aliases or expanded instructor initials. Course numbers can match
+multiple subjects. Courses retain their catalog edition and database ID.
+
+`GET /api/v1/search/history?term=202701&course_id=42&name=J.%20Smith` returns stored historical
+grade buckets, A / A–F share, observed A–F count, exact covered terms, and paginated term/CRN/source
+records with source fingerprints and import timestamps. Omit `name` for own-course records.
+Neither endpoint changes ranking behavior or computes an overall professor score. Discovery
+performs four SQL reads; record pages are limited to 50 and offsets to 10,000. Search waits for
+form submission and uses the existing abort-and-ignore-stale-response loader.
+
+The schema has no college identifier, so instructor results stay separate for each course and
+listed name. Matching names across courses do not establish identity. Only usable, unambiguous
+latest assignments are searchable; historical assignments with conflicting observations are
+excluded from attribution. Laboratories are excluded from instructor history. Small observed
+samples remain insufficient, non-letter-grade records have no A share, and absent/ambiguous
+history stays unavailable. Missing or suppressed source rows cannot be reconstructed from the
+stored schema (which does not persist suppression markers). The detailed view shows only stored
+own-course records, never a subject/global prior as course history. The frontend-only fixture
+mode keeps basic demonstration searches and explicitly declines missing raw grade records.
 
 ```powershell
 cd web

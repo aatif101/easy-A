@@ -1,4 +1,6 @@
 import { syntheticCoverage, syntheticRankings, syntheticSyncStatus } from "../fixtures/rankings";
+import type { DiscoveryLoader, DiscoveryResponse, HistoryLoader, HistoryResponse } from "../types/search";
+import { parseSearch } from "../lib/search";
 import type {
   CoverageLoader,
   CourseCoverage,
@@ -42,6 +44,55 @@ const fetchJson = async <Result>(url: URL, signal?: AbortSignal): Promise<Result
     throw new Error(`API request failed with status ${response.status}.`);
   }
   return (await response.json()) as Result;
+};
+
+export const fetchDiscovery: DiscoveryLoader = async (term, q, offset, signal) => {
+  if (isUsingMockData) {
+    // Frontend-only demonstration adapter. Production interpretation lives in easy_a.search.
+    const parsed = parseSearch(q);
+    const rows = syntheticRankings.filter(row => row.term === term);
+    const all = uniqueBy(rows, row => `${row.subject}:${row.course_number}`);
+    const courses = all.map((row, index) => ({
+      course_id: index + 1, subject: row.subject, course_number: row.course_number,
+      title: row.course_title, catalog_edition: "Synthetic demonstration",
+      current_sections: rows.filter(item => item.subject === row.subject && item.course_number === row.course_number).length,
+    }));
+    const needle = q.trim().toLowerCase();
+    const matching = courses.filter(course => {
+      if (parsed.kind === "course") return course.subject === parsed.subject && course.course_number === parsed.courseNumber;
+      if (parsed.kind === "subject") return course.subject === parsed.subject;
+      if (parsed.kind === "crn") return rows.some(row => row.crn === parsed.crn && row.subject === course.subject && row.course_number === course.course_number);
+      return course.course_number.toLowerCase() === needle || course.title.toLowerCase().includes(needle);
+    });
+    const instructors = uniqueBy(
+      rows.filter(row => row.instructor && row.instructor.toLowerCase() !== "staff" && row.instructor.toLowerCase().includes(needle)),
+      row => `${row.subject}:${row.course_number}:${row.instructor}`,
+    ).map(row => ({
+      ...courses.find(course => course.subject === row.subject && course.course_number === row.course_number)!,
+      name: row.instructor!, historical_sections: 0,
+      observed_at: row.seats.observed_at ?? new Date(0).toISOString(),
+    }));
+    return {
+      as_of: new Date().toISOString(), kind: parsed.kind,
+      subject: parsed.kind === "course" || parsed.kind === "subject" ? parsed.subject : "",
+      course_number: parsed.kind === "course" ? parsed.courseNumber : "",
+      crn: parsed.kind === "crn" ? parsed.crn : null,
+      courses: matching.slice(offset, offset + 20), instructors: instructors.slice(offset, offset + 20),
+      course_total: matching.length, instructor_total: instructors.length, limit: 20, offset,
+      identity_note: "Synthetic demonstration records, kept separate by course.",
+    };
+  }
+  const url = endpointUrl("/api/v1/search");
+  for (const [key, value] of Object.entries({ term, q, offset, limit: 20 })) url.searchParams.set(key, String(value));
+  return fetchJson<DiscoveryResponse>(url, signal);
+};
+
+export const fetchHistory: HistoryLoader = async (term, course_id, name, offset, signal) => {
+  if (isUsingMockData) throw new Error("Detailed grade records are unavailable in frontend-only demonstration fixtures.");
+  const url = endpointUrl("/api/v1/search/history");
+  for (const [key, value] of Object.entries({ term, course_id, offset, limit: 20 })) url.searchParams.set(key, String(value));
+  if (name !== null) url.searchParams.set("name", name);
+  return fetchJson<HistoryResponse>(url, signal);
 };
 
 const mockTerms: TermMetadata[] = [

@@ -8,10 +8,10 @@ export function Loading({ label }: { label: string }) {
   );
 }
 
-export function LoadError({ onRetry }: { onRetry: () => void }) {
+export function LoadError({ onRetry, message = "Unable to load sections. Check your connection and try again." }: { onRetry: () => void; message?: string }) {
   return (
     <div role="alert" className="flex flex-wrap items-center gap-3 rounded-lg border border-line px-4 py-4 text-sm">
-      <span>Unable to load sections. Check your connection and try again.</span>
+      <span>{message}</span>
       <button type="button" onClick={onRetry} className="h-9 rounded-md border border-silver px-3 font-semibold hover:bg-wash">
         Try again
       </button>

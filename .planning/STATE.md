@@ -1,11 +1,11 @@
 ---
 gsd_state_version: "1.0"
-status: RMP profile links PR open for review
-stopped_at: PR 42 updated with main (PR 43 merged); awaiting owner review
-last_updated: "2026-10-07T21:30:00Z"
+status: Expanded search PR 44 open for review
+stopped_at: PR 44 review fixes pushed; awaiting owner review
+last_updated: "2026-10-07T22:00:00Z"
 last_activity: 2026-10-07
-last_activity_desc: RMP profile links committed; main (PR 43) merged into PR 42
-state_head: b4daecd
+last_activity_desc: PR 44 merged with main (PR 42), review fixes applied, verified on hosted DB
+state_head: 0136bc1
 progress:
   total_phases: 11
   completed_phases: 7
@@ -22,7 +22,21 @@ current_phase_name: Professor-level grades
 rules live in `PROJECT.md` `<decisions>`; the phase sequence lives in `ROADMAP.md`; dated history
 lives in `ARCHIVE.md`.
 
-## Current user-directed work — 2026-10-07
+## Current user-directed work — expanded search, PR #44 (2026-10-07)
+
+- `codex/expanded-search` adds `/api/v1/search` (course number, catalog title, stored instructor
+  name) and `/api/v1/search/history` (per-CRN grade records). Full write-up:
+  `.planning/evidence/expanded-search/REPORT.md`.
+- Review fixes: instructor names are matched only for free-text queries (a subject like `MAC` no
+  longer lists C. Maclean); a three-letter query that is not a subject is searched as text; CRN,
+  course-code and subject searches load sections directly again, so only title/number/name
+  searches use the new endpoint; discovery instructor results carry the RMP link. `main` (PR #42)
+  merged in.
+- Hosted Postgres check (read-only, 2026-10-07): every probe returned 200, ~0.6 s per search from
+  a local machine; history endpoint 0.5-0.6 s.
+- **Next action:** owner review of PR #44.
+
+## Previous user-directed work — RMP profile links, PR #42 (merged 2026-10-07)
 
 - PR #42 (`codex/rmp-search-links`, up to date with `main` `b4daecd`): an "RMP ↗" link beside
   every named instructor (home-page picks, section table and cards, instructor history).
@@ -31,7 +45,7 @@ lives in `ARCHIVE.md`.
   and writes `web/src/data/rmp-profiles.json` (`"SUBJ|name"` -> profile id, ids only). Confident
   matches open the professor's own page; everyone else gets a USF search on the last name.
   Corrections: `src/easy_a/rmp/overrides.json`.
-- **Next action:** owner review of PR #42; merge and deploy not yet authorized.
+- PR #42 merged as `0136bc1` and deployed (bundle on `easy-a-web.onrender.com` verified).
 - PR #43 (USF Bull header logo) merged to `main` as `b4daecd` on 2026-10-07; source and
   provenance in `web/src/assets/README.md`.
 
@@ -183,8 +197,8 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 Phase: Milestone v1.0 complete
 Plan: —
-Status: RMP profile links PR open for review
-Last activity: 2026-10-07 — PR #43 merged; RMP profile links added to PR #42
+Status: Expanded search PR 44 open for review
+Last activity: 2026-10-07 — PR #42 merged and live; PR #44 review fixes pushed
 
 ## Historical next action (superseded by current user-directed work above)
 
@@ -513,7 +527,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 
 ## Operator Next Steps
 
-- Review PR #42 on `codex/rmp-search-links`; no merge/deploy authorized.
+- Review PR #44 on `codex/expanded-search`; no merge/deploy authorized.
 - When a new milestone is requested, start it with /gsd-new-milestone.
 
 ## Deferred Items
