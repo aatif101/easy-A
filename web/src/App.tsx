@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { fetchRankings, fetchSection, fetchSyncStatus, fetchTerms, isUsingMockData } from "./api/rankings";
+import usfBull from "./assets/usf-bull.svg";
 import { SearchBox } from "./components/SearchBox";
 import { LoadError, Loading } from "./components/Status";
 import { SYNTHETIC_FIXTURE_NOTICE } from "./fixtures/rankings";
@@ -64,10 +65,11 @@ export default function App({
           <a
             href={window.location.pathname}
             onClick={inAppClick(navigate, { view: "home" })}
-            className="text-xl font-bold tracking-[-0.01em] text-ink no-underline"
+            className="inline-flex shrink-0 items-center gap-2.5 whitespace-nowrap text-xl font-bold tracking-[-0.01em] text-ink no-underline"
             aria-label="Easy-A home"
           >
-            easy<span className="text-green">A</span>
+            <img src={usfBull} alt="USF Bull logo" width={56} height={56} className="h-7 w-7 shrink-0 object-contain sm:h-8 sm:w-8" />
+            <span>easy<span className="text-green">A</span></span>
           </a>
           {route.view !== "home" ? (
             <div className="order-3 w-full min-[720px]:order-none min-[720px]:w-auto min-[720px]:max-w-[560px] min-[720px]:flex-1">
