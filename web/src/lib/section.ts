@@ -20,6 +20,9 @@ export interface SectionView {
   caption: string;
   instructor: string;
   instructorNamed: boolean;
+  /** Named, and the current assignment is known (not an unavailable or ambiguous state). */
+  rmpLinkable: boolean;
+  subject: string;
   delivery: string | null;
   seatsOpen: number | null;
   seatsCapacity: number | null;
@@ -80,6 +83,8 @@ export const toSectionView = (ranking: SectionRanking): SectionView => {
     caption,
     instructor: named ?? "TBA",
     instructorNamed: named !== null,
+    rmpLinkable: named !== null && ranking.instructor_provenance.freshness !== "unavailable",
+    subject: ranking.subject,
     delivery: deliveryLabel(ranking.modality.delivery_method),
     seatsOpen: seats.seats_remaining ?? ranking.seats_remaining,
     seatsCapacity: seats.capacity,

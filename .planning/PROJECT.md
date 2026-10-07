@@ -121,7 +121,7 @@ Candidate later phases. Not committed, not required for the beta. See `.planning
 backlog for detail.
 
 - Seat alerts and notifications
-- Verified RMP profile links
+- Verified RMP profile links (in progress, D-17)
 - Deeper professor-specific coverage
 - Additional UX features
 - Methodology review (optional research item)
@@ -310,7 +310,7 @@ Treat it as input, never as an approved requirement.
 - **D-05 [locked]:** Seat observation age must be visible. Failed requests must not advance the success timestamp, fabricate zero seats, or present stale data as current. Waitlist capacity is separate from available seats.
 - **D-06 [locked]:** No fabricated data. No production synthetic fallback, no invented coverage figures, no unsupported policy assertion, no guessed source link, no silent scope expansion, no auto-registration, no LLM or AI features.
 - **D-07 [locked]:** Explicit unavailable / insufficient / suppressed / invalid states with reasons. Absent evidence is reported as absent.
-- **D-08 [locked]:** No scraping of any source, and no imported RMP ratings, review counts, review text, tags or summaries. This prohibition holds regardless of whether verified RMP links are ever implemented.
+- **D-08 [locked, amended 2026-10-07]:** No scraping of any source, and no imported RMP ratings, review counts, review text, tags or summaries. This prohibition holds regardless of whether verified RMP links are ever implemented. **Amendment (owner decision, 2026-10-07):** one exception for D-17: `scripts/match_rmp_profiles.py` may query RMP's public search once per distinct instructor last name (sequential, rate-limited, cached locally, rerun only when a new term brings new instructors) to find profile IDs. Only the profile ID is stored; the import prohibitions above still apply in full.
 - **D-09 [locked]:** Bounded, narrow requests to USF public sources. No broad crawling. (Scoped exception for the live schedule sync and historical backfill: D-22.)
 - **D-10 [locked]:** Fetch and verify current `origin/main` before planning; work from branches or worktrees descended from it. Preserve untracked local work; do not check out, merge or fast-forward a local `main` you did not verify.
 - **D-11 [locked]:** Use GSD Core's `.planning/` structure, not GSD2 `.gsd/` conventions.
@@ -331,7 +331,7 @@ Treat it as input, never as an approved requirement.
 ### Deferred — candidate later phases, not committed
 
 - **D-16 [deferred]:** Seat alerts and notifications. Appropriate only after near-live seat refresh works and the hosted beta is stable. Do not add subscriber, watch, outbox or email-provider work to the current execution sequence. Architecture notes are retained in the ROADMAP backlog as future / optional design considerations only.
-- **D-17 [deferred]:** Verified RMP profile links. Deferred until after hosted beta and core data stability; not a beta blocker. D-08's prohibitions apply whenever it is picked up.
+- **D-17 [in progress, 2026-10-07]:** RMP profile links beside instructor names. A profile link is shown only for an unambiguous match (`easy_a.rmp.matcher`); every other named instructor gets a USF RMP search on their last name. Owner corrections go in `src/easy_a/rmp/overrides.json`. Built under the D-08 amendment.
 - **D-18 [superseded 2026-09-20]:** Broader launch coverage breadth was previously deferred. It is now the committed **MVP-1** goal — full ~3,782-section USF Tampa Spring 2027 breadth (data availability, quality, refresh sustainability and performance are handled within MVP1-P1..P5).
 
 </decisions>
@@ -360,6 +360,7 @@ Treat it as input, never as an approved requirement.
 | Verify MVP-1 grade coverage under D-21 rather than "zero fallbacks" | InfoCenter cannot supply history for <5-student, new, or non-letter-grade courses; demanding zero fallbacks was unreachable and would pressure fabrication. | Applied 2026-09-24 — Phase 8 PASS; exceptions committed as `08-D21-EXCEPTIONS.md` |
 | Label `course`/`effective_n = 0` rows as "No letter-grade history — score is a prior" | Showing "Course-level history · 0 grades" implied evidence that does not exist (D-20). Presentation-only (D-02). | Applied 2026-09-24 (08-03), UAT passed |
 | Demote the handoff docs to low-precedence archival inputs in the ingest manifest | Leaving `gsd-core-mvp-prompt.md` as a precedence-0 ADR meant any future `/gsd-ingest-docs` run could re-promote alerts, RMP, a scoring rewrite and campus-wide scope over current planning. | Applied 2026-09-08 |
+| Amend D-08 for a one-time RMP profile-ID lookup (D-17) | A search link on `S. Miller` returns unrelated professors; a direct profile needs an ID, and the schedule gives only an initial and a surname. Storing IDs only keeps ratings and reviews out. | Applied 2026-10-07 (owner decision) |
 | Approve the D-24 instructor-course retune | At n = 30 the binomial SE of an A-rate (about 9 pp) matches the measured 8.9 pp between-instructor spread; a prior of 60 plus a gate of 60 was doubly conservative. | Approved 2026-09-30; live only after the Phase 10 D-04 diff review |
 
 ---

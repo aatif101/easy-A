@@ -24,35 +24,14 @@ lives in `ARCHIVE.md`.
 
 ## Current user-directed work — 2026-10-07
 
-- Fetched and verified `origin/main` = `0155a1398ea0de44ac178cddf0d8b5ce671f4dbf`
-  (PR #41, frontend redesign). Working branch `codex/rmp-search-links` was created directly from
-  that commit. The older repo/branch facts below are dated history.
-- User explicitly requested link-only RMP search links beside all named instructors: home-page
-  recommendations, desktop tables, mobile cards and instructor history. Course, subject, CRN and
-  Gen Ed results share the section table. This is a school-1262 search, not a verified profile;
-  D-17's verified-profile work remains deferred. No RMP data requests, ratings, dependencies,
-  backend contracts, analytics or ranking changes were introduced.
-- `rmpSearchUrl` uses `encodeURIComponent`; `RmpSearchLink` supplies accessible search labels,
-  `_blank`, `noopener noreferrer`, visible keyboard focus and a minimum 44 x 44 px target.
-  Blank/Staff/unavailable/ambiguous names and unavailable current-instructor provenance omit links.
-  History layout gives the name and link their own row on mobile.
-- Fresh frontend verification: `npm test` **89 passed / 5 files** (51 focused RMP checks,
-  five additional page-coverage tests and home-page assertions),
-  `npm run lint`, `npm run typecheck`, `npm run build` all exit 0. No unrelated failures observed.
-  Live local UI over the hosted API inspected at 1440 x 1000, 390 x 844 and 320 x 844;
-  current/history link placement and keyboard focus verified, measured links at least 44 x 44 px,
-  no document overflow at 320 px, no browser warnings/errors observed. RMP destinations were not
-  opened or fetched. Screenshots are outside the repo in the Codex visualization directory.
-  Home-page desktop/mobile visual checks, keyboard focus and target dimensions freshly verified
-  after extending coverage on the user's follow-up request.
-- Pre-existing `web/package-lock.json` modification preserved byte-for-byte (SHA256
-  `161F2B69CB1EC8CF0B72CC8BA54903528842A802C011CD6F499F80FE5D377779`),
-  and untracked `.pytest-tmp-codex-20260914a/` left untouched and excluded from the feature commit.
-- Feature commit `cd28a32` pushed; [PR #42](https://github.com/aatif101/easy-A/pull/42)
-  is open for review against `main`, with all nine intended files and no unrelated work.
-- **Next action:** owner review of PR #42. User explicitly authorized commit, push and PR
-  creation on 2026-10-07; merge and deployment remain unauthorized.
-  Milestone v1.0 remains archived; no new milestone was created for this bounded task.
+- PR #42 (`codex/rmp-search-links`, based on `origin/main` `0155a13`): an "RMP ↗" link beside
+  every named instructor (home-page picks, section table and cards, instructor history).
+- Owner amended D-08 for D-17 (see `PROJECT.md`): `scripts/match_rmp_profiles.py` looks up each
+  distinct last name once on RMP's public search (rate-limited, cached in git-ignored `.cache/rmp/`)
+  and writes `web/src/data/rmp-profiles.json` (`"SUBJ|name"` -> profile id, ids only). Confident
+  matches open the professor's own page; everyone else gets a USF search on the last name.
+  Corrections: `src/easy_a/rmp/overrides.json`.
+- **Next action:** owner review of PR #42; merge and deploy not yet authorized.
 
 ## Current state — as of 2026-09-30 (database facts retain their observation dates)
 

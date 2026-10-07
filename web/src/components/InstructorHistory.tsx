@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { formatShare, termSpan, type SectionView } from "../lib/section";
 import { GradeBar } from "./GradeBar";
-import { RmpSearchLink } from "./RmpSearchLink";
+import { RmpLink } from "./RmpLink";
 
 const SOURCE_NOTE =
   'Source: USF InfoCenter grade reports, matched to instructors in the USF class schedule. "% A" is the share of A–F grades that were an A.';
@@ -34,7 +34,7 @@ export function InstructorHistory({ view, courseCode }: { view: SectionView; cou
           >
             <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-x-1 sm:col-span-1">
               <span className="min-w-0 max-w-full truncate" title={row.name}>{row.name}</span>
-              <RmpSearchLink instructor={row.name} />
+              <RmpLink instructor={row.name} subject={view.subject} />
               {row.is_current ? <span className="ml-2 text-xs font-semibold text-green">This section</span> : null}
             </div>
             <GradeBar share={row.a_share} faded={!row.scored} />

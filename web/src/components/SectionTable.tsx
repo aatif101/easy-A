@@ -5,7 +5,7 @@ import type { SectionRanking } from "../types/rankings";
 import { CopyCrnButton } from "./CopyCrnButton";
 import { GradeBar, GradeLegend } from "./GradeBar";
 import { InstructorHistory } from "./InstructorHistory";
-import { RmpSearchLink } from "./RmpSearchLink";
+import { RmpLink } from "./RmpLink";
 
 export interface SectionRow {
   ranking: SectionRanking;
@@ -110,8 +110,8 @@ export function SectionTable({ rows, showCourse = false, onOpenCourse }: Section
                     <td className="px-3.5 py-3">
                       <div className="flex flex-wrap items-center gap-x-1">
                         <span className={view.instructorNamed ? "" : "text-slate"}>{view.instructor}</span>
-                        {view.instructorNamed && ranking.instructor_provenance.freshness !== "unavailable" ? (
-                          <RmpSearchLink instructor={view.instructor} />
+                        {view.rmpLinkable ? (
+                          <RmpLink instructor={view.instructor} subject={view.subject} />
                         ) : null}
                       </div>
                       {view.delivery ? <span className="block text-xs text-slate">{view.delivery}</span> : null}
@@ -171,8 +171,8 @@ export function SectionTable({ rows, showCourse = false, onOpenCourse }: Section
                   ) : null}
                   <div className="flex flex-wrap items-center gap-x-1">
                     <span className={`min-w-0 break-words font-semibold ${view.instructorNamed ? "" : "text-slate"}`}>{view.instructor}</span>
-                    {view.instructorNamed && ranking.instructor_provenance.freshness !== "unavailable" ? (
-                      <RmpSearchLink instructor={view.instructor} />
+                    {view.rmpLinkable ? (
+                      <RmpLink instructor={view.instructor} subject={view.subject} />
                     ) : null}
                   </div>
                   <div className="text-[13px] text-slate">

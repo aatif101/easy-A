@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { CopyCrnButton } from "../components/CopyCrnButton";
 import { GradeBar, GradeLegend } from "../components/GradeBar";
-import { RmpSearchLink } from "../components/RmpSearchLink";
+import { RmpLink } from "../components/RmpLink";
 import { SearchBox } from "../components/SearchBox";
 import { LoadError, Loading } from "../components/Status";
 import { loadAllSections } from "../lib/loadAll";
@@ -131,8 +131,8 @@ export function HomePage({ term, rankingLoader, navigate }: HomePageProps) {
                   </span>
                   <span className="col-start-2 flex min-w-0 flex-wrap items-center gap-x-1 min-[760px]:col-start-auto">
                     <span className="min-w-0 break-words">{view.instructor}</span>
-                    {view.instructorNamed && ranking.instructor_provenance.freshness !== "unavailable" ? (
-                      <RmpSearchLink instructor={view.instructor} />
+                    {view.rmpLinkable ? (
+                      <RmpLink instructor={view.instructor} subject={view.subject} />
                     ) : null}
                   </span>
                   <span className="col-start-2 flex flex-wrap gap-x-4 gap-y-1.5 min-[760px]:col-start-auto min-[760px]:flex-col">

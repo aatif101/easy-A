@@ -44,9 +44,10 @@ provider acceptance from inbox receipt.
 
 ### Phase 999.2: Verified RMP profile links (candidate later phase)
 
-**Not current scope.** Deferred until after hosted beta and core data stability. Not a blocker.
-Whenever picked up: no scraping, no bulk crawler, and no imported ratings, review counts, review
-text, tags or summaries — a verified link only.
+**In progress (2026-10-07, PR #42).** Owner amended D-08: a one-time, rate-limited lookup of
+RMP's public search (one request per distinct last name, cached) to find profile IDs. Only the ID
+is stored. Still no imported ratings, review counts, review text, tags or summaries. Unmatched
+instructors get a last-name USF search link.
 
 ### Phase 999.3: Deeper professor-specific coverage — promoted to Phase 10 (2026-09-28)
 

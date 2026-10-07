@@ -1,19 +1,29 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { toSectionView } from "../lib/section";
 import { breakdown, historyRow, section } from "../test/builders";
 import { InstructorHistory } from "./InstructorHistory";
-import { RmpSearchLink } from "./RmpSearchLink";
+import { RmpLink } from "./RmpLink";
 import { SectionTable } from "./SectionTable";
+
+vi.mock("../data/rmp-profiles.json", () => ({ default: { "ENC|n. volz": 3028196 } }));
 
 const label = (name: string) => `Search for ${name} on Rate My Professors`;
 
-describe("RmpSearchLink", () => {
-  it("labels the destination as a search and opens it securely in a new tab", async () => {
+describe("RmpLink", () => {
+  it("opens a matched professor's own profile", () => {
+    render(<RmpLink instructor="N. Volz" subject="ENC" />);
+    const link = screen.getByRole("link", { name: "Rate My Professors profile for N. Volz" });
+    expect(link).toHaveTextContent("RMP ↗");
+    expect(link).toHaveAttribute("href", "https://www.ratemyprofessors.com/professor/3028196");
+    expect(link).toHaveAttribute("title", "Rate My Professors profile for N. Volz (opens in a new tab)");
+  });
+
+  it("labels an unmatched destination as a search and opens it securely in a new tab", async () => {
     const user = userEvent.setup();
-    render(<RmpSearchLink instructor="Jane Doe" />);
+    render(<RmpLink instructor="Jane Doe" subject="ENC" />);
     const link = screen.getByRole("link", { name: label("Jane Doe") });
     expect(link).toHaveTextContent("RMP ↗");
     expect(link).toHaveAttribute("href", "https://www.ratemyprofessors.com/search/professors/1262?q=Jane%20Doe");
@@ -25,7 +35,7 @@ describe("RmpSearchLink", () => {
 
   it.each([null, "", " ", "Staff", "TBA", "Unavailable", "Ambiguous", "Jane Doe / John Smith"])(
     "has no link for %s", (instructor) => {
-      render(<RmpSearchLink instructor={instructor} />);
+      render(<RmpLink instructor={instructor} subject="ENC" />);
       expect(screen.queryByRole("link")).not.toBeInTheDocument();
     },
   );
@@ -101,5 +111,13 @@ describe("historical instructor displays", () => {
     const link = screen.getByRole("link", { name: label("José D’Ávila") });
     expect(screen.getAllByRole("link")).toHaveLength(1);
     expect(link).toHaveAttribute("href", "https://www.ratemyprofessors.com/search/professors/1262?q=Jos%C3%A9%20D%E2%80%99%C3%81vila");
+  });
+
+  it("links a matched history row to its profile using the section's subject", () => {
+    const view = toSectionView(section("12345", null, null));
+    view.history = [historyRow("N. Volz", 0.7, 100)];
+    render(<InstructorHistory view={view} courseCode="ENC 1101" />);
+    expect(screen.getByRole("link", { name: "Rate My Professors profile for N. Volz" }))
+      .toHaveAttribute("href", "https://www.ratemyprofessors.com/professor/3028196");
   });
 });
