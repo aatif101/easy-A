@@ -1,10 +1,13 @@
 # Expanded search — local implementation and verification
 
-Observed October 7, 2026. Work is prepared for a pull request on `codex/expanded-search` in
+Observed October 7, 2026. Work is published on `codex/expanded-search` in
 `C:/Users/kanis/OneDrive/Documents/Projects/easy-A-expanded-search`, directly descended from
 fetched `origin/main` `b4daecd608b415490cbb9382be5f95a71512ef8a` (includes merged header PR #43).
 The user explicitly requested a PR after local implementation. No merge, deployment,
 source crawl, RMP request or live data mutation occurred.
+
+Feature commit `58091a4dc19942f2e682e6ffaf271ab0ad86e171` is pushed;
+[PR #44](https://github.com/aatif101/easy-A/pull/44) is open against `main`.
 
 ## Changed files and behavior
 

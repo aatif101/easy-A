@@ -1,11 +1,11 @@
 ---
 gsd_state_version: "1.0"
-status: Expanded search verified; preparing pull request
-stopped_at: User authorized pull request creation; hosted verification unavailable
-last_updated: "2026-10-07T20:32:00Z"
+status: Expanded search PR 44 open for review
+stopped_at: Awaiting owner review of PR 44; hosted verification unavailable
+last_updated: "2026-10-07T20:30:55Z"
 last_activity: 2026-10-07
 last_activity_desc: Expanded course and instructor search implemented and verified locally
-state_head: b4daecd608b415490cbb9382be5f95a71512ef8a
+state_head: 58091a4dc19942f2e682e6ffaf271ab0ad86e171
 progress:
   total_phases: 11
   completed_phases: 7
@@ -27,8 +27,8 @@ lives in `ARCHIVE.md`.
 - Fetched `origin/main` = `b4daecd608b415490cbb9382be5f95a71512ef8a` (includes merged
   Bull header PR #43). Branch `codex/expanded-search` starts directly there, in the clean
   worktree `C:/Users/kanis/OneDrive/Documents/Projects/easy-A-expanded-search`.
-  Implementation is prepared for a pull request at the user's explicit request.
-  Pending RMP work is separate.
+  Feature commit `58091a4` is pushed. [PR #44](https://github.com/aatif101/easy-A/pull/44)
+  is open against `main` at the user's explicit request. Pending RMP work is separate.
 - Added database-only course/instructor discovery and historical grade-record endpoints;
   supports CRN, course code, subject, number, real catalog titles, numeral title variants
   and stored instructor names. Course/instructor matches are labeled separately and paged.
@@ -53,8 +53,8 @@ lives in `ARCHIVE.md`.
   Original `web/package-lock.json` SHA256 remains
   `161F2B69CB1EC8CF0B72CC8BA54903528842A802C011CD6F499F80FE5D377779`;
   `.pytest-tmp-codex-20260914a/` preserved. Original checkout only gains this continuation note.
-- **Next action:** commit, push and open the expanded-search PR, explicitly authorized by the
-  user on October 7. Fresh focused backend and frontend checks passed again before publication.
+- **Next action:** owner review of PR #44. Fresh focused backend and frontend checks passed
+  again before publication.
   Working read-only database access is needed for PostgreSQL/hosted verification.
   Merge and deployment are not authorized. No new milestone was created.
 
