@@ -1,11 +1,11 @@
 ---
 gsd_state_version: "1.0"
-status: USF Bull header ready for PR review
-stopped_at: Official Bull header implemented and verified
-last_updated: "2026-10-07T19:17:48Z"
+status: USF Bull header PR open for review
+stopped_at: PR 43 open; awaiting owner review
+last_updated: "2026-10-07T19:18:47Z"
 last_activity: 2026-10-07
-last_activity_desc: Official standalone Bull logo added beside the existing header name
-state_head: 0155a1398ea0de44ac178cddf0d8b5ce671f4dbf
+last_activity_desc: Official standalone Bull header committed, pushed and opened as PR 43
+state_head: d86bc648f79aa7b95cdd53664a61b4bc6c6c5ddc
 progress:
   total_phases: 11
   completed_phases: 7
@@ -44,7 +44,9 @@ lives in `ARCHIVE.md`.
   Pre-existing `web/package-lock.json` change (SHA256
   `161F2B69CB1EC8CF0B72CC8BA54903528842A802C011CD6F499F80FE5D377779`) and
   `.pytest-tmp-codex-20260914a/` preserved and excluded from the feature commit.
-- **Next action:** open the user-authorized PR targeting `main`, then owner review.
+- Feature commit `d86bc64` pushed; [PR #43](https://github.com/aatif101/easy-A/pull/43)
+  is open against `main`, including source provenance and both screenshots.
+- **Next action:** owner review of PR #43.
   No merge or deployment is authorized; no new milestone was created.
 
 ## Current state — as of 2026-09-30 (database facts retain their observation dates)
@@ -195,8 +197,8 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 Phase: Milestone v1.0 complete
 Plan: —
-Status: USF Bull header ready for PR review
-Last activity: 2026-10-07 — official header logo implemented and verified
+Status: USF Bull header PR open for review
+Last activity: 2026-10-07 — official header logo verified and opened as PR #43
 
 ## Historical next action (superseded by current user-directed work above)
 
@@ -525,7 +527,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 
 ## Operator Next Steps
 
-- Review the USF Bull header PR when opened; no merge/deploy authorized.
+- Review PR #43, the USF Bull header change; no merge/deploy authorized.
 - When a new milestone is requested, start it with /gsd-new-milestone.
 
 ## Deferred Items
