@@ -124,6 +124,10 @@ def discovery_client() -> Generator[TestClient, None, None]:
         seed(13, 5, 2, ["Zero Grades"], grades=0)
         # A current name containing the MAC subject code.
         seed(30, 5, 1, ["C. Maclean"])
+        # Start-of-word matching: "yan" is F. Yang and M. Garcia-Yanez, never S. Bryant.
+        seed(31, 5, 1, ["S. Bryant"])
+        seed(32, 5, 1, ["F. Yang"])
+        seed(33, 5, 1, ["M. Garcia-Yanez"])
         session.flush()
         zero = session.query(GradeDistribution).filter_by(crn="20013").one()
         zero.b_count = 0
@@ -227,6 +231,30 @@ def test_short_instructor_name_can_match_subject_shaped_query(discovery_client: 
     result = search(discovery_client, "New")
     assert result["kind"] == "text"
     assert result["instructor_total"] == 1
+
+
+@pytest.mark.parametrize(
+    ("q", "names"),
+    [
+        ("yan", ["F. Yang", "M. Garcia-Yanez"]),
+        ("Yang", ["F. Yang"]),
+        ("bry", ["S. Bryant"]),
+        ("ryant", []),
+        ("garcia yanez", ["M. Garcia-Yanez"]),
+        ("f yang", ["F. Yang"]),
+    ],
+)
+def test_names_match_from_the_start_of_a_word(
+    discovery_client: TestClient, q: str, names: list[str]
+) -> None:
+    assert sorted(row["name"] for row in search(discovery_client, q)["instructors"]) == names
+
+
+@pytest.mark.parametrize(("q", "ids"), [("cal", [3, 4]), ("alculus", []), ("chem lab", [5])])
+def test_titles_match_from_the_start_of_a_word(
+    discovery_client: TestClient, q: str, ids: list[int]
+) -> None:
+    assert [row["course_id"] for row in search(discovery_client, q)["courses"]] == ids
 
 
 @pytest.mark.parametrize("q", ["MAC", "mac", "ENC 1101", "1101", "14028"])
