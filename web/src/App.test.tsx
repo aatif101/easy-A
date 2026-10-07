@@ -114,6 +114,29 @@ describe("home", () => {
     expect(items[0]).toHaveTextContent("50001");
     expect(items[0]).toHaveTextContent("50002");
     expect(items[1]).toHaveTextContent("60%");
+    for (const [index, name] of ["Same Person", "Other Person"].entries()) {
+      const link = within(items[index]).getByRole("link", { name: `Search for ${name} on Rate My Professors` });
+      expect(link.previousElementSibling).toHaveTextContent(name);
+      expect(link).toHaveAttribute("href", `https://www.ratemyprofessors.com/search/professors/1262?q=${encodeURIComponent(name)}`);
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    }
+  });
+
+  it("omits home-page RMP links for Staff and unavailable assignments", async () => {
+    const gened_attributes = [{ code: "SGES", label: "Social Sciences" }];
+    const items = [
+      section("50001", "Staff", 0.9, { gened_attributes }),
+      section("50002", "Unavailable", 0.8, { gened_attributes }),
+      section("50003", "Ambiguous", 0.7, { gened_attributes }),
+      section("50004", "Old Name", 0.6, {
+        gened_attributes,
+        instructor_provenance: { freshness: "unavailable", source: "section_instructors", source_term: "202701", detail: "ambiguous latest instructor state" },
+      }),
+    ];
+    renderApp("/", loaderFor(items));
+    await screen.findByText("Old Name");
+    expect(screen.queryByRole("link", { name: /on Rate My Professors/ })).not.toBeInTheDocument();
   });
 
   it("searches from the landing page", async () => {
@@ -123,4 +146,19 @@ describe("home", () => {
     expect(await screen.findByRole("heading", { name: /ENC 1101/ })).toBeInTheDocument();
     expect(window.location.search).toBe("?q=enc%201101");
   });
+});
+
+describe("RMP search links across results pages", () => {
+  it.each(["/?q=ENC%201101", "/?q=ENC", "/?q=22222", "/?gened=communication"])(
+    "links the named professor in both section layouts at %s", async (url) => {
+      renderApp(url, loaderFor(encSections), async () => encSections[1]);
+      const table = await screen.findByRole("table");
+      const links = screen.getAllByRole("link", { name: "Search for High Grader on Rate My Professors" });
+      expect(links).toHaveLength(2);
+      expect(within(table).getByRole("link", { name: "Search for High Grader on Rate My Professors" })).toBeInTheDocument();
+      for (const link of links) {
+        expect(link).toHaveAttribute("href", "https://www.ratemyprofessors.com/search/professors/1262?q=High%20Grader");
+      }
+    },
+  );
 });

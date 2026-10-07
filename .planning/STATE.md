@@ -1,11 +1,11 @@
 ---
 gsd_state_version: "1.0"
-status: Awaiting next milestone
-stopped_at: Phase 10 complete — all phases complete
-last_updated: "2026-10-04T21:23:04.993Z"
-last_activity: 2026-10-04
-last_activity_desc: Milestone v1.0 completed and archived
-state_head: 3fd567ab16c8d5fc9a8fc39ff4afdc9dfb7d3cb0
+status: RMP search links ready for PR review
+stopped_at: User-directed RMP search links verified across all instructor displays
+last_updated: "2026-10-07T18:58:56Z"
+last_activity: 2026-10-07
+last_activity_desc: Site-wide RMP search links verified; user authorized commit, push and PR
+state_head: 0155a1398ea0de44ac178cddf0d8b5ce671f4dbf
 progress:
   total_phases: 11
   completed_phases: 7
@@ -21,6 +21,36 @@ current_phase_name: Professor-level grades
 `STATE.md` is the single source of **current, volatile facts** (counts, SHA, next action). Durable
 rules live in `PROJECT.md` `<decisions>`; the phase sequence lives in `ROADMAP.md`; dated history
 lives in `ARCHIVE.md`.
+
+## Current user-directed work — 2026-10-07
+
+- Fetched and verified `origin/main` = `0155a1398ea0de44ac178cddf0d8b5ce671f4dbf`
+  (PR #41, frontend redesign). Working branch `codex/rmp-search-links` was created directly from
+  that commit. The older repo/branch facts below are dated history.
+- User explicitly requested link-only RMP search links beside all named instructors: home-page
+  recommendations, desktop tables, mobile cards and instructor history. Course, subject, CRN and
+  Gen Ed results share the section table. This is a school-1262 search, not a verified profile;
+  D-17's verified-profile work remains deferred. No RMP data requests, ratings, dependencies,
+  backend contracts, analytics or ranking changes were introduced.
+- `rmpSearchUrl` uses `encodeURIComponent`; `RmpSearchLink` supplies accessible search labels,
+  `_blank`, `noopener noreferrer`, visible keyboard focus and a minimum 44 x 44 px target.
+  Blank/Staff/unavailable/ambiguous names and unavailable current-instructor provenance omit links.
+  History layout gives the name and link their own row on mobile.
+- Fresh frontend verification: `npm test` **89 passed / 5 files** (51 focused RMP checks,
+  five additional page-coverage tests and home-page assertions),
+  `npm run lint`, `npm run typecheck`, `npm run build` all exit 0. No unrelated failures observed.
+  Live local UI over the hosted API inspected at 1440 x 1000, 390 x 844 and 320 x 844;
+  current/history link placement and keyboard focus verified, measured links at least 44 x 44 px,
+  no document overflow at 320 px, no browser warnings/errors observed. RMP destinations were not
+  opened or fetched. Screenshots are outside the repo in the Codex visualization directory.
+  Home-page desktop/mobile visual checks, keyboard focus and target dimensions freshly verified
+  after extending coverage on the user's follow-up request.
+- Pre-existing `web/package-lock.json` modification preserved byte-for-byte (SHA256
+  `161F2B69CB1EC8CF0B72CC8BA54903528842A802C011CD6F499F80FE5D377779`),
+  and untracked `.pytest-tmp-codex-20260914a/` left untouched and excluded from the feature commit.
+- **Next action:** create the review PR, then owner review. User explicitly authorized commit,
+  push and PR creation on 2026-10-07; merge and deployment remain unauthorized.
+  Milestone v1.0 remains archived; no new milestone was created for this bounded task.
 
 ## Current state — as of 2026-09-30 (database facts retain their observation dates)
 
@@ -170,10 +200,10 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 Phase: Milestone v1.0 complete
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-10-04 — Milestone v1.0 completed and archived
+Status: RMP search links ready for PR review
+Last activity: 2026-10-07 — site-wide search links verified; commit, push and PR authorized
 
-## Next action
+## Historical next action (superseded by current user-directed work above)
 
 **Current (2026-10-02): Phase 10 code is merged (PR #37, `bcf1dbb`) and the operator-run apply is live; plan 10-09 (deployed-UI bundle check, queued visual UAT, planning facts) is complete. Next: Phase 10 verification and UAT, `/gsd-verify-work 10`.** Gap-closure plans 10-10 (P10-WR-01 fix, committed on `phase-10-post-merge`, not yet deployed) and 10-11 (owner override of success criterion 1 recorded 2026-10-03, 58-CRN open item, UAT 7 recorded as not run) are complete; 11 of 11 plans. The UAT must run the six queued UI-SPEC visual checks with the CRN targets in `10-ROLLOUT-EVIDENCE.md` ("Deployed UI"; none observed yet), and the verifier must treat ROADMAP success criterion 1 (`pairs_match_reference`) as unmet as measured, accepted at D-04, not as passed. REQ-PROF-01 stays unticked until verification passes. Still open (carried, none resolved): the first live worker sweep after the apply has not been observed; the Phase 9 carry-overs WR-03 (cadence-floor race during worker overlap), NEB 0001 (fails every sweep) and the optional gate-recovery rehearsal (`09-UAT.md` test 5); the 30 s sweep-duration gap (sweeps took 50.69 s and 37.166 s, not accepted or resolved); the 58 absent graded CRNs; the search payload growth (7.0x ENC 1101, 2.5x default page).
 
@@ -500,7 +530,8 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 
 ## Operator Next Steps
 
-- Start the next milestone with /gsd-new-milestone
+- Create the `codex/rmp-search-links` review PR, then await owner review; no merge/deploy authorized.
+- When a new milestone is requested, start it with /gsd-new-milestone.
 
 ## Deferred Items
 

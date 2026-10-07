@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { formatShare, termSpan, type SectionView } from "../lib/section";
 import { GradeBar } from "./GradeBar";
+import { RmpSearchLink } from "./RmpSearchLink";
 
 const SOURCE_NOTE =
   'Source: USF InfoCenter grade reports, matched to instructors in the USF class schedule. "% A" is the share of A–F grades that were an A.';
@@ -29,15 +30,16 @@ export function InstructorHistory({ view, courseCode }: { view: SectionView; cou
         {(showAll ? view.history : view.history.slice(0, INITIAL)).map((row) => (
           <li
             key={row.name}
-            className="grid grid-cols-[minmax(0,1fr)_120px_48px] items-center gap-3 border-b border-line py-1.5 text-sm last:border-b-0 sm:grid-cols-[minmax(0,1fr)_160px_48px_minmax(0,1.4fr)]"
+            className="grid grid-cols-[minmax(0,1fr)_48px] items-center gap-x-3 gap-y-1 border-b border-line py-1.5 text-sm last:border-b-0 sm:grid-cols-[minmax(0,1fr)_160px_48px_minmax(0,1.4fr)]"
           >
-            <span className="min-w-0 truncate" title={row.name}>
-              {row.name}
+            <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-x-1 sm:col-span-1">
+              <span className="min-w-0 max-w-full truncate" title={row.name}>{row.name}</span>
+              <RmpSearchLink instructor={row.name} />
               {row.is_current ? <span className="ml-2 text-xs font-semibold text-green">This section</span> : null}
-            </span>
+            </div>
             <GradeBar share={row.a_share} faded={!row.scored} />
             <span className="tabular text-right font-semibold">{formatShare(row.a_share)}</span>
-            <span className="tabular col-span-3 text-xs text-slate sm:col-span-1 sm:whitespace-nowrap">
+            <span className="tabular col-span-2 text-xs text-slate sm:col-span-1 sm:whitespace-nowrap">
               {row.effective_n.toLocaleString("en-US")} grades · {termSpan(row.first_term, row.last_term)}
               {row.scored ? "" : " · too few"}
             </span>

@@ -5,6 +5,7 @@ import type { SectionRanking } from "../types/rankings";
 import { CopyCrnButton } from "./CopyCrnButton";
 import { GradeBar, GradeLegend } from "./GradeBar";
 import { InstructorHistory } from "./InstructorHistory";
+import { RmpSearchLink } from "./RmpSearchLink";
 
 export interface SectionRow {
   ranking: SectionRanking;
@@ -107,7 +108,12 @@ export function SectionTable({ rows, showCourse = false, onOpenCourse }: Section
                       </td>
                     ) : null}
                     <td className="px-3.5 py-3">
-                      <span className={view.instructorNamed ? "" : "text-slate"}>{view.instructor}</span>
+                      <div className="flex flex-wrap items-center gap-x-1">
+                        <span className={view.instructorNamed ? "" : "text-slate"}>{view.instructor}</span>
+                        {view.instructorNamed && ranking.instructor_provenance.freshness !== "unavailable" ? (
+                          <RmpSearchLink instructor={view.instructor} />
+                        ) : null}
+                      </div>
                       {view.delivery ? <span className="block text-xs text-slate">{view.delivery}</span> : null}
                     </td>
                     <td className="px-3.5 py-3">
@@ -163,7 +169,12 @@ export function SectionTable({ rows, showCourse = false, onOpenCourse }: Section
                       <CourseLink ranking={ranking} onOpenCourse={onOpenCourse} />
                     </div>
                   ) : null}
-                  <div className={`font-semibold ${view.instructorNamed ? "" : "text-slate"}`}>{view.instructor}</div>
+                  <div className="flex flex-wrap items-center gap-x-1">
+                    <span className={`min-w-0 break-words font-semibold ${view.instructorNamed ? "" : "text-slate"}`}>{view.instructor}</span>
+                    {view.instructorNamed && ranking.instructor_provenance.freshness !== "unavailable" ? (
+                      <RmpSearchLink instructor={view.instructor} />
+                    ) : null}
+                  </div>
                   <div className="text-[13px] text-slate">
                     <span className="font-mono text-ink">{ranking.crn}</span>
                     {view.delivery ? ` · ${view.delivery}` : ""} · {seatsText(view)} seats
