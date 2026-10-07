@@ -10,6 +10,8 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 data/
+# ...but the generated RMP profile map ships with the web app (scripts/match_rmp_profiles.py)
+!web/src/data/
 research/raw/
 /courses.csv
 *.xlsx
@@ -26,3 +28,6 @@ research/raw/
 # instructors); local diagnosis only, never commit
 .planning/phases/10-professor-level-grades/failed-responses/
 .planning/milestones/*/10-professor-level-grades/failed-responses/
+
+# One-time RMP lookup cache (scripts/match_rmp_profiles.py); raw search responses, never commit
+.cache/
