@@ -56,16 +56,18 @@ def searchable(column: SQLColumnExpression[Any]) -> ColumnElement[Any]:
 def text_match(
     column: SQLColumnExpression[Any], text: str, *, title: bool = False
 ) -> ColumnElement[bool]:
-    normalized = searchable(column)
+    # Each typed word must start a word: "yan" finds Yang, never Bryant; "cal" finds Calculus,
+    # never Clinical. Punctuation is already spaces, so "lopez" starts a word of Garcia-Lopez.
+    padded = " " + searchable(column)
     predicates = []
     for token in text.split():
-        alternatives = [normalized.contains(token, autoescape=True)]
+        alternatives = [padded.contains(f" {token}", autoescape=True)]
         if title:
             numeric = next((n for n, roman in NUMERALS.items() if roman == token), token)
             if numeric in NUMERALS:
                 # Whole tokens keep Calculus I distinct from Calculus II / III.
                 alternatives = [
-                    (" " + normalized + " ").contains(f" {variant} ", autoescape=True)
+                    (padded + " ").contains(f" {variant} ", autoescape=True)
                     for variant in (numeric, NUMERALS[numeric])
                 ]
         predicates.append(or_(*alternatives))
