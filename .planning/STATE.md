@@ -2,9 +2,9 @@
 gsd_state_version: "1.0"
 status: USF Bull header PR open for review
 stopped_at: PR 43 open; awaiting owner review
-last_updated: "2026-10-07T19:18:47Z"
+last_updated: "2026-10-07T20:20:00Z"
 last_activity: 2026-10-07
-last_activity_desc: Official standalone Bull header committed, pushed and opened as PR 43
+last_activity_desc: Implemented GenEd filter menu moved to popover beside search bar; updated SearchBox and HomePage components.
 state_head: d86bc648f79aa7b95cdd53664a61b4bc6c6c5ddc
 progress:
   total_phases: 11
@@ -15,6 +15,10 @@ progress:
 current_phase: 10
 current_phase_name: Professor-level grades
 ---
+
+## Current user-directed work — GenEd filter menu (2026-10-07)
+- Implemented GenEd filter menu moved to popover beside search bar; updated SearchBox and HomePage components.
+
 
 # Project State
 
@@ -541,3 +545,4 @@ Items acknowledged and deferred at milestone close, most recent first:
 | deferred_items | 03.5/deferred-items.md: Plan 03.5-03 verification environment | acknowledged | 2026-10-04 | v1.0 |
 | deferred_items | 03.5/deferred-items.md: Plan 03.5-05 (resolutions and deferrals) | acknowledged | 2026-10-04 | v1.0 |
 | deferred_items | 06/deferred-items.md: 06-01 pre-existing ruff E501 / mypy errors | acknowledged | 2026-10-04 | v1.0 |
+
