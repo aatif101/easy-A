@@ -1,11 +1,11 @@
 ---
 gsd_state_version: "1.0"
-status: USF Bull header PR open for review
-stopped_at: PR 43 open; awaiting owner review
-last_updated: "2026-10-07T19:18:47Z"
+status: RMP profile links PR open for review
+stopped_at: PR 42 updated with main (PR 43 merged); awaiting owner review
+last_updated: "2026-10-07T21:30:00Z"
 last_activity: 2026-10-07
-last_activity_desc: Official standalone Bull header committed, pushed and opened as PR 43
-state_head: d86bc648f79aa7b95cdd53664a61b4bc6c6c5ddc
+last_activity_desc: RMP profile links committed; main (PR 43) merged into PR 42
+state_head: b4daecd
 progress:
   total_phases: 11
   completed_phases: 7
@@ -22,32 +22,18 @@ current_phase_name: Professor-level grades
 rules live in `PROJECT.md` `<decisions>`; the phase sequence lives in `ROADMAP.md`; dated history
 lives in `ARCHIVE.md`.
 
-## Current user-directed work — USF Bull header (2026-10-07)
+## Current user-directed work — 2026-10-07
 
-- Fetched `origin/main` = `0155a1398ea0de44ac178cddf0d8b5ce671f4dbf` (PR #41).
-  Isolated branch `codex/usf-bull-header` starts directly there. PR #42's RMP work stays
-  on its separate branch and is not included here. Older branch/SHA facts below are history.
-- Added the official standalone Bull-U SVG from the USF Athletics website unchanged.
-  Source URL, original dimensions/colors and SHA256 are in `web/src/assets/README.md`.
-  The brand keeps the existing visible `easyA` styling and home navigation; no wordmark or
-  extra university text is introduced. Icon: 28 px mobile / 32 px desktop, 10 px gap,
-  vertically centered, explicit dimensions reserve space before the image loads.
-- Fresh checks: `npm test` 36 passed / 3 files (three new header tests), `npm run lint`,
-  `npm run typecheck`, `npm run build`, `git diff --check` passed. No unrelated failures.
-  Local UI over the hosted API inspected at 1440 x 1000, 1024 x 768 and 320 x 844:
-  native 56:56 aspect ratio preserved, measured 32/28 px with 10 px gap and zero center
-  offset, no brand wrapping/clipping or document overflow, visible keyboard focus and
-  Enter-to-home navigation work. Logo dimensions remained stable across reload;
-  no browser warnings/errors observed. This is not a measured whole-page CLS score.
-  Screenshots: `.planning/evidence/usf-bull-header/desktop.png` and `mobile.png`.
-- Backend, ranking behavior, API contracts, dependencies and navigation are unchanged.
-  Pre-existing `web/package-lock.json` change (SHA256
-  `161F2B69CB1EC8CF0B72CC8BA54903528842A802C011CD6F499F80FE5D377779`) and
-  `.pytest-tmp-codex-20260914a/` preserved and excluded from the feature commit.
-- Feature commit `d86bc64` pushed; [PR #43](https://github.com/aatif101/easy-A/pull/43)
-  is open against `main`, including source provenance and both screenshots.
-- **Next action:** owner review of PR #43.
-  No merge or deployment is authorized; no new milestone was created.
+- PR #42 (`codex/rmp-search-links`, up to date with `main` `b4daecd`): an "RMP ↗" link beside
+  every named instructor (home-page picks, section table and cards, instructor history).
+- Owner amended D-08 for D-17 (see `PROJECT.md`): `scripts/match_rmp_profiles.py` looks up each
+  distinct last name once on RMP's public search (rate-limited, cached in git-ignored `.cache/rmp/`)
+  and writes `web/src/data/rmp-profiles.json` (`"SUBJ|name"` -> profile id, ids only). Confident
+  matches open the professor's own page; everyone else gets a USF search on the last name.
+  Corrections: `src/easy_a/rmp/overrides.json`.
+- **Next action:** owner review of PR #42; merge and deploy not yet authorized.
+- PR #43 (USF Bull header logo) merged to `main` as `b4daecd` on 2026-10-07; source and
+  provenance in `web/src/assets/README.md`.
 
 ## Current state — as of 2026-09-30 (database facts retain their observation dates)
 
@@ -197,8 +183,8 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 Phase: Milestone v1.0 complete
 Plan: —
-Status: USF Bull header PR open for review
-Last activity: 2026-10-07 — official header logo verified and opened as PR #43
+Status: RMP profile links PR open for review
+Last activity: 2026-10-07 — PR #43 merged; RMP profile links added to PR #42
 
 ## Historical next action (superseded by current user-directed work above)
 
@@ -527,7 +513,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 
 ## Operator Next Steps
 
-- Review PR #43, the USF Bull header change; no merge/deploy authorized.
+- Review PR #42 on `codex/rmp-search-links`; no merge/deploy authorized.
 - When a new milestone is requested, start it with /gsd-new-milestone.
 
 ## Deferred Items
