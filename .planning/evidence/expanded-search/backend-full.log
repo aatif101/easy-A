@@ -1,0 +1,161 @@
+........................................................................ [  6%]
+........................................................................ [ 13%]
+........................................................................ [ 19%]
+........................................................................ [ 26%]
+........................................................................ [ 33%]
+.....................................................s.................. [ 39%]
+...................................ss................................... [ 46%]
+..................................................F..................... [ 52%]
+..........................................................F.FF....F..... [ 59%]
+........................................................................ [ 66%]
+...................................................FFFF................. [ 72%]
+.............................F.......................................... [ 79%]
+........................................................s............... [ 85%]
+..........x............................................................. [ 92%]
+........................................................................ [ 99%]
+..........                                                               [100%]
+================================== FAILURES ===================================
+__ test_save_failed_response_writes_the_raw_response_only_on_a_parse_failure __
+src\easy_a\sync\fetch.py:302: in _parse_page
+    return parse_whole_term(
+src\easy_a\sync\fetch.py:159: in parse_whole_term
+    raise LostRowsError(
+E   easy_a.sync.parse_diagnostics.LostRowsError: Parsed 1 rows from 2 data rows; refusing a response that silently lost rows. expected=2 parsed=1. Suspect data rows (0-based): #1 23/24 cells (missing FEES).
+
+During handling of the above exception, another exception occurred:
+tests\schedule\test_backfill.py:950: in test_save_failed_response_writes_the_raw_response_only_on_a_parse_failure
+    code, report = run(
+tests\schedule\test_backfill.py:169: in run
+    code = main(
+src\easy_a\schedule\backfill_cli.py:359: in main
+    return _run(
+src\easy_a\schedule\backfill_cli.py:529: in _run
+    fetched, fetch_failure = _fetch_terms(
+src\easy_a\schedule\backfill_cli.py:662: in _fetch_terms
+    fetched[term] = fetch_whole_term(
+src\easy_a\sync\fetch.py:246: in fetch_whole_term
+    parse = _parse_page(
+src\easy_a\sync\fetch.py:307: in _parse_page
+    on_parse_failure(html)
+src\easy_a\schedule\backfill_cli.py:447: in __call__
+    os.fchmod(handle.fileno(), 0o600)  # a pre-existing file keeps its old mode
+    ^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'fchmod'. Did you mean: 'chmod'?
+_____ test_save_responses_writes_every_term_as_it_arrives_with_mode_0600 ______
+tests\schedule\test_backfill_gap06.py:384: in test_save_responses_writes_every_term_as_it_arrives_with_mode_0600
+    code, report = run(
+tests\schedule\test_backfill.py:169: in run
+    code = main(
+src\easy_a\schedule\backfill_cli.py:359: in main
+    return _run(
+src\easy_a\schedule\backfill_cli.py:529: in _run
+    fetched, fetch_failure = _fetch_terms(
+src\easy_a\schedule\backfill_cli.py:662: in _fetch_terms
+    fetched[term] = fetch_whole_term(
+src\easy_a\sync\fetch.py:245: in fetch_whole_term
+    on_response(html)
+src\easy_a\schedule\backfill_cli.py:447: in __call__
+    os.fchmod(handle.fileno(), 0o600)  # a pre-existing file keeps its old mode
+    ^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'fchmod'. Did you mean: 'chmod'?
+___ test_save_responses_keeps_the_pages_that_arrived_before_a_later_failure ___
+tests\schedule\test_backfill_gap06.py:423: in test_save_responses_keeps_the_pages_that_arrived_before_a_later_failure
+    code, report = run(
+tests\schedule\test_backfill.py:169: in run
+    code = main(
+src\easy_a\schedule\backfill_cli.py:359: in main
+    return _run(
+src\easy_a\schedule\backfill_cli.py:529: in _run
+    fetched, fetch_failure = _fetch_terms(
+src\easy_a\schedule\backfill_cli.py:662: in _fetch_terms
+    fetched[term] = fetch_whole_term(
+src\easy_a\sync\fetch.py:245: in fetch_whole_term
+    on_response(html)
+src\easy_a\schedule\backfill_cli.py:447: in __call__
+    os.fchmod(handle.fileno(), 0o600)  # a pre-existing file keeps its old mode
+    ^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'fchmod'. Did you mean: 'chmod'?
+___________ test_save_responses_resets_the_mode_of_an_existing_file ___________
+tests\schedule\test_backfill_gap06.py:445: in test_save_responses_resets_the_mode_of_an_existing_file
+    run(
+tests\schedule\test_backfill.py:169: in run
+    code = main(
+src\easy_a\schedule\backfill_cli.py:359: in main
+    return _run(
+src\easy_a\schedule\backfill_cli.py:529: in _run
+    fetched, fetch_failure = _fetch_terms(
+src\easy_a\schedule\backfill_cli.py:662: in _fetch_terms
+    fetched[term] = fetch_whole_term(
+src\easy_a\sync\fetch.py:245: in fetch_whole_term
+    on_response(html)
+src\easy_a\schedule\backfill_cli.py:447: in __call__
+    os.fchmod(handle.fileno(), 0o600)  # a pre-existing file keeps its old mode
+    ^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'fchmod'. Did you mean: 'chmod'?
+_______ test_replay_reproduces_the_report_with_no_client_and_no_request _______
+tests\schedule\test_backfill_gap06.py:564: in test_replay_reproduces_the_report_with_no_client_and_no_request
+    code, live = run(
+tests\schedule\test_backfill.py:169: in run
+    code = main(
+src\easy_a\schedule\backfill_cli.py:359: in main
+    return _run(
+src\easy_a\schedule\backfill_cli.py:529: in _run
+    fetched, fetch_failure = _fetch_terms(
+src\easy_a\schedule\backfill_cli.py:662: in _fetch_terms
+    fetched[term] = fetch_whole_term(
+src\easy_a\sync\fetch.py:245: in fetch_whole_term
+    on_response(html)
+src\easy_a\schedule\backfill_cli.py:447: in __call__
+    os.fchmod(handle.fileno(), 0o600)  # a pre-existing file keeps its old mode
+    ^^^^^^^^^
+E   AttributeError: module 'os' has no attribute 'fchmod'. Did you mean: 'chmod'?
+_ test_without_the_repair_the_unterminated_anchor_collapses_the_row[curly-href-unterminated-close-then-bare-url] _
+tests\sync\test_anchor_repair.py:79: in test_without_the_repair_the_unterminated_anchor_collapses_the_row
+    assert len(parse_schedule_html(html)) == 4  # the 24-cell row is skipped as an 8-cell row
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   assert 5 == 4
+E    +  where 5 = len([ParsedScheduleRow(session='Full Term', college='AC', department='MTH', crn='10000', subject='MAC', course_number='100..., building='BEH', room='104', instructor_raw='Staff', campus='Tampa', delivery_method='CL', fees_raw='QMTH $15.00(F)')])
+E    +    where [ParsedScheduleRow(session='Full Term', college='AC', department='MTH', crn='10000', subject='MAC', course_number='100..., building='BEH', room='104', instructor_raw='Staff', campus='Tampa', delivery_method='CL', fees_raw='QMTH $15.00(F)')] = parse_schedule_html("<!doctype html><html><body><p>Staff Schedule Search - Spring 2027</p><table><tr><th>SESSION</th><th>COL</th><th>DPT</...15.00(F)</td></tr><h3>We're sorry but an unexpected error has occured in this application. Please try back later.</h3>")
+_ test_without_the_repair_the_unterminated_anchor_collapses_the_row[straight-href-unterminated-close-then-bare-url] _
+tests\sync\test_anchor_repair.py:79: in test_without_the_repair_the_unterminated_anchor_collapses_the_row
+    assert len(parse_schedule_html(html)) == 4  # the 24-cell row is skipped as an 8-cell row
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   assert 5 == 4
+E    +  where 5 = len([ParsedScheduleRow(session='Full Term', college='AC', department='MTH', crn='10000', subject='MAC', course_number='100..., building='BEH', room='104', instructor_raw='Staff', campus='Tampa', delivery_method='CL', fees_raw='QMTH $15.00(F)')])
+E    +    where [ParsedScheduleRow(session='Full Term', college='AC', department='MTH', crn='10000', subject='MAC', course_number='100..., building='BEH', room='104', instructor_raw='Staff', campus='Tampa', delivery_method='CL', fees_raw='QMTH $15.00(F)')] = parse_schedule_html("<!doctype html><html><body><p>Staff Schedule Search - Spring 2027</p><table><tr><th>SESSION</th><th>COL</th><th>DPT</...15.00(F)</td></tr><h3>We're sorry but an unexpected error has occured in this application. Please try back later.</h3>")
+_ test_without_the_repair_the_unterminated_anchor_collapses_the_row[unterminated-close-before-cell-close] _
+tests\sync\test_anchor_repair.py:79: in test_without_the_repair_the_unterminated_anchor_collapses_the_row
+    assert len(parse_schedule_html(html)) == 4  # the 24-cell row is skipped as an 8-cell row
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   assert 5 == 4
+E    +  where 5 = len([ParsedScheduleRow(session='Full Term', college='AC', department='MTH', crn='10000', subject='MAC', course_number='100..., building='BEH', room='104', instructor_raw='Staff', campus='Tampa', delivery_method='CL', fees_raw='QMTH $15.00(F)')])
+E    +    where [ParsedScheduleRow(session='Full Term', college='AC', department='MTH', crn='10000', subject='MAC', course_number='100..., building='BEH', room='104', instructor_raw='Staff', campus='Tampa', delivery_method='CL', fees_raw='QMTH $15.00(F)')] = parse_schedule_html("<!doctype html><html><body><p>Staff Schedule Search - Spring 2027</p><table><tr><th>SESSION</th><th>COL</th><th>DPT</...15.00(F)</td></tr><h3>We're sorry but an unexpected error has occured in this application. Please try back later.</h3>")
+_ test_without_the_repair_the_unterminated_anchor_collapses_the_row[unterminated-start-tag-only] _
+tests\sync\test_anchor_repair.py:79: in test_without_the_repair_the_unterminated_anchor_collapses_the_row
+    assert len(parse_schedule_html(html)) == 4  # the 24-cell row is skipped as an 8-cell row
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   assert 5 == 4
+E    +  where 5 = len([ParsedScheduleRow(session='Full Term', college='AC', department='MTH', crn='10000', subject='MAC', course_number='100..., building='BEH', room='104', instructor_raw='Staff', campus='Tampa', delivery_method='CL', fees_raw='QMTH $15.00(F)')])
+E    +    where [ParsedScheduleRow(session='Full Term', college='AC', department='MTH', crn='10000', subject='MAC', course_number='100..., building='BEH', room='104', instructor_raw='Staff', campus='Tampa', delivery_method='CL', fees_raw='QMTH $15.00(F)')] = parse_schedule_html("<!doctype html><html><body><p>Staff Schedule Search - Spring 2027</p><table><tr><th>SESSION</th><th>COL</th><th>DPT</...15.00(F)</td></tr><h3>We're sorry but an unexpected error has occured in this application. Please try back later.</h3>")
+__________ test_sigterm_stops_a_sleeping_worker_process_with_exit_0 ___________
+tests\sync\test_cli.py:430: in test_sigterm_stops_a_sleeping_worker_process_with_exit_0
+    assert code == 0
+E   assert 1 == 0
+============================== warnings summary ===============================
+.venv\Lib\site-packages\fastapi\testclient.py:1
+  C:\Users\kanis\OneDrive\Documents\Projects\easy-A-expanded-search\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/schedule/test_backfill.py::test_save_failed_response_writes_the_raw_response_only_on_a_parse_failure
+FAILED tests/schedule/test_backfill_gap06.py::test_save_responses_writes_every_term_as_it_arrives_with_mode_0600
+FAILED tests/schedule/test_backfill_gap06.py::test_save_responses_keeps_the_pages_that_arrived_before_a_later_failure
+FAILED tests/schedule/test_backfill_gap06.py::test_save_responses_resets_the_mode_of_an_existing_file
+FAILED tests/schedule/test_backfill_gap06.py::test_replay_reproduces_the_report_with_no_client_and_no_request
+FAILED tests/sync/test_anchor_repair.py::test_without_the_repair_the_unterminated_anchor_collapses_the_row[curly-href-unterminated-close-then-bare-url]
+FAILED tests/sync/test_anchor_repair.py::test_without_the_repair_the_unterminated_anchor_collapses_the_row[straight-href-unterminated-close-then-bare-url]
+FAILED tests/sync/test_anchor_repair.py::test_without_the_repair_the_unterminated_anchor_collapses_the_row[unterminated-close-before-cell-close]
+FAILED tests/sync/test_anchor_repair.py::test_without_the_repair_the_unterminated_anchor_collapses_the_row[unterminated-start-tag-only]
+FAILED tests/sync/test_cli.py::test_sigterm_stops_a_sleeping_worker_process_with_exit_0
+10 failed, 1075 passed, 4 skipped, 1 xfailed, 1 warning in 66.27s (0:01:06)

@@ -1,11 +1,11 @@
 ---
 gsd_state_version: "1.0"
-status: USF Bull header PR open for review
-stopped_at: PR 43 open; awaiting owner review
-last_updated: "2026-10-07T20:20:00Z"
+status: PR 45 web CI repair verified locally
+stopped_at: Publishing GenEd menu repair; GitHub CI is authoritative for remote status
+last_updated: "2026-10-07T21:40:54Z"
 last_activity: 2026-10-07
-last_activity_desc: Implemented GenEd filter menu moved to popover beside search bar; updated SearchBox and HomePage components.
-state_head: d86bc648f79aa7b95cdd53664a61b4bc6c6c5ddc
+last_activity_desc: Repaired malformed JSX and GenEd filter interaction; integrated fetched main
+state_head: b6255e16184a2e41c0ff4b2babdb7b4fa5d0e91a
 progress:
   total_phases: 11
   completed_phases: 7
@@ -16,42 +16,58 @@ current_phase: 10
 current_phase_name: Professor-level grades
 ---
 
-## Current user-directed work � GenEd filter menu (2026-10-07)
-- Implemented GenEd filter menu moved to popover beside search bar; updated SearchBox and HomePage components.
-
-
 # Project State
 
 `STATE.md` is the single source of **current, volatile facts** (counts, SHA, next action). Durable
 rules live in `PROJECT.md` `<decisions>`; the phase sequence lives in `ROADMAP.md`; dated history
 lives in `ARCHIVE.md`.
 
-## Current user-directed work — USF Bull header (2026-10-07)
+## Current user-directed work — PR #45 web CI repair (2026-10-07)
 
-- Fetched `origin/main` = `0155a1398ea0de44ac178cddf0d8b5ce671f4dbf` (PR #41).
-  Isolated branch `codex/usf-bull-header` starts directly there. PR #42's RMP work stays
-  on its separate branch and is not included here. Older branch/SHA facts below are history.
-- Added the official standalone Bull-U SVG from the USF Athletics website unchanged.
-  Source URL, original dimensions/colors and SHA256 are in `web/src/assets/README.md`.
-  The brand keeps the existing visible `easyA` styling and home navigation; no wordmark or
-  extra university text is introduced. Icon: 28 px mobile / 32 px desktop, 10 px gap,
-  vertically centered, explicit dimensions reserve space before the image loads.
-- Fresh checks: `npm test` 36 passed / 3 files (three new header tests), `npm run lint`,
-  `npm run typecheck`, `npm run build`, `git diff --check` passed. No unrelated failures.
-  Local UI over the hosted API inspected at 1440 x 1000, 1024 x 768 and 320 x 844:
-  native 56:56 aspect ratio preserved, measured 32/28 px with 10 px gap and zero center
-  offset, no brand wrapping/clipping or document overflow, visible keyboard focus and
-  Enter-to-home navigation work. Logo dimensions remained stable across reload;
-  no browser warnings/errors observed. This is not a measured whole-page CLS score.
-  Screenshots: `.planning/evidence/usf-bull-header/desktop.png` and `mobile.png`.
-- Backend, ranking behavior, API contracts, dependencies and navigation are unchanged.
-  Pre-existing `web/package-lock.json` change (SHA256
-  `161F2B69CB1EC8CF0B72CC8BA54903528842A802C011CD6F499F80FE5D377779`) and
-  `.pytest-tmp-codex-20260914a/` preserved and excluded from the feature commit.
-- Feature commit `d86bc64` pushed; [PR #43](https://github.com/aatif101/easy-A/pull/43)
-  is open against `main`, including source provenance and both screenshots.
-- **Next action:** owner review of PR #43.
-  No merge or deployment is authorized; no new milestone was created.
+- [PR #45](https://github.com/aatif101/easy-A/pull/45), remote branch
+  `feat/gened-filters-menu`, failed its push web job at ESLint: malformed JSX in
+  `SearchBox.tsx` and `HomePage.tsx` (run `37685713975`, job `113012867654`).
+- Repair worktree: `C:/Users/kanis/OneDrive/Documents/Projects/easy-A-pr45-ci-fix`,
+  local branch `codex/pr45-ci-fix`. Integrated fetched `origin/main` at `b6255e1`
+  so merged expanded search and RMP links are preserved; resolved HomePage/state conflicts.
+- Restored valid JSX, search sizing and correctly typed GenEd ranking queries. Popover
+  clicks now preserve selection, with focus on opening/closing, Escape, outside dismissal,
+  bounded mobile layout and an active-filter indicator. No backend, dependency or scoring edits.
+- Fresh local checks: `npm ci`, lint, typecheck, **119 frontend tests**, and the production
+  build passed under Node 24. Three new interaction tests cover selecting/clearing filters,
+  mouse dismissal, keyboard/focus behavior and ordinary search submission.
+- Browser checked over explicit synthetic fixtures at 320×844 and 1440×1000: menu selection,
+  keyboard opening/Escape/focus return and zero horizontal overflow; no page errors.
+- **Next action:** review PR #45 and its latest GitHub checks. User authorized fixing and
+  pushing this PR; merge and deployment are not authorized. Original checkout's pre-existing
+  lockfile change and pytest temporary directory remain untouched.
+
+## Previous user-directed work — expanded search, PR #44 (2026-10-07; merged)
+
+- `codex/expanded-search` adds `/api/v1/search` (course number, catalog title, stored instructor
+  name) and `/api/v1/search/history` (per-CRN grade records). Full write-up:
+  `.planning/evidence/expanded-search/REPORT.md`.
+- Review fixes: instructor names are matched only for free-text queries (a subject like `MAC` no
+  longer lists C. Maclean); a three-letter query that is not a subject is searched as text; CRN,
+  course-code and subject searches load sections directly again, so only title/number/name
+  searches use the new endpoint; discovery instructor results carry the RMP link. `main` (PR #42)
+  merged in.
+- Hosted Postgres check (read-only, 2026-10-07): every probe returned 200, ~0.6 s per search from
+  a local machine; history endpoint 0.5-0.6 s.
+- **Next action:** owner review of PR #44.
+
+## Previous user-directed work — RMP profile links, PR #42 (merged 2026-10-07)
+
+- PR #42 (`codex/rmp-search-links`, up to date with `main` `b4daecd`): an "RMP ↗" link beside
+  every named instructor (home-page picks, section table and cards, instructor history).
+- Owner amended D-08 for D-17 (see `PROJECT.md`): `scripts/match_rmp_profiles.py` looks up each
+  distinct last name once on RMP's public search (rate-limited, cached in git-ignored `.cache/rmp/`)
+  and writes `web/src/data/rmp-profiles.json` (`"SUBJ|name"` -> profile id, ids only). Confident
+  matches open the professor's own page; everyone else gets a USF search on the last name.
+  Corrections: `src/easy_a/rmp/overrides.json`.
+- PR #42 merged as `0136bc1` and deployed (bundle on `easy-a-web.onrender.com` verified).
+- PR #43 (USF Bull header logo) merged to `main` as `b4daecd` on 2026-10-07; source and
+  provenance in `web/src/assets/README.md`.
 
 ## Current state — as of 2026-09-30 (database facts retain their observation dates)
 
@@ -201,8 +217,8 @@ p95 < ~1.5s. Full definition + phase breakdown in `PROJECT.md` and `ROADMAP.md`.
 
 Phase: Milestone v1.0 complete
 Plan: —
-Status: USF Bull header PR open for review
-Last activity: 2026-10-07 — official header logo verified and opened as PR #43
+Status: Expanded search PR 44 open for review
+Last activity: 2026-10-07 — PR #42 merged and live; PR #44 review fixes pushed
 
 ## Historical next action (superseded by current user-directed work above)
 
@@ -531,7 +547,7 @@ Phase 07 (MVP1-P4) — full-scale cache build + search p95 < ~1.5s.
 
 ## Operator Next Steps
 
-- Review PR #43, the USF Bull header change; no merge/deploy authorized.
+- Review PR #44 on `codex/expanded-search`; no merge/deploy authorized.
 - When a new milestone is requested, start it with /gsd-new-milestone.
 
 ## Deferred Items
@@ -545,4 +561,3 @@ Items acknowledged and deferred at milestone close, most recent first:
 | deferred_items | 03.5/deferred-items.md: Plan 03.5-03 verification environment | acknowledged | 2026-10-04 | v1.0 |
 | deferred_items | 03.5/deferred-items.md: Plan 03.5-05 (resolutions and deferrals) | acknowledged | 2026-10-04 | v1.0 |
 | deferred_items | 06/deferred-items.md: 06-01 pre-existing ruff E501 / mypy errors | acknowledged | 2026-10-04 | v1.0 |
-

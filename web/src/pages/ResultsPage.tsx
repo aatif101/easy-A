@@ -8,12 +8,16 @@ import { GEN_ED_AREAS, REQUIREMENT_CODES, findGenEdArea, parseSearch } from "../
 import { sortSections, toSectionView, type SectionSort } from "../lib/section";
 import { useLoad } from "../lib/useLoad";
 import type { RankingLoader, SectionLoader, SectionRanking } from "../types/rankings";
+import type { DiscoveryLoader, HistoryLoader } from "../types/search";
+import { DiscoveryPage } from "./DiscoveryPage";
 
 interface Loaders {
   term: string;
   rankingLoader: RankingLoader;
   sectionLoader: SectionLoader;
   navigate: (route: Route) => void;
+  discoveryLoader: DiscoveryLoader;
+  historyLoader: HistoryLoader;
 }
 
 const toRows = (items: SectionRanking[]): SectionRow[] =>
@@ -103,7 +107,7 @@ function SectionsView({
   );
 }
 
-function CourseResults({ subject, courseNumber, term, rankingLoader, navigate }: Loaders & { subject: string; courseNumber: string }) {
+function CourseResults({ subject, courseNumber, term, rankingLoader, navigate, discoveryLoader, historyLoader }: Loaders & { subject: string; courseNumber: string }) {
   const [state, retry] = useLoad(`${term}:${subject}:${courseNumber}`, (signal) =>
     loadAllSections(rankingLoader, [{ term, subject, course_number: courseNumber }], signal),
   );
@@ -112,13 +116,13 @@ function CourseResults({ subject, courseNumber, term, rankingLoader, navigate }:
   if (state.status === "error") return <LoadError onRetry={retry} />;
   if (state.data.length === 0) {
     return (
-      <Notice title={`No Spring 2027 sections of ${code}`}>
+      <><Notice title={`No Spring 2027 sections of ${code}`}>
         Check the course code, or{" "}
         <a href={`?q=${subject}`} onClick={inAppClick(navigate, { view: "search", q: subject })}>
           see every {subject} section
         </a>
         .
-      </Notice>
+      </Notice><div className="mt-6"><DiscoveryPage term={term} q={code} discoveryLoader={discoveryLoader} historyLoader={historyLoader} navigate={navigate} /></div></>
     );
   }
   const first = state.data[0];
@@ -138,19 +142,15 @@ function CourseResults({ subject, courseNumber, term, rankingLoader, navigate }:
   );
 }
 
-function SubjectResults({ subject, term, rankingLoader, navigate }: Loaders & { subject: string }) {
+function SubjectResults(props: Loaders & { subject: string; q: string }) {
+  const { subject, term, rankingLoader, navigate } = props;
   const [state, retry] = useLoad(`${term}:${subject}`, (signal) =>
     loadAllSections(rankingLoader, [{ term, subject, sort: "course" }], signal),
   );
   if (state.status === "loading") return <Loading label={`Loading ${subject} sections…`} />;
   if (state.status === "error") return <LoadError onRetry={retry} />;
-  if (state.data.length === 0) {
-    return (
-      <Notice title={`No Spring 2027 sections in ${subject}`}>
-        Subjects are three letters, like <span className="font-mono">PSY</span> or <span className="font-mono">ENC</span>.
-      </Notice>
-    );
-  }
+  // Three letters with no sections may be a name or title ("Lee"); the backend decides.
+  if (state.data.length === 0) return <DiscoveryPage {...props} />;
   return (
     <>
       <h1 className="mb-5 text-2xl font-semibold">{subject} sections</h1>
@@ -223,6 +223,10 @@ function CrnResult({ crn, term, sectionLoader, navigate }: Loaders & { crn: stri
   );
 }
 
+/**
+ * CRNs, course codes and subjects load sections directly, as before, so the common searches never
+ * wait on (or break with) discovery. Numbers, titles and professor names go to discovery.
+ */
 export function SearchResults(props: Loaders & { q: string }) {
   const parsed = parseSearch(props.q);
   if (parsed.kind === "crn") return <CrnResult {...props} crn={parsed.crn} />;
@@ -230,10 +234,5 @@ export function SearchResults(props: Loaders & { q: string }) {
     return <CourseResults {...props} subject={parsed.subject} courseNumber={parsed.courseNumber} />;
   }
   if (parsed.kind === "subject") return <SubjectResults {...props} subject={parsed.subject} />;
-  return (
-    <Notice title={`Nothing matches "${props.q}"`}>
-      Search by CRN (<span className="font-mono">14028</span>), course (<span className="font-mono">ENC 1101</span>), or
-      subject (<span className="font-mono">PSY</span>).
-    </Notice>
-  );
+  return <DiscoveryPage {...props} />;
 }

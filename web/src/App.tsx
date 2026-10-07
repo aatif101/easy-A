@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { fetchRankings, fetchSection, fetchSyncStatus, fetchTerms, isUsingMockData } from "./api/rankings";
+import { fetchDiscovery, fetchHistory, fetchRankings, fetchSection, fetchSyncStatus, fetchTerms, isUsingMockData } from "./api/rankings";
 import usfBull from "./assets/usf-bull.svg";
 import { SearchBox } from "./components/SearchBox";
 import { LoadError, Loading } from "./components/Status";
@@ -10,6 +10,7 @@ import { useLoad } from "./lib/useLoad";
 import { HomePage } from "./pages/HomePage";
 import { GenEdResults, SearchResults } from "./pages/ResultsPage";
 import type { RankingLoader, SectionLoader, SyncStatusLoader, TermsLoader } from "./types/rankings";
+import type { DiscoveryLoader, HistoryLoader } from "./types/search";
 
 interface AppProps {
   rankingLoader?: RankingLoader;
@@ -17,6 +18,8 @@ interface AppProps {
   termsLoader?: TermsLoader;
   syncStatusLoader?: SyncStatusLoader;
   mockMode?: boolean;
+  discoveryLoader?: DiscoveryLoader;
+  historyLoader?: HistoryLoader;
 }
 
 const minutesAgo = (iso: string): string => {
@@ -32,6 +35,8 @@ export default function App({
   termsLoader = fetchTerms,
   syncStatusLoader = fetchSyncStatus,
   mockMode = isUsingMockData,
+  discoveryLoader = fetchDiscovery,
+  historyLoader = fetchHistory,
 }: AppProps) {
   const [route, setRoute] = useState<Route>(() => readRoute(window.location.search));
 
@@ -55,7 +60,7 @@ export default function App({
   const termName = terms.status === "ready" ? terms.data.find((item) => item.term === term)?.term_name ?? term : null;
   const [sync] = useLoad(term && !mockMode ? `sync:${term}` : null, (signal) => syncStatusLoader(term ?? "", signal));
 
-  const loaders = { rankingLoader, sectionLoader, navigate };
+  const loaders = { rankingLoader, sectionLoader, discoveryLoader, historyLoader, navigate };
   const searchValue = route.view === "search" ? route.q : "";
 
   return (

@@ -11,6 +11,49 @@ const baseQuery: RankingQuery = {
 
 beforeEach(() => { vi.stubEnv("VITE_USE_MOCK_DATA", "false"); });
 
+describe("expanded search API client", () => {
+  test("sends the original query, bounded pagination and cancellation to discovery", async () => {
+    vi.stubEnv("VITE_API_BASE_URL", "http://localhost:8000");
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { fetchDiscovery } = await import("./rankings");
+    const signal = new AbortController().signal;
+    await fetchDiscovery("202701", " calculus 1 ", 20, signal);
+    const url = new URL(String(fetchMock.mock.calls[0]?.[0]));
+    expect(url.pathname).toBe("/api/v1/search");
+    expect(Object.fromEntries(url.searchParams)).toEqual({ term: "202701", q: " calculus 1 ", offset: "20", limit: "20" });
+    expect(fetchMock.mock.calls[0]?.[1]?.signal).toBe(signal);
+  });
+
+  test("keeps the selected course and stored instructor name in history requests", async () => {
+    vi.stubEnv("VITE_API_BASE_URL", "http://localhost:8000");
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { fetchHistory } = await import("./rankings");
+    const signal = new AbortController().signal;
+    await fetchHistory("202701", 42, "J. Smith", 40, signal);
+    const url = new URL(String(fetchMock.mock.calls[0]?.[0]));
+    expect(url.pathname).toBe("/api/v1/search/history");
+    expect(Object.fromEntries(url.searchParams)).toEqual({ term: "202701", course_id: "42", name: "J. Smith", offset: "40", limit: "20" });
+    expect(fetchMock.mock.calls[0]?.[1]?.signal).toBe(signal);
+  });
+
+  test("preserves explicit frontend-only fixture course searches and declines absent raw history", async () => {
+    vi.stubEnv("VITE_USE_MOCK_DATA", "true");
+    vi.stubEnv("VITE_API_BASE_URL", "");
+    const fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", fetchMock);
+    const { fetchDiscovery, fetchHistory } = await import("./rankings");
+    const signal = new AbortController().signal;
+    const result = await fetchDiscovery("202701", "ENC 1101", 0, signal);
+    expect(result.kind).toBe("course");
+    expect(result.courses[0]?.subject).toBe("ENC");
+    expect(result.identity_note).toMatch(/Synthetic/);
+    await expect(fetchHistory("202701", 1, null, 0, signal)).rejects.toThrow(/unavailable/);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllEnvs();

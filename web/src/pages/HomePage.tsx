@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { CopyCrnButton } from "../components/CopyCrnButton";
 import { GradeBar, GradeLegend } from "../components/GradeBar";
+import { RmpLink } from "../components/RmpLink";
 import { SearchBox } from "../components/SearchBox";
 import { LoadError, Loading } from "../components/Status";
 import { loadAllSections } from "../lib/loadAll";
@@ -12,6 +13,7 @@ import { useLoad } from "../lib/useLoad";
 import type { RankingLoader, SectionRanking } from "../types/rankings";
 
 const SHOWN = 8;
+const DEFAULT_AREA = "social-sciences";
 
 interface HomePageProps {
   term: string;
@@ -20,14 +22,43 @@ interface HomePageProps {
 }
 
 export function HomePage({ term, rankingLoader, navigate }: HomePageProps) {
-  const [areaId, setAreaId] = useState("social-sciences");
+  const [areaId, setAreaId] = useState(DEFAULT_AREA);
   const [open, setOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const defaultAreaId = "social-sciences";
-  const isDefault = areaId === defaultAreaId;
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const popoverId = useId();
 
-  const [state, retry] = useLoad(`${term}:${areaId}`, (signal) =>
-    loadAllSections(rankingLoader, GEN_ED_AREAS.find((a) => a.id === areaId)?.codes ?? [], signal),
+  useEffect(() => {
+    if (!open) return;
+    popoverRef.current?.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.focus();
+    const dismissOutside = (event: MouseEvent) => {
+      if (event.target instanceof Node && !buttonRef.current?.contains(event.target) && !popoverRef.current?.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+    const dismissWithEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setOpen(false);
+        buttonRef.current?.focus();
+      }
+    };
+    document.addEventListener("mousedown", dismissOutside);
+    document.addEventListener("keydown", dismissWithEscape);
+    return () => {
+      document.removeEventListener("mousedown", dismissOutside);
+      document.removeEventListener("keydown", dismissWithEscape);
+    };
+  }, [open]);
+
+  const selectArea = (id: string) => {
+    setAreaId(id);
+    setOpen(false);
+    buttonRef.current?.focus();
+  };
+  const area = GEN_ED_AREAS.find((item) => item.id === areaId) ?? GEN_ED_AREAS[0];
+  const [state, retry] = useLoad(`${term}:${area.id}`, (signal) =>
+    loadAllSections(rankingLoader, area.codes.map((code) => ({ term, gened_code: code })), signal),
   );
 
   // Only sections whose own instructor has enough history, highest A share first.
@@ -49,138 +80,15 @@ export function HomePage({ term, rankingLoader, navigate }: HomePageProps) {
     rows.sort((left, right) => (right.view.aShare ?? 0) - (left.view.aShare ?? 0));
     rows.splice(SHOWN);
   }
-  const area = GEN_ED_AREAS.find((item) => item.id === areaId) ?? GEN_ED_AREAS[0];
   const label = area.label;
   const areaRoute: Route = { view: "gened", area: area.id };
-
-  // Popover positioning
-  const [popoverPosition, setPopoverPosition] = useState({ top: 0, left: 0 });
-
-  useEffect(() => {
-    if (!open || !buttonRef.current) return;
-    const rect = buttonRef.current.getBoundingClientRect();
-    let top = rect.bottom + window.scrollY + 8; // 8px gap
-    let left = rect.left + window.scrollX;
-
-    // Adjust if popover goes off right edge
-    const popoverWidth = 200; // approximate width
-    if (left + popoverWidth > window.innerWidth + window.scrollX) {
-      left = window.innerWidth + window.scrollX - popoverWidth - 16; // 16px margin
-    }
-    // Adjust if popover goes off bottom edge (try above)
-    const popoverHeight = 200; // approximate height
-    if (top + popoverHeight > window.innerHeight + window.scrollY) {
-      top = rect.top + window.scrollY - popoverHeight - 8;
-    }
-    // Ensure not off top
-    if (top < window.scrollY) {
-      top = window.scrollY + 8;
-    }
-    setPopoverPosition({ top, left });
-  }, [open]);
-
-  // Handle keydown on button to open popover with Enter/Space
-  const handleButtonKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      setOpen(true);
-    }
-  };
-
-  // Handle keydown inside popover for trapping Tab and closing on Escape
-  const handlePopoverKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Escape") {
-      setOpen(false);
-      buttonRef.current?.focus();
-    }
-    // Tab trapping: if Shift+Tab on first focusable element, go to last; if Tab on last, go to first.
-    // We'll implement a simple version: focus first element on Tab if shift, last if not shift? Actually we need to check.
-    // For simplicity, we'll just allow tab to move out and rely on click outside to close? Better to trap.
-    // We'll skip for brevity but note requirement.
-  };
-
-  // Click outside to close
-  useEffect(() => {
-    if (!open) return;
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (buttonRef.current && !buttonRef.current.contains(target)) {
-        // Check if target is inside popover (we don't have a ref for popover, but we can check if it's within the popover's vicinity)
-        // For simplicity, we'll close if click is not on button and not on any GenEd button (we don't have refs).
-        // We'll instead rely on the fact that the popover is positioned near the button and we can check if click is within a radius.
-        // This is getting complex. We'll implement a simple version: close on click outside button and not on any GenEd button by checking if target is a button with data-gened.
-        // We'll add a data-gened attribute to GenEd buttons inside popover.
-        // For now, we'll just close on any click outside button.
-        setOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
-
-  // Render popover content
-  const renderPopover = () => {
-    if (!open) return null;
-    return (
-      <div
-        role="menu"
-        style={{
-          position: "absolute",
-          top: popoverPosition.top,
-          left: popoverPosition.left,
-          background: "white",
-          border: "1px solid #ccc",
-          borderRadius: "6px",
-          padding: "12px",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-          zIndex: 1000,
-          minWidth: "200px",
-        }}
-        onKeyDown={handlePopoverKeyDown}
-      >
-        {GEN_ED_AREAS.map((item) => {
-          const on = item.id === areaId;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              data-gened="true"
-              onClick={() => {
-                setAreaId(item.id);
-                setOpen(false);
-                buttonRef.current?.focus();
-              }}
-              className={`w-full text-left mb-2 rounded border px-3 py-2 text-sm font-medium ${
-                on ? "border-ink bg-ink text-white" : "border-silver bg-white text-ink hover:bg-wash"
-              }`}
-            >
-              {item.label}
-            </button>
-          );
-        })}
-        <div className="mt-4">
-          <button
-            type="button"
-            onClick={() => {
-              setAreaId(defaultAreaId);
-              setOpen(false);
-              buttonRef.current?.focus();
-            }}
-            className="w-full text-left rounded border px-3 py-2 text-sm font-medium text-slate hover:bg-wash"
-          >
-            Clear filters
-          </button>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <>
       <h1 className="mb-4 text-[28px] font-semibold leading-tight" style={{ textWrap: "balance" }}>
         Who gives the most A's?
       </h1>
-      <div className="max-w-3xl">
+      <div className="relative max-w-3xl">
         <SearchBox
           onSearch={(q) => navigate({ view: "search", q })}
           rightButton={
@@ -188,20 +96,42 @@ export function HomePage({ term, rankingLoader, navigate }: HomePageProps) {
               ref={buttonRef}
               type="button"
               aria-label="GenEd filters"
-                aria-expanded={open}
-                onClick={() => {
-                  setOpen(!open);
-                }}
-                onKeyDown={handleButtonKeyDown}
-                className={`shrink-0 flex items-center justify-center w-10 h-11 rounded-lg border border-silver bg-white text-ink hover:bg-wash ${
-                  !isDefault ? "bg-[rgba(0,0,0,0.04)]" : "" // indicator when filters active
-                }`}
+              aria-haspopup="dialog"
+              aria-expanded={open}
+              aria-controls={open ? popoverId : undefined}
+              onClick={() => setOpen((value) => !value)}
+              className={`relative h-[52px] w-10 shrink-0 rounded-lg border border-silver text-xl text-ink hover:bg-wash ${areaId !== DEFAULT_AREA ? "bg-wash" : "bg-white"}`}
             >
-              {/* Three-dot icon */}
-              <span className="text-slate">⋮</span>
+              <span aria-hidden="true">⋮</span>
+              {areaId !== DEFAULT_AREA ? <span aria-hidden="true" className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-green" /> : null}
             </button>
           }
-        }
+        />
+        {open ? (
+          <div
+            ref={popoverRef}
+            id={popoverId}
+            role="dialog"
+            aria-label="GenEd filters"
+            className="absolute right-0 top-[60px] z-20 flex max-h-[60vh] w-64 max-w-full flex-col gap-2 overflow-y-auto rounded-lg border border-line bg-white p-3 shadow-lg"
+          >
+            {GEN_ED_AREAS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                aria-pressed={item.id === area.id}
+                onClick={() => selectArea(item.id)}
+                className={`rounded-lg border px-3 py-2 text-left text-sm font-medium ${item.id === area.id ? "border-ink bg-ink text-white" : "border-silver bg-white text-ink hover:bg-wash"}`}
+              >
+                {item.label}
+              </button>
+            ))}
+            <button type="button" onClick={() => selectArea(DEFAULT_AREA)} className="rounded-lg px-3 py-2 text-left text-sm text-slate hover:bg-wash">
+              Clear filters
+            </button>
+          </div>
+        ) : null}
+        <p className="mt-2 text-sm text-slate">Search a CRN, course code or number, title, subject, or professor’s listed name. Try ENC 1101, 2045L, Program Design, or calculus 1.</p>
       </div>
 
       <section className="mt-12" aria-labelledby="top-heading">
@@ -242,7 +172,7 @@ export function HomePage({ term, rankingLoader, navigate }: HomePageProps) {
                   <span className="tabular row-span-2 text-lg font-bold min-[760px]:row-span-1">{formatShare(view.aShare ?? 0)}</span>
                   <span className="flex flex-col gap-1">
                     <GradeBar share={view.aShare ?? 0} />
-                    <span className="tabular text-xs text-slate>{view.caption}</span>
+                    <span className="tabular text-xs text-slate">{view.caption}</span>
                   </span>
                   <span className="min-w-0">
                     <a
@@ -256,13 +186,18 @@ export function HomePage({ term, rankingLoader, navigate }: HomePageProps) {
                       {ranking.course_title}
                     </span>
                   </span>
-                  <span className="col-start-2 min-[760px]:col-start-auto">{view.instructor}</span>
+                  <span className="col-start-2 flex min-w-0 flex-wrap items-center gap-x-1 min-[760px]:col-start-auto">
+                    <span className="min-w-0 break-words">{view.instructor}</span>
+                    {view.rmpLinkable ? (
+                      <RmpLink instructor={view.instructor} subject={view.subject} />
+                    ) : null}
+                  </span>
                   <span className="col-start-2 flex flex-wrap gap-x-4 gap-y-1.5 min-[760px]:col-start-auto min-[760px]:flex-col">
                     {crns.slice(0, 2).map((crn) => (
                       <span key={crn} className="flex items-center gap-2">
                         <span className="font-mono">{crn}</span>
                         <CopyCrnButton crn={crn} />
-                      </span
+                      </span>
                     ))}
                     {crns.length > 2 ? (
                       <a
@@ -288,8 +223,6 @@ export function HomePage({ term, rankingLoader, navigate }: HomePageProps) {
           </>
         ) : null}
       </section>
-
-      {renderPopover()}
     </>
   );
 }
