@@ -10,7 +10,7 @@ The beta runs as three Render services created from `render.yaml` (one Docker im
 | `easy-a-worker` | worker (Docker) | `python -m easy_a.sync --term 202701`: one whole-term USF request per sweep on the tiered cadence |
 | `easy-a-web` | static site | The React front end, built with `cd web && npm ci && npm run build` |
 
-All three are in region ohio. Public URLs follow the pattern `https://<service-name>.onrender.com` (Render adds a random suffix if the name is taken). Expected cost is about $14/month (two `starter` services; the static site is free). The database is hosted Supabase, reached through the transaction pooler (port 6543).
+All three are in region ohio. Public URLs follow the pattern `https://<service-name>.onrender.com` (Render adds a random suffix if the name is taken). The custom domain `easya.fyi` (site) and `api.easya.fyi` (API) point at the same services (section 15). Expected cost is about $14/month (two `starter` services; the static site is free). The database is hosted Supabase, reached through the transaction pooler (port 6543).
 
 ## Preconditions and standing rules
 
@@ -186,6 +186,41 @@ Sections USF lists as cancelled (`secondary_status` `U` or `C`, about 359 underg
 ## 14. Historical instructor backfill (Phase 10)
 
 The one-off historical instructor backfill (`scripts/backfill_historical_sections.py`) is an operator-run command, not a worker feature, and it is not part of `render.yaml` or the image. It uses the same sweep advisory lock as the worker: `--apply`, `--rollback` and `--rebuild-only` take the lock first and exit `2` with nothing written while a sweep is running, so run them between sweeps and retry on exit 2. `--rollback` and `--rebuild-only` make no USF request at all; `--dry-run` and `--apply` make one whole-term request per requested term (D-22(e)). The full procedure, the D-04 review, verification and rollback are in [historical-instructor-backfill.md](historical-instructor-backfill.md).
+
+## 15. Custom domain (easya.fyi)
+
+`easya.fyi` was registered on 2026-10-08 (expires 2027-10-08, renewal $5.20/yr). Turn on auto-renew at the registrar: if the domain lapses, the site goes dark even though Render keeps running. `render.yaml` declares `easya.fyi` on `easy-a-web` (Render adds `www.easya.fyi` itself and redirects it to the root) and `api.easya.fyi` on `easy-a-api`. The worker has no public URL. Render's Hobby workspace includes 2 custom domains; each extra one is $0.25/month.
+
+Cutover, in this order:
+
+1. **Add the domains to the services.** A Blueprint sync of `render.yaml` adds them. If the services are not Blueprint-synced, add them by hand: `easy-a-web` > Settings > Custom Domains > `easya.fyi`, and `easy-a-api` > Settings > Custom Domains > `api.easya.fyi`.
+2. **Create the DNS records at the registrar.** Delete any `AAAA` records for these names first (Render is IPv4 only). On Cloudflare, set every record to **DNS only** (grey cloud) until Render shows the certificates as issued, and set SSL/TLS mode to **Full** if you later turn on the proxy.
+
+   | Type | Name | Target |
+   |---|---|---|
+   | CNAME (flattened at the root), or ALIAS/ANAME; else A `216.24.57.1` | `@` | `easy-a-web.onrender.com` |
+   | CNAME | `www` | `easy-a-web.onrender.com` |
+   | CNAME | `api` | `easy-a-api.onrender.com` |
+
+   Use the exact targets the Render dashboard shows if they differ (for example a suffixed service name).
+3. **Verify.** In each service's Custom Domains list, click Verify until the domain shows a valid certificate. A 502 right after verification means routing is still updating; wait a few minutes.
+4. **Allow the new origins on the API.** Set `EASY_A_ALLOWED_FRONTEND_ORIGINS` on `easy-a-api` to `https://easya.fyi,https://www.easya.fyi,https://easy-a-web.onrender.com` (comma-separated, no trailing slashes). Keep the onrender origin until the cutover is checked. Saving the variable redeploys the API.
+5. **Point the site at the new API host.** Set `VITE_API_BASE_URL` on `easy-a-web` to `https://api.easya.fyi`, then trigger a manual deploy of `easy-a-web`. `VITE_*` is fixed at build time, so the change does nothing until the site is rebuilt.
+6. **Check it.**
+
+   ```bash
+   curl -fsS https://api.easya.fyi/health
+   curl -sS -o /dev/null -D - -H "Origin: https://easya.fyi" "https://api.easya.fyi/api/v1/metadata/sync-status?term=202701" | grep -i access-control-allow-origin
+   curl -sSI https://www.easya.fyi | grep -i -E "^HTTP|^location"
+   ```
+
+   Expect `{"status":"ok"}`, `access-control-allow-origin: https://easya.fyi`, and a redirect from `www` to `https://easya.fyi/`. Then open `https://easya.fyi`, run a search, and confirm in the browser's network tab that the requests go to `api.easya.fyi`.
+
+Rollback: set `VITE_API_BASE_URL` back to `https://easy-a-api.onrender.com` and redeploy `easy-a-web`. The onrender URLs never stop working unless you disable them in a service's settings, so do not disable them until the custom domain has run cleanly for a while.
+
+## 16. Visitor analytics
+
+Visitor counts come from Cloudflare Web Analytics (cookie-free, no consent banner): Cloudflare dashboard > Analytics & Logs > Web Analytics > `easya.fyi`. `web/vite.config.ts` adds the beacon script to `index.html` only when `VITE_CF_ANALYTICS_TOKEN` is set at build time; it is set on `easy-a-web` (value in `render.yaml`), so local and CI builds send nothing. Changing the token needs a rebuild of `easy-a-web`. Ad blockers block the beacon, so counts are a lower bound. The domain-level Analytics pages only see proxied (orange-cloud) traffic and stay flat while the records are DNS only.
 
 ## Run Log
 

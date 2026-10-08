@@ -393,7 +393,7 @@ are in `.planning/ARCHIVE.md`. They describe the earlier local beta DB and are n
 
 - ~~**Search p95 at full scale**~~ **RESOLVED (Phase 07)**: loopback HTTP p95 309.91 ms at 3,783
   sections on hosted Supabase. Deployed-host latency is still to be measured once a host exists.
-- ~~**Deployment host and domain**~~ **Host supplied (Render, 2026-09-29) and live (2026-09-30)** on free `*.onrender.com` subdomains; no custom domain yet.
+- ~~**Deployment host and domain**~~ **Host supplied (Render, 2026-09-29) and live (2026-09-30)** on free `*.onrender.com` subdomains. **Domain `easya.fyi` registered 2026-10-08** (expires 2027-10-08, $5.20/yr, auto-renew off at purchase). `render.yaml` declares `easya.fyi` (site; Render adds `www`) and `api.easya.fyi` (API). **Live on the custom domain, verified 2026-10-08:** DNS on Cloudflare (DNS only), `https://api.easya.fyi/health` ok, CORS echoes `https://easya.fyi` (and still the onrender origin), `www` 301s to the root, the deployed bundle calls `https://api.easya.fyi`, TLS by Google Trust Services. Steps in `docs/runbooks/hosted-beta-operations.md` section 15. Auto-renew at the registrar still to confirm.
 
 ## Deferred — do not reintroduce as current scope
 
