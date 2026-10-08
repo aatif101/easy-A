@@ -13,6 +13,10 @@
 #   so EASY_A_ALLOWED_FRONTEND_ORIGINS and VITE_API_BASE_URL are sync:false and are filled
 #   after the first create. VITE_* is baked in at build time, so redeploy the static site
 #   after setting VITE_API_BASE_URL.
+# - Custom domain easya.fyi (registered 2026-10-08). easy-a-web serves the root domain; Render
+#   adds www.easya.fyi automatically and redirects it to the root. easy-a-api serves
+#   api.easya.fyi. The *.onrender.com URLs keep working. DNS records live at the registrar and
+#   the cutover steps are in docs/runbooks/hosted-beta-operations.md ("Custom domain").
 services:
   - type: web
     name: easy-a-api
@@ -21,6 +25,8 @@ services:
     plan: starter
     autoDeployTrigger: checksPass
     healthCheckPath: /health
+    domains:
+      - api.easya.fyi
     dockerfilePath: ./Dockerfile
     dockerContext: .
     buildFilter:
@@ -64,6 +70,8 @@ services:
     autoDeployTrigger: checksPass
     buildCommand: cd web && npm ci && npm run build
     staticPublishPath: web/dist
+    domains:
+      - easya.fyi
     buildFilter:
       paths:
         - web/**
