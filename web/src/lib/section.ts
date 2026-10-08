@@ -140,3 +140,8 @@ export const termName = (code: string): string => {
 
 export const termSpan = (first: string, last: string): string =>
   first === last ? termName(first) : `${termName(first)} – ${termName(last)}`;
+
+export const courseCode = (ranking: SectionRanking): string => `${ranking.subject} ${ranking.course_number}`;
+
+/** A shares backed by the section's own instructor read as ink; everything else is muted. */
+export const aShareClass = (view: SectionView): string => (view.kind === "instructor" ? "text-ink" : "text-slate");

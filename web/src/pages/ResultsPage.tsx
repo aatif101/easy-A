@@ -4,7 +4,7 @@ import { SectionTable, type SectionRow } from "../components/SectionTable";
 import { LoadError, Loading, Notice } from "../components/Status";
 import { loadAllSections } from "../lib/loadAll";
 import { inAppClick, type Route } from "../lib/route";
-import { GEN_ED_AREAS, REQUIREMENT_CODES, findGenEdArea, parseSearch } from "../lib/search";
+import { REQUIREMENT_CODES, findGenEdArea, parseSearch } from "../lib/search";
 import { sortSections, toSectionView, type SectionSort } from "../lib/section";
 import { useLoad } from "../lib/useLoad";
 import type { RankingLoader, SectionLoader, SectionRanking } from "../types/rankings";
@@ -169,29 +169,14 @@ export function GenEdResults({ area: areaId, term, rankingLoader, navigate }: Lo
   const [state, retry] = useLoad(area ? `${term}:${area.id}` : null, (signal) =>
     loadAllSections(rankingLoader, (area?.codes ?? []).map((code) => ({ term, gened_code: code })), signal),
   );
-  const chips = (
-    <div role="group" aria-label="Gen Ed requirement" className="mt-3 flex flex-wrap gap-1.5">
-      {GEN_ED_AREAS.map((item) => (
-        <Chip key={item.id} on={item.id === area?.id} onClick={() => navigate({ view: "gened", area: item.id })}>
-          {item.label}
-        </Chip>
-      ))}
-    </div>
-  );
   if (!area) {
-    return (
-      <>
-        <Notice title="Unknown Gen Ed requirement">Pick one of the requirements below.</Notice>
-        {chips}
-      </>
-    );
+    return <Notice title="Unknown Gen Ed requirement">Pick an area from the ⋮ menu beside the search bar.</Notice>;
   }
   return (
     <>
       <div className="mb-5">
         <h1 className="text-2xl font-semibold">{area.label}</h1>
         <p className="mt-1 text-sm text-slate">Sections that count toward the Gen Ed {area.label} requirement</p>
-        {chips}
       </div>
       {state.status === "loading" ? <Loading label={`Loading ${area.label} sections…`} /> : null}
       {state.status === "error" ? <LoadError onRetry={retry} /> : null}

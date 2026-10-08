@@ -1,11 +1,12 @@
 import { Fragment, useState } from "react";
 
-import { formatShare, seatsText, type SectionView } from "../lib/section";
+import { aShareClass, courseCode, formatShare, seatsText, type SectionView } from "../lib/section";
 import type { SectionRanking } from "../types/rankings";
 import { CopyCrnButton } from "./CopyCrnButton";
-import { GradeBar, GradeLegend } from "./GradeBar";
+import { GradeLegend } from "./GradeBar";
 import { InstructorHistory } from "./InstructorHistory";
 import { RmpLink } from "./RmpLink";
+import { CourseLink, Evidence, SectionCard } from "./SectionCard";
 
 export interface SectionRow {
   ranking: SectionRanking;
@@ -18,46 +19,12 @@ interface SectionTableProps {
   onOpenCourse?: (subject: string, courseNumber: string) => void;
 }
 
-const courseCode = (ranking: SectionRanking) => `${ranking.subject} ${ranking.course_number}`;
-
-const aShareClass = (view: SectionView) =>
-  view.kind === "instructor" ? "text-ink" : "text-slate";
-
-const captionClass = (view: SectionView) =>
-  view.kind === "no_history" || view.kind === "unnamed" || view.kind === "thin" ? "text-warn" : "text-slate";
-
-function Evidence({ view }: { view: SectionView }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-1">
-      {view.aShare !== null ? <GradeBar share={view.aShare} faded={view.kind === "thin"} /> : null}
-      <span className={`tabular text-xs ${captionClass(view)}`}>{view.caption}</span>
-    </div>
-  );
-}
-
 function Seats({ view }: { view: SectionView }) {
   return (
     <span className="tabular">
       {seatsText(view)}
       {view.seatsStale ? <span className="block text-xs text-warn">may be out of date</span> : null}
     </span>
-  );
-}
-
-function CourseLink({ ranking, onOpenCourse }: { ranking: SectionRanking; onOpenCourse?: SectionTableProps["onOpenCourse"] }) {
-  const code = courseCode(ranking);
-  return (
-    <a
-      href={`?q=${encodeURIComponent(code)}`}
-      onClick={(event) => {
-        if (!onOpenCourse || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
-        event.preventDefault();
-        onOpenCourse(ranking.subject, ranking.course_number);
-      }}
-      className="font-semibold text-ink no-underline hover:underline"
-    >
-      {code}
-    </a>
   );
 }
 
@@ -158,51 +125,17 @@ export function SectionTable({ rows, showCourse = false, onOpenCourse }: Section
       </div>
 
       <ul className="flex flex-col gap-2.5 min-[900px]:hidden">
-        {rows.map(({ ranking, view }) => {
-          const isOpen = open === ranking.crn;
-          return (
-            <li key={ranking.crn} className="flex flex-col gap-2.5 rounded-lg border border-line px-4 py-3.5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  {showCourse ? (
-                    <div className="text-sm">
-                      <CourseLink ranking={ranking} onOpenCourse={onOpenCourse} />
-                    </div>
-                  ) : null}
-                  <div className="flex flex-wrap items-center gap-x-1">
-                    <span className={`min-w-0 break-words font-semibold ${view.instructorNamed ? "" : "text-slate"}`}>{view.instructor}</span>
-                    {view.rmpLinkable ? (
-                      <RmpLink instructor={view.instructor} subject={view.subject} />
-                    ) : null}
-                  </div>
-                  <div className="text-[13px] text-slate">
-                    <span className="font-mono text-ink">{ranking.crn}</span>
-                    {view.delivery ? ` · ${view.delivery}` : ""} · {seatsText(view)} seats
-                    {view.seatsStale ? " (may be out of date)" : ""}
-                  </div>
-                </div>
-                <span className={`tabular text-2xl font-bold leading-tight ${aShareClass(view)}`}>
-                  {view.aShare === null ? "—" : formatShare(view.aShare)}
-                </span>
-              </div>
-              <Evidence view={view} />
-              <div className="flex flex-wrap gap-2">
-                <CopyCrnButton crn={ranking.crn} large />
-                {view.history.length > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => toggle(ranking.crn)}
-                    aria-expanded={isOpen}
-                    className="h-10 rounded-md border border-silver bg-white px-3.5 text-sm font-semibold hover:bg-wash"
-                  >
-                    {isOpen ? "Hide instructors" : "Compare instructors"}
-                  </button>
-                ) : null}
-              </div>
-              {isOpen ? <InstructorHistory view={view} courseCode={courseCode(ranking)} /> : null}
-            </li>
-          );
-        })}
+        {rows.map(({ ranking, view }) => (
+          <SectionCard
+            key={ranking.crn}
+            ranking={ranking}
+            view={view}
+            showCourse={showCourse}
+            onOpenCourse={onOpenCourse}
+            open={open === ranking.crn}
+            onToggle={() => toggle(ranking.crn)}
+          />
+        ))}
       </ul>
     </>
   );

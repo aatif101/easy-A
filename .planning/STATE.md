@@ -4,7 +4,7 @@ status: Landing page redesign (three doors + score guide) verified locally
 stopped_at: Pushed claude/funny-heisenberg-27edqz; no PR opened yet
 last_updated: "2026-10-08T20:00:00Z"
 last_activity: 2026-10-08
-last_activity_desc: Replaced the home page with three entry points and added a score guide page
+last_activity_desc: Home page with live course preview and reading key; GenEd menu in the header
 state_head: a00221e
 progress:
   total_phases: 11
@@ -25,18 +25,19 @@ lives in `ARCHIVE.md`.
 ## Current user-directed work — landing page redesign (2026-10-08)
 
 - Branch `claude/funny-heisenberg-27edqz`, from `origin/main` `a00221e`. Campus feedback: the old
-  home page ("Who gives the most A's?" plus a Social Sciences top list and a hidden `⋮` GenEd
-  menu) did not show how to use the app. The owner compared three mockups and chose "two doors".
-- `HomePage.tsx` now has three entry points: class search, six GenEd area links (`?gened=`), and a
-  professor card that focuses the search field. The home page no longer loads rankings, so the
-  top list is gone; GenEd lists live on the existing results page. The owner kept PR #45's `⋮`
-  GenEd menu beside the search field; picking an area now opens that area's list page.
-- New `ScoreGuidePage.tsx` at `?guide` explains A%, the grade bar, grade/term counts, every
-  no-score caption, Compare instructors, RMP and Copy CRN. It shows no course data. It is linked
-  from the home page and under every section list.
-- Checks (Node 22): lint, typecheck, **126 frontend tests** and the production build passed.
-  Browser-checked with synthetic fixtures at 390×844 and 1440×1000: home, guide and a GenEd page,
-  no horizontal overflow, no page errors. No backend, dependency or scoring edits.
+  home page did not show how to use the app. The owner compared mockups, chose "two doors", then
+  asked for real classes on landing with an on-page reading key instead of a link.
+- Home (`HomePage.tsx`): class search with the `⋮` GenEd menu beside it (picking an area opens its
+  list), a one-line professor hint, a **live preview** (`CoursePreview.tsx`) of ENC 1101 /
+  MAC 1147 / PSY 2012 / AMH 2020 (owner's picks) showing the top 3 instructors with enough
+  history, numbered markers on the first card with a 4-point key ("Hide tips" is remembered in
+  localStorage), then the GenEd door. Phone card markup moved to shared `SectionCard.tsx`.
+- Results pages: the GenEd area chips are gone; the same `⋮` menu sits in the header search on
+  every non-home page, with the current area highlighted. `?guide` (`ScoreGuidePage.tsx`) stays,
+  linked under every section list; the home page no longer links it.
+- Checks (Node 22): lint, typecheck, **129 frontend tests** and the production build passed.
+  Browser-checked with synthetic fixtures at 390×844 and 1440×1000 (home, GenEd page with the
+  header menu open); no horizontal overflow, no page errors. No backend, dependency or scoring edits.
 - **Next action:** owner compares locally against `main`; open a PR when asked.
 
 ## Previous user-directed work — PR #45 web CI repair (2026-10-07)

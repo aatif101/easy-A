@@ -150,11 +150,13 @@ describe("CRN search", () => {
 });
 
 describe("home", () => {
-  it("loads no rankings until the student picks a door", async () => {
+  it("previews ENC 1101 on landing with the reading key on the first card", async () => {
     const rankingLoader = loaderFor(encSections);
     renderApp("/", rankingLoader);
-    expect(await screen.findByRole("heading", { name: "I just need a GenEd" })).toBeInTheDocument();
-    expect(rankingLoader).not.toHaveBeenCalled();
+    const preview = await screen.findByRole("region", { name: "See it on a class everyone takes" });
+    expect(await within(preview).findByText("High Grader")).toBeInTheDocument();
+    expect(within(preview).getByRole("list", { name: "How to read this card" })).toBeInTheDocument();
+    expect(rankingLoader).toHaveBeenCalledWith(expect.objectContaining({ subject: "ENC", course_number: "1101" }), expect.anything());
   });
 
   it("opens a Gen Ed area from its door", async () => {
@@ -190,10 +192,11 @@ describe("RMP search links across results pages", () => {
 });
 
 describe("score guide", () => {
-  it("opens from the landing page and explains each part of a row", async () => {
+  it("opens from a results page and explains each part of a row", async () => {
     const user = userEvent.setup();
-    renderApp("/");
-    await user.click(await screen.findByRole("link", { name: "How to read the score" }));
+    renderApp("/?q=ENC%201101");
+    await screen.findByRole("table");
+    await user.click(screen.getByRole("link", { name: "How to read the score" }));
     expect(await screen.findByRole("heading", { name: "How to read the score", level: 1 })).toBeInTheDocument();
     expect(window.location.search).toBe("?guide");
     for (const name of ["The score (A%)", "The grade bar", "Grades and terms", "When there is no score", "RMP", "Copy CRN"]) {
@@ -210,5 +213,28 @@ describe("score guide", () => {
   it("loads directly from its URL", async () => {
     renderApp("/?guide");
     expect(await screen.findByRole("heading", { name: "How to read the score", level: 1 })).toBeInTheDocument();
+  });
+});
+
+describe("GenEd switching on results pages", () => {
+  it("drops the area chips and switches areas from the header menu", async () => {
+    const user = userEvent.setup();
+    renderApp("/?gened=communication");
+    expect(await screen.findByRole("heading", { name: "Communication", level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "Gen Ed requirement" })).not.toBeInTheDocument();
+    await user.click(within(screen.getByRole("banner")).getByRole("button", { name: "GenEd filters" }));
+    const menu = screen.getByRole("dialog", { name: "GenEd filters" });
+    expect(within(menu).getByRole("link", { name: "Communication" })).toHaveAttribute("aria-current", "page");
+    expect(within(menu).getByRole("link", { name: "Communication" })).toHaveFocus();
+    await user.click(within(menu).getByRole("link", { name: "Humanities" }));
+    expect(await screen.findByRole("heading", { name: "Humanities", level: 1 })).toBeInTheDocument();
+    expect(window.location.search).toBe("?gened=humanities");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("offers the menu in the header after a search too", async () => {
+    renderApp("/?q=ENC%201101");
+    await screen.findByRole("table");
+    expect(within(screen.getByRole("banner")).getByRole("button", { name: "GenEd filters" })).toBeInTheDocument();
   });
 });

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { fetchDiscovery, fetchHistory, fetchRankings, fetchSection, fetchSyncStatus, fetchTerms, isUsingMockData } from "./api/rankings";
 import usfBull from "./assets/usf-bull.svg";
+import { GenEdMenu } from "./components/GenEdMenu";
 import { SearchBox } from "./components/SearchBox";
 import { LoadError, Loading } from "./components/Status";
 import { SYNTHETIC_FIXTURE_NOTICE } from "./fixtures/rankings";
@@ -78,8 +79,14 @@ export default function App({
             <span>easy<span className="text-green">A</span></span>
           </a>
           {route.view !== "home" ? (
-            <div className="order-3 w-full min-[720px]:order-none min-[720px]:w-auto min-[720px]:max-w-[560px] min-[720px]:flex-1">
-              <SearchBox size="compact" initialValue={searchValue} onSearch={(q) => navigate({ view: "search", q })} />
+            <div className="relative order-3 w-full min-[720px]:order-none min-[720px]:w-auto min-[720px]:max-w-[600px] min-[720px]:flex-1">
+              <SearchBox
+                size="compact"
+                placeholder="pre calc"
+                initialValue={searchValue}
+                onSearch={(q) => navigate({ view: "search", q })}
+                rightButton={<GenEdMenu size="compact" navigate={navigate} current={route.view === "gened" ? route.area : undefined} />}
+              />
             </div>
           ) : null}
           <span className="ml-auto text-sm text-slate">{termName ? `${termName} · Tampa` : "USF Tampa"}</span>
@@ -96,7 +103,7 @@ export default function App({
         {terms.status === "error" ? <LoadError onRetry={retryTerms} /> : null}
         {term ? (
           route.view === "home" ? (
-            <HomePage navigate={navigate} />
+            <HomePage term={term} rankingLoader={rankingLoader} navigate={navigate} />
           ) : route.view === "guide" ? (
             <ScoreGuidePage navigate={navigate} />
           ) : route.view === "search" ? (
