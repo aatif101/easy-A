@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode, type Ref } from "react";
 
 interface SearchBoxProps {
   initialValue?: string;
@@ -6,9 +6,11 @@ interface SearchBoxProps {
   size?: "large" | "compact";
   /** Optional control beside the search field, before the submit button. */
   rightButton?: ReactNode;
+  inputRef?: Ref<HTMLInputElement>;
+  placeholder?: string;
 }
 
-export function SearchBox({ initialValue = "", onSearch, size = "large", rightButton }: SearchBoxProps) {
+export function SearchBox({ initialValue = "", onSearch, size = "large", rightButton, inputRef, placeholder = "Course, CRN, or professor" }: SearchBoxProps) {
   const [value, setValue] = useState(initialValue);
   useEffect(() => setValue(initialValue), [initialValue]);
 
@@ -29,10 +31,11 @@ export function SearchBox({ initialValue = "", onSearch, size = "large", rightBu
         </svg>
         <span className="sr-only">Search classes by CRN, course, subject, number, title, or professor</span>
         <input
+          ref={inputRef}
           type="search"
           value={value}
           onChange={(event) => setValue(event.target.value)}
-          placeholder="Course, CRN, or professor"
+          placeholder={placeholder}
           autoComplete="off"
           spellCheck={false}
           className={`min-w-0 flex-1 border-0 bg-transparent text-ink placeholder:text-slate ${large ? "text-[17px]" : "text-base"}`}

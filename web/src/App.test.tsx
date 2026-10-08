@@ -70,7 +70,7 @@ describe("header brand", () => {
     await user.tab();
     expect(home).toHaveFocus();
     await user.keyboard("{Enter}");
-    expect(await screen.findByRole("heading", { name: "Who gives the most A's?" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "See the grades before you register." })).toBeInTheDocument();
   });
 });
 
@@ -150,44 +150,19 @@ describe("CRN search", () => {
 });
 
 describe("home", () => {
-  it("ranks Gen Ed sections by the instructor's A share and groups repeat sections", async () => {
-    const social = [
-      section("50001", "Same Person", 0.91, { subject: "AMH", course_number: "2010", gened_attributes: [{ code: "SGES", label: "x" }] }),
-      section("50002", "Same Person", 0.91, { subject: "AMH", course_number: "2010", gened_attributes: [{ code: "UGES", label: "y" }] }),
-      section("50003", "Other Person", 0.6, { subject: "PSY", course_number: "2012", gened_attributes: [{ code: "SGES", label: "x" }] }),
-      section("50004", null, null, { subject: "PSY", course_number: "2012", gened_attributes: [{ code: "SGES", label: "x" }] }),
-    ];
-    renderApp("/", loaderFor(social));
-    expect(await screen.findByRole("heading", { name: "Social Sciences sections with high A rates" })).toBeInTheDocument();
-    const items = await screen.findAllByRole("listitem");
-    expect(items).toHaveLength(2);
-    expect(items[0]).toHaveTextContent("91%");
-    expect(items[0]).toHaveTextContent("50001");
-    expect(items[0]).toHaveTextContent("50002");
-    expect(items[1]).toHaveTextContent("60%");
-    for (const [index, name] of ["Same Person", "Other Person"].entries()) {
-      const link = within(items[index]).getByRole("link", { name: `Search for ${name} on Rate My Professors` });
-      expect(link.previousElementSibling).toHaveTextContent(name);
-      expect(link).toHaveAttribute("href", `https://www.ratemyprofessors.com/search/professors/1262?q=${encodeURIComponent(name)}`);
-      expect(link).toHaveAttribute("target", "_blank");
-      expect(link).toHaveAttribute("rel", "noopener noreferrer");
-    }
+  it("loads no rankings until the student picks a door", async () => {
+    const rankingLoader = loaderFor(encSections);
+    renderApp("/", rankingLoader);
+    expect(await screen.findByRole("heading", { name: "I just need a GenEd" })).toBeInTheDocument();
+    expect(rankingLoader).not.toHaveBeenCalled();
   });
 
-  it("omits home-page RMP links for Staff and unavailable assignments", async () => {
-    const gened_attributes = [{ code: "SGES", label: "Social Sciences" }];
-    const items = [
-      section("50001", "Staff", 0.9, { gened_attributes }),
-      section("50002", "Unavailable", 0.8, { gened_attributes }),
-      section("50003", "Ambiguous", 0.7, { gened_attributes }),
-      section("50004", "Old Name", 0.6, {
-        gened_attributes,
-        instructor_provenance: { freshness: "unavailable", source: "section_instructors", source_term: "202701", detail: "ambiguous latest instructor state" },
-      }),
-    ];
-    renderApp("/", loaderFor(items));
-    await screen.findByText("Old Name");
-    expect(screen.queryByRole("link", { name: /on Rate My Professors/ })).not.toBeInTheDocument();
+  it("opens a Gen Ed area from its door", async () => {
+    const user = userEvent.setup();
+    renderApp("/");
+    await user.click(await screen.findByRole("link", { name: "Communication" }));
+    expect(await screen.findByRole("heading", { name: "Communication", level: 1 })).toBeInTheDocument();
+    expect(window.location.search).toBe("?gened=communication");
   });
 
   it("searches from the landing page", async () => {
@@ -212,4 +187,28 @@ describe("RMP search links across results pages", () => {
       }
     },
   );
+});
+
+describe("score guide", () => {
+  it("opens from the landing page and explains each part of a row", async () => {
+    const user = userEvent.setup();
+    renderApp("/");
+    await user.click(await screen.findByRole("link", { name: "How to read the score" }));
+    expect(await screen.findByRole("heading", { name: "How to read the score", level: 1 })).toBeInTheDocument();
+    expect(window.location.search).toBe("?guide");
+    for (const name of ["The score (A%)", "The grade bar", "Grades and terms", "When there is no score", "RMP", "Copy CRN"]) {
+      expect(screen.getByRole("heading", { name, level: 2 })).toBeInTheDocument();
+    }
+  });
+
+  it("is linked from results pages", async () => {
+    renderApp("/?q=ENC%201101");
+    await screen.findByRole("table");
+    expect(screen.getByRole("link", { name: "How to read the score" })).toHaveAttribute("href", "?guide");
+  });
+
+  it("loads directly from its URL", async () => {
+    renderApp("/?guide");
+    expect(await screen.findByRole("heading", { name: "How to read the score", level: 1 })).toBeInTheDocument();
+  });
 });

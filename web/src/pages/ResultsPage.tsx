@@ -100,9 +100,14 @@ function SectionsView({
           onOpenCourse={(subject, courseNumber) => navigate({ view: "search", q: `${subject} ${courseNumber}` })}
         />
       )}
-      <p className="mt-3 text-sm text-slate" role="status">
-        Showing {rows.length} of {all.length} {all.length === 1 ? "section" : "sections"}
-      </p>
+      <div className="mt-3 flex flex-wrap items-baseline justify-between gap-2 text-sm text-slate">
+        <p role="status">
+          Showing {rows.length} of {all.length} {all.length === 1 ? "section" : "sections"}
+        </p>
+        <a href="?guide" onClick={inAppClick(navigate, { view: "guide" })} className="font-semibold">
+          How to read the score
+        </a>
+      </div>
     </>
   );
 }

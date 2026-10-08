@@ -1,7 +1,8 @@
 export type Route =
   | { view: "home" }
   | { view: "search"; q: string }
-  | { view: "gened"; area: string };
+  | { view: "gened"; area: string }
+  | { view: "guide" };
 
 /** Routes live in the query string so links are shareable and Back works on a static host. */
 export const readRoute = (search: string): Route => {
@@ -10,12 +11,14 @@ export const readRoute = (search: string): Route => {
   if (q) return { view: "search", q };
   const area = params.get("gened")?.trim().toLowerCase();
   if (area) return { view: "gened", area };
+  if (params.has("guide")) return { view: "guide" };
   return { view: "home" };
 };
 
 export const routeHref = (route: Route): string => {
   if (route.view === "search") return `?q=${encodeURIComponent(route.q)}`;
   if (route.view === "gened") return `?gened=${encodeURIComponent(route.area)}`;
+  if (route.view === "guide") return "?guide";
   return window.location.pathname;
 };
 

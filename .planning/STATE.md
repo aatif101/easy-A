@@ -1,11 +1,11 @@
 ---
 gsd_state_version: "1.0"
-status: PR 45 web CI repair verified locally
-stopped_at: Publishing GenEd menu repair; GitHub CI is authoritative for remote status
-last_updated: "2026-10-07T21:40:54Z"
-last_activity: 2026-10-07
-last_activity_desc: Repaired malformed JSX and GenEd filter interaction; integrated fetched main
-state_head: b6255e16184a2e41c0ff4b2babdb7b4fa5d0e91a
+status: Landing page redesign (three doors + score guide) verified locally
+stopped_at: Pushed claude/funny-heisenberg-27edqz; no PR opened yet
+last_updated: "2026-10-08T20:00:00Z"
+last_activity: 2026-10-08
+last_activity_desc: Replaced the home page with three entry points and added a score guide page
+state_head: a00221e
 progress:
   total_phases: 11
   completed_phases: 7
@@ -22,7 +22,23 @@ current_phase_name: Professor-level grades
 rules live in `PROJECT.md` `<decisions>`; the phase sequence lives in `ROADMAP.md`; dated history
 lives in `ARCHIVE.md`.
 
-## Current user-directed work — PR #45 web CI repair (2026-10-07)
+## Current user-directed work — landing page redesign (2026-10-08)
+
+- Branch `claude/funny-heisenberg-27edqz`, from `origin/main` `a00221e`. Campus feedback: the old
+  home page ("Who gives the most A's?" plus a Social Sciences top list and a hidden `⋮` GenEd
+  menu) did not show how to use the app. The owner compared three mockups and chose "two doors".
+- `HomePage.tsx` now has three entry points: class search, six GenEd area links (`?gened=`), and a
+  professor card that focuses the search field. The home page no longer loads rankings, so the
+  top list and GenEd popover from PR #45 are gone; GenEd lists live on the existing results page.
+- New `ScoreGuidePage.tsx` at `?guide` explains A%, the grade bar, grade/term counts, every
+  no-score caption, Compare instructors, RMP and Copy CRN. It shows no course data. It is linked
+  from the home page and under every section list.
+- Checks (Node 22): lint, typecheck, **124 frontend tests** and the production build passed.
+  Browser-checked with synthetic fixtures at 390×844 and 1440×1000: home, guide and a GenEd page,
+  no horizontal overflow, no page errors. No backend, dependency or scoring edits.
+- **Next action:** owner review; open a PR when asked.
+
+## Previous user-directed work — PR #45 web CI repair (2026-10-07)
 
 - [PR #45](https://github.com/aatif101/easy-A/pull/45), remote branch
   `feat/gened-filters-menu`, failed its push web job at ESLint: malformed JSX in

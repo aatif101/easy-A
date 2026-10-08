@@ -9,6 +9,7 @@ import { inAppClick, readRoute, routeHref, type Route } from "./lib/route";
 import { useLoad } from "./lib/useLoad";
 import { HomePage } from "./pages/HomePage";
 import { GenEdResults, SearchResults } from "./pages/ResultsPage";
+import { ScoreGuidePage } from "./pages/ScoreGuidePage";
 import type { RankingLoader, SectionLoader, SyncStatusLoader, TermsLoader } from "./types/rankings";
 import type { DiscoveryLoader, HistoryLoader } from "./types/search";
 
@@ -95,7 +96,9 @@ export default function App({
         {terms.status === "error" ? <LoadError onRetry={retryTerms} /> : null}
         {term ? (
           route.view === "home" ? (
-            <HomePage term={term} rankingLoader={rankingLoader} navigate={navigate} />
+            <HomePage navigate={navigate} />
+          ) : route.view === "guide" ? (
+            <ScoreGuidePage navigate={navigate} />
           ) : route.view === "search" ? (
             <SearchResults key={route.q} term={term} q={route.q} {...loaders} />
           ) : (
