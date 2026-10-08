@@ -55,3 +55,35 @@ describe("home page doors", () => {
     expect(navigate).toHaveBeenCalledExactlyOnceWith({ view: "guide" });
   });
 });
+
+describe("GenEd menu beside the search field", () => {
+  it("opens an area's list from the menu without submitting a search", async () => {
+    const { navigate, user } = setup();
+    const trigger = screen.getByRole("button", { name: "GenEd filters" });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await user.click(trigger);
+    const popover = screen.getByRole("dialog", { name: "GenEd filters" });
+    expect(trigger).toHaveAttribute("aria-controls", popover.id);
+    expect(within(popover).getAllByRole("link")).toHaveLength(6);
+    await user.click(within(popover).getByRole("link", { name: "Humanities" }));
+    expect(navigate).toHaveBeenCalledExactlyOnceWith({ view: "gened", area: "humanities" });
+  });
+
+  it("supports keyboard opening, Escape and outside clicks with focus return", async () => {
+    const { user } = setup();
+    const trigger = screen.getByRole("button", { name: "GenEd filters" });
+    trigger.focus();
+    await user.keyboard("{Enter}");
+    const popover = screen.getByRole("dialog");
+    expect(within(popover).getByRole("link", { name: "Communication" })).toHaveFocus();
+    await user.tab();
+    expect(within(popover).getByRole("link", { name: "Mathematics" })).toHaveFocus();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(trigger).toHaveFocus();
+    await user.click(trigger);
+    await user.click(screen.getByRole("heading", { name: "See the grades before you register." }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});

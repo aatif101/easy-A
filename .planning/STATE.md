@@ -29,14 +29,15 @@ lives in `ARCHIVE.md`.
   menu) did not show how to use the app. The owner compared three mockups and chose "two doors".
 - `HomePage.tsx` now has three entry points: class search, six GenEd area links (`?gened=`), and a
   professor card that focuses the search field. The home page no longer loads rankings, so the
-  top list and GenEd popover from PR #45 are gone; GenEd lists live on the existing results page.
+  top list is gone; GenEd lists live on the existing results page. The owner kept PR #45's `⋮`
+  GenEd menu beside the search field; picking an area now opens that area's list page.
 - New `ScoreGuidePage.tsx` at `?guide` explains A%, the grade bar, grade/term counts, every
   no-score caption, Compare instructors, RMP and Copy CRN. It shows no course data. It is linked
   from the home page and under every section list.
-- Checks (Node 22): lint, typecheck, **124 frontend tests** and the production build passed.
+- Checks (Node 22): lint, typecheck, **126 frontend tests** and the production build passed.
   Browser-checked with synthetic fixtures at 390×844 and 1440×1000: home, guide and a GenEd page,
   no horizontal overflow, no page errors. No backend, dependency or scoring edits.
-- **Next action:** owner review; open a PR when asked.
+- **Next action:** owner compares locally against `main`; open a PR when asked.
 
 ## Previous user-directed work — PR #45 web CI repair (2026-10-07)
 
