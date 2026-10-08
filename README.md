@@ -1,880 +1,122 @@
-# Easy-A
+# Easy A
 
-> **Scope note:** Sections below describe the application as it has grown; some predate Sprint 5.
-> Planning for the work ahead lives in [`.planning/`](.planning/). **Sprint 5 and real-data
-> expansion validation are both complete** — five Spring 2027 Tampa course targets were validated
-> at 75 sections on 2026-09-09. The Tampa-only correction was executed on 2026-09-14: 47
-> non-Tampa sections were removed, and a clean refresh found 77 current Tampa sections because
-> AMH 2020 gained two legitimate sections. PR #18 contains the reviewed tooling and awaits merge.
-> RateMyProfessors links and seat alerts remain candidate later phases, not current scope. For
-> current position start at [`.planning/STATE.md`](.planning/STATE.md); AI agents start at
-> [`AGENTS.md`](AGENTS.md).
+**Find your next USF class.**
 
-Easy-A is a course-intelligence tool for University of South Florida Tampa students.
+Search courses and instructors, compare historical grade distributions, and check the latest observed seats for USF Tampa.
 
-V1 ranks course sections using historical grade outcomes, withdrawal
-rates, syllabus signals, current seat availability, modality, General Education
-requirements, and current instructor assignments.
+**[Try it at easya.fyi →](https://easya.fyi)**
 
-The local beta includes a FastAPI API and React frontend. It intentionally does
-not include authentication, deployment, RateMyProfessors integration, LLM scoring,
-user accounts, or a persisted final rankings table.
+![React](https://img.shields.io/badge/React-18232F?style=flat-square&logo=react&logoColor=61DAFB)
+![TypeScript](https://img.shields.io/badge/TypeScript-18232F?style=flat-square&logo=typescript&logoColor=3178C6)
+![FastAPI](https://img.shields.io/badge/FastAPI-18232F?style=flat-square&logo=fastapi&logoColor=009688)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18232F?style=flat-square&logo=postgresql&logoColor=4169E1)
 
-## Development Status
+## What it does
 
-Current branch work contains:
+- Search by course code, CRN, subject, number, title, or instructor.
+- Compare an instructor's past grades **in that course**, with sample sizes and covered terms.
+- Browse GenEd requirements and see seat counts with their last-checked time.
+- Open Rate My Professors links and copy a CRN for registration in OASIS.
 
-- Python 3.12 project bootstrap managed by `uv`
-- PostgreSQL 16 local database via Docker Compose
-- SQLAlchemy 2 models and Alembic migration setup
-- Banner term normalization helpers
-- Public catalog HTML client/parser/ingest layers
-- Local XLSX-only grade distribution parser/ingest layers
-- Historical grade analytics and a V1 historical easiness score
-- Computed section ranking output that joins analytics, current section facts,
-  GenEd attributes, seats, modality, and deterministic signals
-- Offline tests using synthetic HTML and generated synthetic XLSX fixtures
+## How it's built
 
-Developer 1 owns the catalog, historical grades, term normalization, and database
-foundation. Developer 2 owns schedule, seats, instructors, and Simple Syllabus.
-Those pipelines will eventually join on `(term, CRN)`.
+A React/TypeScript frontend talks to a FastAPI backend backed by PostgreSQL on Supabase. A background worker refreshes USF schedule data; historical grade imports retain their source and academic term. The API, worker, and frontend are hosted on Render.
 
-The canonical grade-to-section join is `grade_distributions.term_id = sections.term_id`
-and `grade_distributions.crn = sections.crn`. Grade distributions intentionally do
-not store `section_id`, because CRNs are scoped by term and section rows may be
-re-ingested independently from historical grade rows.
+Grade history comes from USF InfoCenter reports. Missing history stays unavailable, and small samples are labeled. Past grades are not a prediction of your grade; confirm seats in OASIS. RMP links are references only—ratings and reviews are not imported or used in scoring.
 
-## Local Setup
+<details>
+<summary><strong>Run locally</strong></summary>
 
-Install `uv`, then create the virtual environment and install dependencies:
+### Frontend demo
 
-```powershell
-uv sync
-```
+Requires Node.js and npm. From the repository root:
 
-Copy `.env.example` to `.env` for local development and adjust values if needed.
-
-## Frontend
-
-The frontend is a React, TypeScript, Vite, and Tailwind CSS app under `web/`. One search box
-takes a CRN, course code (`ENC 1101`), subject (`PSY`), course number (`1101`, `2045L`),
-catalog title (`Program Design`), or stored instructor name; Gen Ed areas can be browsed
-directly. Every section shows its current instructor's A share in that course, with the grade
-count behind it, and lets students copy the CRN for OASIS. Routes live in the query string
-(`?q=ENC%201101`, `?gened=social-sciences`).
-
-Expanded search uses `GET /api/v1/search?term=202701&q=calculus%201` and returns independently
-paginated course and instructor-course matches (20 per category by default, maximum 50).
-The backend in `src/easy_a/search.py` owns production interpretation, case/spacing/punctuation
-normalization and literal title-token matching. The only common-name normalization is numeral
-tokens `1`–`4` ↔ `I`–`IV`, matched against stored catalog titles with token boundaries; there
-are no invented course aliases or expanded instructor initials. Course numbers can match
-multiple subjects. Courses retain their catalog edition and database ID.
-
-`GET /api/v1/search/history?term=202701&course_id=42&name=J.%20Smith` returns stored historical
-grade buckets, A / A–F share, observed A–F count, exact covered terms, and paginated term/CRN/source
-records with source fingerprints and import timestamps. Omit `name` for own-course records.
-Neither endpoint changes ranking behavior or computes an overall professor score. Discovery
-performs four SQL reads; record pages are limited to 50 and offsets to 10,000. Search waits for
-form submission and uses the existing abort-and-ignore-stale-response loader.
-
-The schema has no college identifier, so instructor results stay separate for each course and
-listed name. Matching names across courses do not establish identity. Only usable, unambiguous
-latest assignments are searchable; historical assignments with conflicting observations are
-excluded from attribution. Laboratories are excluded from instructor history. Small observed
-samples remain insufficient, non-letter-grade records have no A share, and absent/ambiguous
-history stays unavailable. Missing or suppressed source rows cannot be reconstructed from the
-stored schema (which does not persist suppression markers). The detailed view shows only stored
-own-course records, never a subject/global prior as course history. The frontend-only fixture
-mode keeps basic demonstration searches and explicitly declines missing raw grade records.
-
-```powershell
+```sh
 cd web
-npm install
-npm run dev
+npm ci
 ```
 
-Set frontend variables in `web/.env.local` (see `web/.env.example`):
+Copy `web/.env.example` to `web/.env.local`, keeping `VITE_USE_MOCK_DATA=true`, then run `npm run dev`. This mode uses labeled synthetic fixtures and needs no database.
 
-| Mode | VITE_USE_MOCK_DATA | VITE_API_BASE_URL |
-| --- | --- | --- |
-| Local synthetic fixtures | `true` | Optional |
-| Local real API | `false` | `http://localhost:8000` |
-| Hosted beta | `false` | Explicit hosted HTTPS API base URL |
+### Full application
 
-To run the local UI against the hosted API, whose CORS policy only admits the deployed site,
-let the Vite dev server proxy `/api`:
+Requires Python 3.12+, uv, Node.js, and Docker.
 
-```powershell
-$env:EASY_A_DEV_PROXY = "https://easy-a-api.onrender.com"
-$env:VITE_API_BASE_URL = "http://localhost:5173"
-npm run dev
+1. Run `uv sync` from the repository root.
+2. Copy `.env.example` to `.env`. The included connection string targets local Docker PostgreSQL.
+3. Start the database, apply migrations, and start the API:
+
+```sh
+docker compose up -d db
+uv run alembic upgrade head
+uv run uvicorn easy_a.api.app:app --reload
 ```
 
-Only the exact value `true` enables labeled synthetic fixtures, even if an API
-URL is also present. Otherwise an absolute HTTP(S) API URL is required. Missing
-configuration and API failures are visible errors; neither falls back to fixtures.
-This applies to development and production builds alike.
+4. Set these values in `web/.env.local`:
 
-Vite embeds these public variables at build time: set them before `npm run build`
-and rebuild when they change. Serve `web/dist` with any static host. Never put
-secrets, database URLs, or credentials in `VITE_*` variables. For hosted beta,
-configure the API's `EASY_A_ALLOWED_FRONTEND_ORIGINS` to include the exact frontend
-origin (scheme, host, port). The browser must be able to reach the API; HTTPS
-frontends require HTTPS APIs. No hosting provider is required.
+```dotenv
+VITE_USE_MOCK_DATA=false
+VITE_API_BASE_URL=http://localhost:8000
+```
 
-The typed client loads terms from the metadata endpoint, then loads every matching section from
-`GET /api/v1/rankings/search` (paging through `limit`/`offset`) so it can sort by A share on the
-client; CRN lookups use `GET /api/v1/rankings/section`. A configured API failure is shown as
-an error and is not silently replaced by mock data. Frontend quality commands are:
+5. In a second terminal, run `npm ci` and `npm run dev` from `web/`.
 
-```powershell
+A fresh database is empty. Schedule and approved aggregate grade data must be imported separately; production source exports are not included. See the [operations runbook](docs/runbooks/hosted-beta-operations.md) and [ingestion scripts](scripts/).
+
+### Checks
+
+From the repository root:
+
+```sh
+uv run pytest
+uv run ruff check .
+uv run mypy src migrations scripts tests
+```
+
+From `web/`:
+
+```sh
 npm test
 npm run lint
 npm run typecheck
 npm run build
 ```
 
-The default term is the newest API metadata term. Subject options are API-driven;
-full course codes (including suffixes such as `CHM 2045L`) take priority over the
-Subject selector. Results stay server-paginated in pages of 50; no full catalog
-is loaded. Empty searches do not establish whether a course is offered or covered.
+PostgreSQL integration tests require a separate test database via `EASY_A_TEST_POSTGRES_URL`.
 
-`web/src/utils/time.ts` provides independent relative and absolute time formatters.
-It accepts ISO timestamps with an explicit timezone, returns `Unavailable` for
-missing/invalid input, permits an injected millisecond clock, and formats absolute
-times in UTC. Future timestamps clamp to `just now`; older values use minutes,
-hours, or days. Rows, cards, and expanded details display `seats.freshness` as
-provided by the backend and use `seats.observed_at` for relative text and an
-absolute UTC tooltip. The frontend does not calculate freshness thresholds.
-Stale counts remain visible, null counts stay unavailable, negative counts show
-over-enrollment, and waitlist spots are labeled separately from registration seats.
+</details>
 
-The client also loads `/api/v1/metadata/coverage?term=<term>` once per selected
-term. Exact configured-course searches can show missing catalog or missing
-section observations. Absent targets do not block arbitrary searches, and coverage
-failures are announced with a retry while ranking search remains available.
+<details>
+<summary><strong>Grade methodology</strong></summary>
 
-This V1 has no authentication, accounts, RateMyProfessors data, or LLM features.
-Sprint 5 is complete. Hosted-beta deployment, CI and observability are planned
-work; RateMyProfessors links and seat alerts remain candidate later phases. See
-[`.planning/ROADMAP.md`](.planning/ROADMAP.md).
+Displayed A share is `A / (A + B + C + D + F)`, accompanied by the observed grade count. It is distinct from the backend's historical easiness score.
 
-## Local Beta Smoke Test
-
-Terminal 1 — start PostgreSQL:
-
-```powershell
-docker compose up -d db
-```
-
-Terminal 2 — start the API from the repository root:
-
-```powershell
-uv run uvicorn easy_a.api.app:app --reload
-```
-
-Terminal 3 — start the frontend with the real API configured:
-
-```powershell
-cd web
-$env:VITE_API_BASE_URL = "http://localhost:8000"
-$env:VITE_USE_MOCK_DATA = "false"
-npm run dev
-```
-
-Verify that:
-
-- the term selector loads from API metadata;
-- searches for `MAC 1105` and `ENC 1101` work;
-- the open-seats and GenEd filters work;
-- a section detail panel opens;
-- historical signals are explicitly labeled;
-- unknown instructors, seats, modalities, and signals display safely.
-
-## PostgreSQL
-
-Start PostgreSQL 16 locally:
-
-```powershell
-docker compose up -d db
-```
-
-The default local connection string is:
-
-```text
-postgresql+psycopg://easy_a:easy_a@localhost:5432/easy_a
-```
-
-## Hosted Supabase Postgres
-
-`DATABASE_URL` is required everywhere (API, `scripts/`, alembic); if unset the
-process fails with a clear error. There is no localhost fallback, so copy
-`.env.example` to `.env` even for local Docker. Never commit `.env` or real
-credentials.
-
-| Variable | Used by | Supabase value |
-| --- | --- | --- |
-| `DATABASE_URL` | API and scripts | Transaction pooler, port `6543` |
-| `MIGRATION_DATABASE_URL` | alembic only (optional) | Session pooler (IPv4) or direct connection, port `5432` |
-
-```text
-DATABASE_URL=postgresql+psycopg://postgres.<PROJECT_REF>:<PASSWORD>@aws-0-<REGION>.pooler.supabase.com:6543/postgres?sslmode=require
-MIGRATION_DATABASE_URL=postgresql+psycopg://postgres.<PROJECT_REF>:<PASSWORD>@aws-0-<REGION>.pooler.supabase.com:5432/postgres?sslmode=require
-```
-
-The direct host (`db.<PROJECT_REF>.supabase.co`) is IPv6-only unless you buy
-Supabase's IPv4 add-on, so it fails with "Network is unreachable" on IPv4-only
-machines (including default WSL). Use the **session pooler** (same host as
-`DATABASE_URL`, port `5432`) for migrations instead. Replace every `<...>`
-placeholder, including `<REGION>`, with the real value.
-
-Supabase's copy button gives plain `postgresql://`; plain `postgresql://` and
-`postgres://` are rewritten to `postgresql+psycopg://` automatically. Pooler
-URLs (port 6543 or `pooler.supabase.com`) automatically disable prepared
-statements; `pool_pre_ping` is always on. Local Docker URLs are unaffected.
-
-Migrate and smoke test:
-
-```bash
-uv run alembic upgrade head
-uv run uvicorn easy_a.api.app:app
-curl http://127.0.0.1:8000/health
-curl http://127.0.0.1:8000/api/v1/metadata/terms
-```
-
-## Migrations
-
-Run Alembic migrations after the database is healthy:
-
-```powershell
-uv run alembic upgrade head
-```
-
-To create a new migration after model changes:
-
-```powershell
-uv run alembic revision --autogenerate -m "describe change"
-```
-
-Current migration chain:
-
-```text
-0001_create_data_core
-0002_create_section_syllabus_tables
-```
-
-## Real-Data Refresh
-
-USF ODS has approved aggregate USF InfoCenter grade-distribution data for this
-project. The approval covers aggregate section outcomes only: Easy-A does not
-store student-level records or personally identifiable information. The
-application may use derived aggregate statistics after preserving the source
-provenance and an explicit Banner term on every imported grade row.
-
-Apply migrations, then use the refresh command to coordinate whichever sources
-are available for the target term. This file-backed example is suitable for a
-repeatable offline or operator-supplied refresh:
-
-```powershell
-uv run python scripts/refresh_data.py `
-  --term 202701 `
-  --catalog-source file `
-  --catalog-edition 2026-2027 `
-  --catalog-file C:\local\catalog.html `
-  --schedule-source file `
-  --schedule-file C:\local\schedule.html `
-  --grade-file C:\private\infocenter-grades.xlsx `
-  --syllabus-source file `
-  --syllabus-file bpvdotxa9=C:\local\syllabus.html
-```
-
-Live public catalog and schedule acquisition can be mixed with omitted private
-or unavailable inputs:
-
-```powershell
-uv run python scripts/refresh_data.py `
-  --term 202701 `
-  --catalog-source live `
-  --catalog-edition 2026-2027 `
-  --catalog-url https://cloud.usf.edu/academic-programs/details/prefix/MAC/code/1105 `
-  --schedule-source live `
-  --schedule-campus T `
-  --schedule-subject MAC `
-  --schedule-course 1105 `
-  --skip-grades `
-  --skip-syllabi
-```
-
-No data source is mandatory. Omitting a source leaves that stage out, and the
-explicit `--skip-catalog`, `--skip-schedule`, `--skip-grades`, and
-`--skip-syllabi` switches let an operator temporarily disable configured stages.
-Live schedule requests must remain narrow by providing a subject or CRN. Live
-syllabus refresh accepts one or more `--syllabus-document` IDs or public URLs;
-file mode accepts repeatable `--syllabus-file DOCUMENT_ID=HTML` mappings.
-
-The term is always required, including when a grade file is supplied.
-`--grade-file` belongs to exactly the `--term` supplied on that command. The
-workbook does not encode a trusted term, and its filename is never used as term
-metadata. Operators must import historical grade workbooks with their actual
-historical Banner term. For example, never load a Fall 2024 export under Spring
-2027 merely because Spring 2027 is the current ranking term. Run that grade-only
-historical import with its real term instead:
-
-```powershell
-uv run python scripts/refresh_data.py `
-  --term 202408 `
-  --grade-file C:\private\fall-2024-infocenter-grades.xlsx `
-  --skip-catalog `
-  --skip-schedule `
-  --skip-syllabi
-```
-
-Remote acquisition completes before its database transaction begins. Each
-ingestion stage has its own transaction: a successful stage commits, while a
-failed stage rolls back without undoing previously completed stages. Schedule
-reruns update canonical `(term, CRN)` sections while appending seat and
-instructor observations, and the final quality report runs only after successful
-stage commits.
-
-The refresh summary reports the target term, distinct courses represented by
-target-term sections, canonical sections, instructor observations and seat
-snapshots added by this run, stored target-term grade rows and syllabi, and
-quality error and warning counts. Exit status is `0` when the refresh and quality
-checks succeed, `1` when ingestion succeeds but quality errors are present, and
-`2` when an ingestion stage fails.
-
-## Hosted beta (Render)
-
-The hosted beta runs from `render.yaml` (Render Blueprint): `easy-a-api` and `easy-a-worker` share one `Dockerfile`, and `easy-a-web` is the static front end. The worker command is `python -m easy_a.sync --term 202701`. Migrations stay manual. See [docs/runbooks/hosted-beta-operations.md](docs/runbooks/hosted-beta-operations.md) for health checks, refresh and recovery, pausing the worker, latency measurement and deploy ordering.
-
-## Data Quality
-
-Run the quality checks independently for any stored term:
-
-```powershell
-uv run python scripts/check_data_quality.py --term 202701
-uv run python scripts/check_data_quality.py --term 202701 --stale-after-days 14 --json
-```
-
-The report checks duplicate `(term, CRN)` sections, grade bucket totals, orphan
-grade and instructor rows, impossible seat values, unknown delivery methods,
-ambiguous current instructors, stale schedule observations, missing historical
-analytics coverage, and low-confidence rankings. Staleness is configurable and
-is reported as a warning rather than treated as invalid data. Human-readable
-output looks like:
-
-```text
-Term: 202701
-Sections: 46
-Errors: 0
-Warnings: 8
-Info: 3
-
-WARN ambiguous_instructor CRN 12345 [section:17]: Latest instructor observation contains multiple names: Instructor A / Instructor B
-WARN low_confidence_ranking CRN 19410 [section:21]: Computed historical ranking confidence is low.
-INFO no_historical_analytics CRN 13173 [section:19]: Section has no historical grade analytics coverage.
-```
-
-The quality command exits nonzero only when at least one error-level finding is
-present. Warnings and informational coverage gaps do not fail the command.
-
-## Narrow public-source commands
-
-```powershell
-uv run python scripts/ingest_schedule.py --term 202701 --campus T --subject MAC --course 1105
-uv run python scripts/resolve_historical_section.py --term 202408 --crn 89033 --subject MAC --course 1105
-uv run python scripts/ingest_syllabus.py --document-id bpvdotxa9
-uv run python scripts/analyze_course.py --term 202701 --subject MAC --course 1105
-uv run python scripts/rank_section.py --term 202701 --crn 19410
-uv run python scripts/rank_course.py --term 202701 --subject MAC --course 1105
-```
-
-Schedule searches use the public form POST, and syllabus ingestion accepts one known
-document ID or URL at a time. Neither command is a broad crawler.
-
-## Deterministic Syllabus Signals
-
-Sprint 2 extracts a narrow set of human-readable policy and course-format signals
-from already-stored syllabus text and schedule section notes. Extraction is
-deterministic and rules-based; it does not call an LLM or any model API.
-
-Every returned signal includes its type, normalized value, rule confidence, source
-kind and identifier, source term, extraction time, and a short exact evidence window
-of at most 240 characters. Categories without supported evidence are omitted rather
-than filled with a fabricated value.
-
-For a current section, source precedence is:
-
-1. current-term syllabus;
-2. current schedule section note, if it contains a supported signal;
-3. historical syllabus for the same course and conservatively resolved instructor;
-4. latest historical syllabus for the same course; or
-5. unavailable.
-
-Historical signals are explicitly labeled as historical and retain their source
-term. They are never silently combined with current statements. Instructor matching
-accepts exact normalized names, or a unique first-initial plus exact-surname match
-within the course history. Current instructors come only from the latest
-`observed_at` state; `Staff`, multiple conflicting instructors in that latest state,
-and ambiguous abbreviations do not receive an instructor match.
-
-Extract signals for one section already present in the database:
-
-```powershell
-uv run python scripts/extract_section_signals.py --term 202701 --crn 19410
-```
-
-Known limitations: rules cover only explicit phrases in the current rule set;
-unusual wording remains unknown, confidence scores describe rule specificity rather
-than calibrated probability, and the latest same-course syllabus is only a
-historical reference rather than evidence of current policy. Signal objects are
-computed at request time in Sprint 2; no persistent `syllabus_signals` or
-`section_rankings` table is created.
-
-## Section Ranking Integration
-
-Sprint 2 integrates the merged historical analytics and deterministic signal
-systems into a computed, typed section-level ranking output in
-`easy_a.rankings`. It is still backend-only and intentionally does not add a
-frontend, FastAPI API, RateMyProfessors integration, LLM scoring, user accounts,
-or deployment.
-
-For one stored current section, the ranking service resolves the row by
-`(term, CRN)` and joins:
-
-- current `terms`, `sections`, and exact `courses` data;
-- the latest observed `section_instructors` state;
-- delivery method and current seat fields, preferring the latest
-  `seat_snapshots` row when one exists;
-- stored `course_attributes` GenEd code-label pairs;
-- historical easiness analytics from `grade_distributions`; and
-- resolved deterministic syllabus or section-note signals.
-
-The CLI prints JSON so downstream consumers can see the full provenance contract
-without an API:
-
-```powershell
-uv run python scripts/rank_section.py --term 202701 --crn 19410
-uv run python scripts/rank_course.py --term 202701 --subject MAC --course 1105
-```
-
-## FastAPI API
-
-Sprint 3 exposes the computed ranking service through a thin FastAPI app. It does
-not add authentication, accounts, deployment infrastructure, RateMyProfessors,
-LLM scoring, or a persisted rankings table.
-
-Run the API locally after syncing dependencies and applying migrations:
-
-```powershell
-uv run uvicorn easy_a.api.app:app --reload
-```
-
-The app reads `DATABASE_URL` for the SQLAlchemy connection. Development CORS is
-restricted to local frontend origins by default:
-`http://localhost:5173,http://127.0.0.1:5173`. Override it with a comma-separated
-`EASY_A_ALLOWED_FRONTEND_ORIGINS` value when needed.
-
-Endpoints:
-
-- `GET /health` returns `{"status":"ok"}`.
-- `GET /api/v1/rankings/section?term=202701&crn=19410` ranks one stored section.
-- `GET /api/v1/rankings/course?term=202701&subject=MAC&course_number=1105`
-  ranks all stored sections for one course.
-- `GET /api/v1/rankings/search?term=202701&gened_code=SMEL&seats_open=true`
-  searches stored current sections, computes rankings for candidates, applies
-  filters, and returns `items`, `total`, `limit`, and `offset`.
-- `GET /api/v1/metadata/terms`
-- `GET /api/v1/metadata/subjects`
-- `GET /api/v1/metadata/gened-attributes`
-- `GET /api/v1/metadata/delivery-methods`
-
-Sample requests:
-
-```powershell
-curl "http://127.0.0.1:8000/health"
-curl "http://127.0.0.1:8000/api/v1/rankings/section?term=202701&crn=19410"
-curl "http://127.0.0.1:8000/api/v1/rankings/course?term=202701&subject=MAC&course_number=1105"
-curl "http://127.0.0.1:8000/api/v1/rankings/search?term=202701&sort=easiness_desc&limit=25"
-curl "http://127.0.0.1:8000/api/v1/metadata/gened-attributes"
-```
-
-Search filters are intentionally V1-simple: candidate sections come from the
-canonical term/course/section tables, the existing ranking service computes each
-candidate, and derived filters such as open seats, minimum easiness, and
-confidence are applied to those computed outputs. Default `limit` is `50`; max
-`limit` is `200`. Supported sort values are `easiness_desc`, `easiness_asc`,
-`withdrawal_asc`, `seats_desc`, and `course`.
-
-The top-level score fields are historical-only: `easiness_score`,
-`smoothed_withdrawal_rate`, `confidence_label`, `effective_n`, and
-`score_source` come from historical grade outcomes and the analytics fallback
-rules. Current seats, delivery method, section notes, syllabus signals, GenEd
-attributes, and future professor/RMP data do not influence easiness scoring.
-
-Each output keeps missing or uncertain data explicit rather than filling guesses:
-empty signal resolution is reported as `unavailable`, historical syllabus signals
-are marked `historical` with their source term, seat data says whether it came
-from a seat snapshot or canonical section fields, and GenEd attributes remain an
-empty list with unavailable provenance when no course attributes are stored.
-
-The ranking output is computed on demand. No `section_rankings` table or Alembic
-migration is added in Sprint 2 because the existing source tables already hold
-the canonical facts. If a future workflow needs cached, versioned ranking
-artifacts, that should be a derived table chained after
-`0002_create_section_syllabus_tables`; live seats, modality, and other source
-facts should remain in their source tables.
-
-API ranking caveats match the computed service caveats: easiness uses historical
-grade outcomes and withdrawal rates only. Current seats, delivery method, GenEd
-attributes, syllabus or section-note signals, and future professor/RMP fields do
-not affect the score. Historical signals are labeled historical and should not be
-presented as current policy.
-
-USF ODS approved use of aggregate InfoCenter grade-distribution data for this
-project. This authorization does not imply USF endorsement of Easy-A.
-Production-quality rankings still depend on a complete, correctly provenanced set
-of approved aggregate rows. Local development databases may be partial, synthetic,
-or missing historical coverage, so low-confidence and fallback scores should be
-treated as exploratory rather than definitive.
-
-## Tests And Quality
-
-```powershell
-uv run pytest
-uv run ruff check .
-uv run mypy src migrations scripts tests
-```
-
-## Grade Distribution Ingestion
-
-USF InfoCenter grade exports are parsed from local `.xlsx` files only. The
-workbook does not encode a trusted academic term, so `--term` is required and
-filenames are never used to infer term metadata. The file must be imported under
-the actual Banner term represented by its rows, even when a different term is
-currently being ranked.
-
-```powershell
-uv run python scripts/ingest_grades.py `
-  --term 202408 `
-  --file C:\local\path\sample.xlsx
-```
-
-The parser expects the structural columns:
-
-```text
-course, A, % A, B, % B, C, % C, D, % D, F, % F, I, % I,
-S, % S, U, % U, W, % W, O, % O, Total Grades
-```
-
-It ignores hierarchy and total rows that do not match a section identifier like:
-
-```text
-MAC-1105 -001-C (89033)
-```
-
-For each section, `A + B + C + D + F + I + S + U + W + O` must equal
-`Total Grades`; invalid rows fail ingestion and are logged in `ingest_runs`.
-Percentage columns are informational source data and are not stored canonically.
-
-## Historical Analytics
-
-The analytics package computes historical outcome statistics from completed grade
-and withdrawal buckets already in the database. It does not create the final
-`section_rankings` table.
-
-The V1 grade favorability metric uses only completed letter grades:
-
-```text
-(4*A + 3*B + 2*C + 1*D + 0*F) / (4 * (A + B + C + D + F))
-```
-
-USF grade distribution exports provide only coarse `A`, `B`, `C`, `D`, and `F`
-buckets. They do not include plus/minus grades, so this metric stays a normalized
-favorability score rather than a transcript-style average.
-
-Withdrawal rate is computed separately as:
-
-```text
-W / Total Grades
-```
-
-when `Total Grades` is greater than zero. `I`, `S`, `U`, `W`, and `Other` are not
-included in the grade-favorability denominator.
-
-The historical easiness score is a transparent V1 composite:
-
-```text
-10 * (0.80 * smoothed_grade_favorability + 0.20 * (1 - smoothed_withdrawal_rate))
-```
-
-The result is clamped to `0` through `10`. It uses historical academic outcomes
-only. Syllabus signals, RateMyProfessors, seat availability, modality, and similar
-non-grade inputs do not affect this score.
-
-Small samples are regularized with a simple empirical-Bayes shrinkage:
-
-```text
-weight = n / (n + prior_strength)
-smoothed = weight * observed + (1 - weight) * prior
-```
-
-The default prior strengths are V1 regularization constants, not statistically
-optimal claims. Instructor-course history uses course-level history as its prior.
-Course-level history can fall back to subject-level or global history.
+The backend combines normalized grade favorability (80%) and the complement of withdrawal rate (20%), using Bayesian shrinkage for small samples. Seats, GenEd requirements, modality, syllabus signals, and RMP links do not affect that score.
 
 ### Instructor-course history
 
-Instructor-course scoring was retuned under PROJECT.md D-24 (approved 2026-09-30,
-amending D-02 for instructor-course scoring only):
+Instructor scoring requires at least 30 effective graded students and a usable instructor assignment in the same course. Grade favorability is shrunk toward the course mean with a prior strength of 30; course-level grade priors and withdrawal priors remain 60.
 
-- **Gate:** a section is scored from its current instructor's history in that course
-  only when that history has at least 30 effective graded students
-  (`instructor_course_min_effective_n = 30`, was 60) and at least one section mapped to
-  a usable instructor name.
-- **Instructor prior strength:** the instructor's grade favorability is shrunk toward the
-  course-level mean with `instructor_prior_strength = 30`. `grade_prior_strength` stays 60
-  for course, subject and global history, and `withdrawal_prior_strength` stays 60 at every
-  level, so withdrawal smoothing is unchanged for instructors too.
-- **Laboratory sections:** grades of Laboratory sections never count toward an
-  instructor's history, and a current Laboratory section is scored from course-level
-  history. Course-level history still includes lab grades. The rule lives in
-  `src/easy_a/common/section_types.py` and matches the exact normalized type
-  `laboratory`, so combined types such as lecture-plus-lab stay included.
-- **Staff and blank instructors** are never matched to a named instructor. Their sections
-  keep contributing to course-level history.
-- **One listed instructor per section.** Co-teaching is invisible: a co-taught section is
-  attributed to whichever name the schedule lists.
-- **Names are matched within one course only.** The same listed name in two different
-  courses is two separate histories and is never pooled across courses.
-- **Single-term histories are labeled, not penalized.** An instructor whose history sits in
-  one term gets the same score as the same counts spread over two terms; only `term_count`
-  (and the confidence label) differ. There is no extra shrinkage and no multi-term
-  requirement.
-- **Reproducing the earlier D-02 baseline:** scoring with
-  `ScoreConfig(instructor_course_min_effective_n=60, instructor_prior_strength=60)` gives
-  the previous instructor-course behavior. Course, subject and global scores are identical
-  under both configurations.
+Laboratory sections use course-level history and are excluded from instructor-level statistics. Staff and blank names are never assigned to a named instructor. Names are matched within a course, not pooled across courses. Single-term histories are labeled without an extra scoring penalty.
 
-Each result includes a confidence label based on effective sample size:
+When instructor evidence is insufficient, scoring falls back through course, subject, and global history. A subject or global fallback is never presented as observed course history. Confidence labels describe data coverage, not certainty.
 
-```text
-low: effective_n < 60
-medium: 60 <= effective_n < 180
-high: effective_n >= 180
-```
+Implementation: [analytics](src/easy_a/analytics/) · [rankings](src/easy_a/rankings/)
 
-One-term histories are treated more conservatively. Confidence is a rough data
-coverage signal, not statistical certainty.
+</details>
 
-Example analytics command:
+<details>
+<summary><strong>Data and development notes</strong></summary>
 
-```powershell
-uv run python scripts/analyze_course.py `
-  --term 202701 `
-  --subject MAC `
-  --course 1105
-```
+Only approved aggregate grade data and its provenance belong in the application. Never commit raw grade exports, student-level records, credentials, or `.env` files. Tests use synthetic fixtures.
 
-Output includes current section CRN, instructor, historical easiness, historical
-withdrawal rate, confidence, effective sample size, and score source.
+- [Hosted operations and recovery](docs/runbooks/hosted-beta-operations.md)
+- [Agent and contributor instructions](AGENTS.md)
+- [Project state](.planning/STATE.md)
+- [Earlier technical notes](https://github.com/aatif101/easy-A/blob/a00221e549fb056b88b352ce0b08969a403d5a05/README.md) — historical reference; some sections are superseded.
 
-## Catalog Ingestion
+</details>
 
-Catalog acquisition and parsing are separate. The parser can be tested offline with
-HTML fixtures, while the client fetches public catalog/course inventory pages.
+---
 
-```powershell
-uv run python scripts/ingest_catalog.py `
-  --catalog-edition 2026-2027 `
-  --url https://cloud.usf.edu/academic-programs/details/prefix/ENC/code/1101
-```
-
-You can also ingest a local HTML fixture:
-
-```powershell
-uv run python scripts/ingest_catalog.py `
-  --catalog-edition 2026-2027 `
-  --file tests\fixtures\catalog\enc_1101.html
-```
-
-Course attributes are stored as raw code-label pairs. Attribute codes are not
-globally unique because the same code can appear with different labels.
-
-## Data Safety
-
-USF ODS approval permits aggregate grade-distribution data and derived aggregate
-statistics to be used by Easy-A. It does not permit storing student-level data or
-PII. Every ingested grade row must retain its explicit term and source provenance.
-
-Raw source exports must never be committed to GitHub. The repository ignores
-`.xlsx`, `.xls`, `data/`, and `research/raw/`; tests generate synthetic workbooks
-only in temporary directories. Do not commit authenticated-session data,
-credentials, cookies, `.env` files, internal-use USF data, or real InfoCenter
-exports.
-
-Code correctness for parsing and scoring remains separate from source handling:
-operators are responsible for keeping raw authenticated exports outside the
-repository while the application stores only approved aggregate records and
-their derived statistics. USF ODS approved use of aggregate InfoCenter
-grade-distribution data for this project; this does not imply USF endorsement of
-Easy-A, and the repository's data safety restrictions still apply.
-
-
-## Configurable beta coverage and latest observed seats
-
-`config/course_targets.toml` defines the beta course targets, catalog edition, and
-public catalog URL template. The seed set is MAC 1105, ENC 1101, AMH 2020,
-PSY 2012, and BSC 1005. Broader coverage is configurable; this does not automatically
-cover all USF courses or supply historical grades for newly configured targets.
-Set `EASY_A_COURSE_TARGETS_PATH` to an absolute config path when running outside the
-repository root (including API deployments), or pass `--targets path/to/targets.toml`
-to either command. Duplicate targets and invalid course codes are rejected.
-
-```powershell
-uv run python scripts/refresh_course_coverage.py --term 202701
-uv run python scripts/refresh_course_coverage.py --term 202701 --subject MAC --course 1105
-uv run python scripts/refresh_seats.py --term 202701
-uv run python scripts/refresh_seats.py --term 202701 --subject MAC --course 1105
-uv run python scripts/refresh_seats.py --term 202701 --crn 13173
-```
-
-Coverage refresh fetches each target's catalog metadata and Tampa schedule sequentially,
-reports section counts returned in this pass, missing targets, and quality findings.
-Seat refresh uses the existing Staff Schedule Search client and schedule ingestion:
-it appends snapshots and instructor observations and updates canonical schedule fields
-by exact term + CRN. Previous snapshots remain. Neither command imports historical
-grades or touches syllabi. Seat values and freshness never enter historical scoring;
-a changed instructor can still select a different historical score through existing
-schedule behavior. CRN refresh requires an already stored section in the requested
-term that belongs to a configured target. Filters narrow the configured list.
-
-Each invocation performs one pass in a database transaction. Source/network/parser
-failures abort and roll back the pass; they are not treated as empty results. Responses
-outside the requested Tampa/course/CRN scope are rejected. A valid empty schedule response
-reports zero refreshed sections and preserves older section rows and observations.
-No daemon, polling loop, parallel scraper, protection bypass, or automatic retry is added.
-An external scheduler may invoke seat refresh every **5–10 minutes** for this small beta
-set, with non-overlapping runs. This is a suggested interval, not a verified upstream
-rate limit. Adjust it to source guidance and operational observations. Alerts and
-notifications are not yet implemented.
-
-Ranking API and CLI `seats` objects now include `observed_at` (UTC), `freshness`, and
-`age_seconds`. Describe these as **latest observed seats**, not live availability.
-Freshness is judged from the verified time: the later of `Section.last_seen_at` (the last sync
-sweep that saw the section) and the latest seat snapshot (ordered by timestamp then id). Seat
-counts still come from the latest snapshot, so an unchanged section re-verified by a recent sweep
-is `fresh` even when its snapshot is old. Thresholds follow the sync cadence
-(`registration_windows.toml`, PROJECT.md D-10): stale means older than twice the cadence.
-
-| Freshness | Inside a registration window | Outside every window |
-| --- | --- | --- |
-| `fresh` | At most 375 s (6.25 min) | At most 4500 s (75 min) |
-| `aging` | More than 375 s, at most 600 s | More than 4500 s, at most 7200 s |
-| `stale` | More than 600 s | More than 7200 s |
-| `unavailable` | No usable snapshot, all seat fields null, or future timestamp | same |
-
-At a window boundary the larger tier of the verified time and now applies. Set both
-`EASY_A_SEAT_FRESH_SECONDS` and `EASY_A_SEAT_STALE_SECONDS` (default unset; require
-`0 <= fresh <= stale`) to replace the cadence thresholds with fixed ones; setting only one is
-ignored with a warning. Without a verified time the legacy 600/1800 s thresholds apply.
-Canonical seat fields without a snapshot remain available but have unavailable
-freshness and null age. Existing provenance `current` means the requested term,
-not recent observation. Freshness does not modify easiness, W-rate, confidence,
-or score source, and stale seats do not invalidate historical ranking.
-
-`GET /api/v1/metadata/coverage?term=202701` returns each configured target's catalog
-presence, stored section count, latest observed schedule timestamp, and
-`observed`/`missing` status. `observed` means stored observations exist, not that the
-source currently offers those sections. Use timestamps and the refresh command's
-per-pass counts to assess recency. No deletion or inferred cancellation is performed.
-When explicitly supplied targets (as both refresh commands do), quality checks warn
-about targets missing catalog metadata, targets without stored
-sections, and seat data not verified within the cadence-derived stale threshold (judged from
-the section's last-seen time; removed sections are ignored). No migration
-is required. Generic `run_quality_checks(..., targets=None)` and `check_data_quality.py`
-do not load target configuration or run these registration coverage/seat freshness checks;
-they retain existing schedule and historical quality checks.
-
-Offline unit tests use injected source functions. To also run the PostgreSQL integration
-test, set `EASY_A_TEST_POSTGRES_URL` to a test database URL with schema-creation
-permission, then run `uv run pytest`. That test creates a uniquely named schema in a
-transaction and rolls it back; it verifies coverage aggregation, snapshot history,
-and timestamp/id ordering on PostgreSQL. It is skipped when the URL is absent.
-
-## Removing sections from an unsupported campus
-
-Coverage refresh pins `campus="T"` and rejects non-Tampa rows before ingestion, but an
-earlier expansion pass ran before that fix and left other-campus sections stored. No other
-command deletes sections, so removal has its own reviewable step:
-
-```powershell
-uv run python scripts/cleanup_non_tampa_sections.py --term 202701 --json
-```
-
-The 2026-09-14 correction then used the reviewed dry-run count:
-
-```powershell
-uv run python scripts/cleanup_non_tampa_sections.py --term 202701 --apply --expect-removed 47 --json
-```
-
-That apply is historical and must not be repeated with an expected count of 47. For any future
-incident, run the dry report first and supply its separately reviewed eligible count.
-
-**The command reports without writing anything unless `--apply` is given.** Run it without
-`--apply` and retain the JSON audit output. Before any apply, stop schedule/seat writers and
-proceed only if the exact eligible rows, ambiguous-campus rows, candidate grade rows and
-`apply_safe` result have been reviewed.
-
-Selection criteria are exactly: sections in the requested term that belong to a course in the
-configured beta target file and whose nonblank stored `campus` is not `Tampa`, compared
-case-insensitively after stripping. Blank or null campus values are reported separately as
-ambiguous and are never auto-deleted. Other terms and non-target courses are out of scope.
-Matched sections are locked when supported and deleted by the explicit primary keys captured
-inside the transaction. A second apply with `--expect-removed 0` is a no-op.
-
-Apply mode requires `--expect-removed N` and refuses to proceed unless exactly that many
-sections match. It also refuses if any grade row shares a candidate's term and CRN.
-
-The same transaction explicitly removes each candidate section's seat snapshots, instructor
-observations, and linked syllabus rows before removing the section. It never deletes
-`grade_distributions`. Before commit it verifies exact ID sets so Tampa sections, ambiguous
-sections, historical sections, unrelated current-term sections, grade rows, and unrelated
-dependent records must all remain unchanged. Any failed check rolls back the entire operation.
-
-Both modes report per-course and per-campus target counts, ambiguous rows, candidate CRNs and
-dependent counts, term and historical section counts, and grade totals. Apply mode also reports
-every removed-record category and all preservation counters. Use `--json` for the durable audit
-record.
-
-Removing stored rows does not re-check the source. After a successful apply, run both
-`scripts/refresh_course_coverage.py --term 202701` and `scripts/refresh_seats.py --term 202701`,
-then verify the database, `GET /api/v1/metadata/coverage`, and the rankings API agree on the
-corrected Tampa-only counts.
-
-Run `scripts/check_data_quality.py --term 202701` before and after cleanup. It reports one
-`unsupported_campus_section` error for every stored section outside Tampa and exits nonzero,
-providing an independent regression check that no cross-campus rows remain.
-
-### Recorded correction result (2026-09-14)
-
-The reviewed apply removed exactly 47 non-Tampa sections, 47 linked seat snapshots and 47 linked
-instructor observations. It removed no syllabi, grade rows, Tampa sections, historical sections
-or unrelated-term sections. All 237 grade rows and 263 historical sections remained intact.
-
-After both required refreshes, storage, `/api/v1/rankings/search` and
-`GET /api/v1/metadata/coverage` agreed on the current configured Spring 2027 counts:
-
-| Course | Tampa sections |
-| --- | ---: |
-| MAC 1105 | 5 |
-| ENC 1101 | 41 |
-| AMH 2020 | 19 |
-| PSY 2012 | 10 |
-| BSC 1005 | 2 |
-| **Total** | **77** |
-
-There were zero stored other-campus target sections. The post-cleanup dry run found zero eligible
-rows, and data quality reported 0 errors, 31 warnings and 31 info. Do not rerun the destructive
-command expecting 47; use the dry run first and expect zero unless new contamination is found.
+Independent student project. Not affiliated with or endorsed by the University of South Florida.
