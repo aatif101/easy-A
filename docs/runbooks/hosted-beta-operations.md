@@ -218,6 +218,10 @@ Cutover, in this order:
 
 Rollback: set `VITE_API_BASE_URL` back to `https://easy-a-api.onrender.com` and redeploy `easy-a-web`. The onrender URLs never stop working unless you disable them in a service's settings, so do not disable them until the custom domain has run cleanly for a while.
 
+## 16. Visitor analytics
+
+Visitor counts come from Cloudflare Web Analytics (cookie-free, no consent banner): Cloudflare dashboard > Analytics & Logs > Web Analytics > `easya.fyi`. `web/vite.config.ts` adds the beacon script to `index.html` only when `VITE_CF_ANALYTICS_TOKEN` is set at build time; it is set on `easy-a-web` (value in `render.yaml`), so local and CI builds send nothing. Changing the token needs a rebuild of `easy-a-web`. Ad blockers block the beacon, so counts are a lower bound. The domain-level Analytics pages only see proxied (orange-cloud) traffic and stay flat while the records are DNS only.
+
 ## Run Log
 
 | Date (UTC) | Operator | Action | Command / setting | Result | Justification |

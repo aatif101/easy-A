@@ -80,6 +80,10 @@ services:
         value: "false"
       - key: VITE_API_BASE_URL
         sync: false
+      # Cloudflare Web Analytics site token for easya.fyi. Public (it ships in the page), not a
+      # secret. Unset means no beacon (web/vite.config.ts).
+      - key: VITE_CF_ANALYTICS_TOKEN
+        value: "0366120526204d87b0f1c7ac32189fa2"
       - key: NODE_VERSION
         value: "24"
     routes:
