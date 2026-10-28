@@ -9,10 +9,12 @@ import httpx
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, sessionmaker
 
+from easy_a.analytics.queries import GradeEvidenceCache
 from easy_a.models import Course, IngestRun, SeatSnapshot, Section, SectionInstructor, Term
 from easy_a.rankings.cache import SectionRankingCache, refresh_section_rankings
 from easy_a.schedule.client import DEFAULT_USER_AGENT, StaffScheduleClient
 from easy_a.schedule.ingest import ingest_schedule_html
+from easy_a.sync.apply import SweepStateCache
 from easy_a.sync.sweep import SweepOutcome, run_sweep
 from tests.sync.wholeterm_html import RowSpec, build_whole_term_html
 
@@ -132,10 +134,18 @@ def sweep_rows(
     *,
     at: datetime = SWEEP_AT,
     dry_run: bool = False,
+    state_cache: SweepStateCache | None = None,
+    evidence_cache: GradeEvidenceCache | None = None,
 ) -> tuple[SweepOutcome, list[httpx.Request]]:
     """Run one real (or dry) sweep against a MockTransport serving ``rows``."""
     client, requests = usf_client(build_whole_term_html(list(rows)))
     outcome = run_sweep(
-        session_factory, term=TERM, client=client, now_fn=lambda: at, dry_run=dry_run
+        session_factory,
+        term=TERM,
+        client=client,
+        now_fn=lambda: at,
+        dry_run=dry_run,
+        state_cache=state_cache,
+        evidence_cache=evidence_cache,
     )
     return outcome, requests

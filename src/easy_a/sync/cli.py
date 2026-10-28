@@ -32,6 +32,7 @@ from typing import Any
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session, sessionmaker
 
+from easy_a.analytics.queries import GradeEvidenceCache
 from easy_a.common.terms import TermParseError, normalize_banner_term_code
 from easy_a.config import DatabaseConfigError
 from easy_a.db import get_engine, get_session_factory
@@ -40,6 +41,7 @@ from easy_a.rankings.cache import refresh_section_rankings
 from easy_a.schedule.client import StaffScheduleClient
 from easy_a.schema_guard import SchemaNotCurrentError, require_sync_schema
 from easy_a.sync import sync_source
+from easy_a.sync.apply import SweepStateCache
 from easy_a.sync.gate import DEFAULT_MAX_MISSING_FRACTION
 from easy_a.sync.lock import try_sweep_lock
 from easy_a.sync.runner import SweepStatus, install_stop_signal_handlers, run_loop
@@ -209,6 +211,7 @@ def outcome_log_dict(
         "restored": extra.get("restored"),
         "instructor_changes": extra.get("instructor_changes"),
         "seat_changes": extra.get("seat_changes"),
+        "state_reused": extra.get("state_reused"),
         "unapplied_course_keys": list(outcome.unknown_course_keys),
         "would_add": list(outcome.would_add),
         "auto_added": list(outcome.auto_added),
@@ -434,8 +437,20 @@ def _run_worker_loop(
         }
     )
 
+    # Kept for the life of the process: each sweep reads only what changed since the last one,
+    # which keeps the hosted database's egress small at the in-window cadence.
+    state_cache = SweepStateCache()
+    evidence_cache = GradeEvidenceCache()
+
     def sweep() -> SweepOutcome:
-        outcome = run_sweep(session_factory, term=term, client=client, now_fn=now_fn)
+        outcome = run_sweep(
+            session_factory,
+            term=term,
+            client=client,
+            now_fn=now_fn,
+            state_cache=state_cache,
+            evidence_cache=evidence_cache,
+        )
         failures = 1 if outcome.status is SweepStatus.failed else 0
         log_outcome(
             outcome,

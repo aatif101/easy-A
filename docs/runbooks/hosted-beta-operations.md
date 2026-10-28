@@ -222,6 +222,14 @@ Rollback: set `VITE_API_BASE_URL` back to `https://easy-a-api.onrender.com` and 
 
 Visitor counts come from Cloudflare Web Analytics (cookie-free, no consent banner): Cloudflare dashboard > Analytics & Logs > Web Analytics > `easya.fyi`. `web/vite.config.ts` adds the beacon script to `index.html` only when `VITE_CF_ANALYTICS_TOKEN` is set at build time; it is set on `easy-a-web` (value in `render.yaml`), so local and CI builds send nothing. Changing the token needs a rebuild of `easy-a-web`. Ad blockers block the beacon, so counts are a lower bound. The domain-level Analytics pages only see proxied (orange-cloud) traffic and stay flat while the records are DNS only.
 
+## 17. Database egress (Supabase free plan)
+
+Supabase bills for bytes sent from the database to the API and worker (free plan: 5 GB a month; Organization > Usage). Three things keep it small:
+
+- **Scoped rankings rebuilds.** A sweep rebuilds the rankings cache only for the courses it touched, not the whole term.
+- **Worker memory.** The worker keeps the term's section state and the historical grade evidence between sweeps. Each sweep first reads a one-row fingerprint; if another writer changed the term's sections, instructors or snapshots (or the grade tables), the worker reloads everything. It also reloads in full every 6 hours and after any failed sweep. Each `sweep_succeeded` log line carries `state_reused` (`true` = served from memory). After editing current-term section fields by hand in SQL (the fingerprint does not see in-place field edits), restart `easy-a-worker`.
+- **API response cache.** Identical public GET responses are served from the API's memory for `EASY_A_RESPONSE_CACHE_SECONDS` (default 60; `0` disables). `sync-status` and error responses are never cached. A cached search can be up to that many seconds older than the database.
+
 ## Run Log
 
 | Date (UTC) | Operator | Action | Command / setting | Result | Justification |

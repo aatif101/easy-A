@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from easy_a.common.instructors import CurrentInstructorState, CurrentInstructorStatus
 from easy_a.models import IngestRun, SeatSnapshot, Section, SectionInstructor
+from easy_a.rankings.cache import SectionRankingCache
 from easy_a.schedule.ingest import _section_values
 from easy_a.schedule.normalize import NormalizedSection, normalize_schedule_row
 from easy_a.schedule.parser import EXPECTED_HEADERS, parse_schedule_html
@@ -262,7 +263,8 @@ def test_delivery_method_change_updates_the_section_and_rebuilds_rankings(
     )
 
     assert outcome.status is SweepStatus.succeeded
-    assert calls == [{"term": "202701"}]
+    # Only the changed section's course is rebuilt; the unchanged ENC sections are not re-read.
+    assert calls == [{"term": "202701", "course_keys": [("MAC", "1105")], "evidence_cache": None}]
     with session_factory() as session:
         section = session.scalar(select(Section).where(Section.crn == "13173"))
         assert section is not None
@@ -270,6 +272,27 @@ def test_delivery_method_change_updates_the_section_and_rebuilds_rankings(
         # Delivery change appends no history rows.
         assert count(session, SectionInstructor) == 4
         assert count(session, SeatSnapshot) == 4
+
+
+def test_instructor_change_rebuilds_only_that_course_in_the_rankings_cache(
+    session_factory: sessionmaker[Session],
+) -> None:
+    rows = [RowSpec(crn="13173", instructor="J. Doe"), *enc_rows(3)]
+    seed_from_rows(session_factory, rows)
+    with session_factory.begin() as session:
+        session.execute(update(SectionRankingCache).values(course_title="untouched"))
+
+    outcome, _ = sweep_rows(
+        session_factory, [RowSpec(crn="13173", instructor="A. Smith"), *enc_rows(3)]
+    )
+
+    assert outcome.status is SweepStatus.succeeded
+    with session_factory() as session:
+        cache = {row.crn: row for row in session.scalars(select(SectionRankingCache))}
+    assert len(cache) == 4
+    assert cache["13173"].instructor == "A. Smith"
+    assert cache["13173"].course_title == "College Algebra"
+    assert {cache[crn].course_title for crn in cache if crn != "13173"} == {"untouched"}
 
 
 def test_removed_section_that_reappears_is_restored_and_rebuilds_rankings(

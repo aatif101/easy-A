@@ -4,7 +4,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, replace
 from enum import StrEnum
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from easy_a.analytics.confidence import PriorLevel, ScoreSource
@@ -362,11 +362,13 @@ def get_term_section_historical_analytics(
     course_keys: Iterable[tuple[str, str]],
     *,
     config: ScoreConfig | None = None,
+    evidence_cache: GradeEvidenceCache | None = None,
 ) -> list[SectionHistoricalAnalytics]:
     """Whole-term equivalent of calling get_current_section_historical_analytics per course.
 
     Returns exactly the rows those per-course calls would return, concatenated in
     course_keys order, while reading grade evidence and instructor state once for the term.
+    ``evidence_cache`` lets a long-lived caller (the sync worker) reuse that grade evidence.
     """
     score_config = config or ScoreConfig()
     normalized_term_code = normalize_banner_term_code(term_code)
@@ -406,7 +408,11 @@ def get_term_section_historical_analytics(
         ).scalars():
             sections_by_key.setdefault(key_by_course_id[section.course_id], []).append(section)
 
-    evidence = _TermGradeEvidence.load(session, before_term_code=normalized_term_code)
+    evidence = (
+        _TermGradeEvidence.load(session, before_term_code=normalized_term_code)
+        if evidence_cache is None
+        else evidence_cache.get(session, before_term_code=normalized_term_code)
+    )
     global_aggregate = aggregate_grade_observations(
         list(evidence.observations),
         score_config.recency,
@@ -611,6 +617,54 @@ class _TermGradeEvidence:
                         replace(row.observation, mapped_instructor=True)
                     )
         return grouped
+
+
+class GradeEvidenceCache:
+    """Reuses one term's pre-term grade evidence across calls while its source rows are unchanged.
+
+    Grade evidence changes only through operator imports, attribution fixes and backfills, never
+    through a schedule sweep, so the sync worker keeps it between sweeps instead of re-reading
+    every grade row on each rankings rebuild. A one-row fingerprint of the tables it is read from
+    is checked on every call; any difference reloads it.
+    """
+
+    def __init__(self) -> None:
+        self._key: tuple[object, ...] | None = None
+        self._evidence: _TermGradeEvidence | None = None
+        self.loads = 0
+
+    def get(self, session: Session, *, before_term_code: str) -> _TermGradeEvidence:
+        key = (before_term_code, *_grade_evidence_fingerprint(session, before_term_code))
+        if self._evidence is None or key != self._key:
+            self._evidence = _TermGradeEvidence.load(session, before_term_code=before_term_code)
+            self._key = key
+            self.loads += 1
+        return self._evidence
+
+
+def _grade_evidence_fingerprint(session: Session, before_term_code: str) -> tuple[object, ...]:
+    earlier_terms = select(Term.id).where(Term.banner_code < before_term_code)
+    grades = session.execute(
+        select(
+            func.count(GradeDistribution.id),
+            func.max(GradeDistribution.id),
+            func.sum(func.coalesce(GradeDistribution.course_id, 0)),
+            func.sum(GradeDistribution.total_grades),
+        ).where(GradeDistribution.term_id.in_(earlier_terms))
+    ).one()
+    sections = session.execute(
+        select(
+            func.count(Section.id), func.max(Section.id), func.sum(Section.course_id)
+        ).where(Section.term_id.in_(earlier_terms))
+    ).one()
+    instructors = session.execute(
+        select(func.count(SectionInstructor.id), func.max(SectionInstructor.id)).where(
+            SectionInstructor.section_id.in_(
+                select(Section.id).where(Section.term_id.in_(earlier_terms))
+            )
+        )
+    ).one()
+    return (*grades, *sections, *instructors)
 
 
 def _instructor_course_stats(

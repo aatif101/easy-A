@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
 
@@ -17,6 +17,7 @@ from easy_a.models.core import Course, Term
 from easy_a.models.sections import SeatSnapshot, Section
 
 if TYPE_CHECKING:
+    from easy_a.analytics.queries import GradeEvidenceCache
     from easy_a.rankings.models import SectionRanking
     from easy_a.signals.models import ResolvedSignalSet
 
@@ -77,9 +78,17 @@ def refresh_section_rankings(
     term: str | int,
     subject: str | None = None,
     course_number: str | None = None,
+    course_keys: Iterable[tuple[str, str]] | None = None,
     config: ScoreConfig | None = None,
+    evidence_cache: GradeEvidenceCache | None = None,
 ) -> int:
-    """Populate or refresh derived ranking rows without committing the caller's transaction."""
+    """Populate or refresh derived ranking rows without committing the caller's transaction.
+
+    ``course_keys`` limits the rebuild to those (subject, number) courses. Every cached field is
+    computed per course, so a scoped rebuild writes exactly what a whole-term rebuild would for
+    those courses while reading only their rows (the sync worker relies on this to keep each
+    sweep's database egress small).
+    """
     from easy_a.rankings.models import RankingFreshness, RankingProvenance
     from easy_a.rankings.service import (
         _gened_attributes_by_course_id,
@@ -93,6 +102,19 @@ def refresh_section_rankings(
 
     if (subject is None) != (course_number is None):
         raise ValueError("subject and course_number must be provided together")
+    if subject is not None and course_number is not None:
+        if course_keys is not None:
+            raise ValueError("pass either subject/course_number or course_keys, not both")
+        course_keys = [(subject, course_number)]
+
+    scoped_keys: list[tuple[str, str]] | None = None
+    if course_keys is not None:
+        scoped_keys = sorted(
+            {(key[0].strip().upper(), key[1].strip().upper()) for key in course_keys}
+        )
+        if not scoped_keys:
+            return 0
+    course_key_column = sa.tuple_(Course.subject, Course.number)
 
     normalized_term = normalize_banner_term_code(term)
     stmt = (
@@ -102,11 +124,8 @@ def refresh_section_rankings(
         .where(Term.banner_code == normalized_term, Section.removed_at.is_(None))
         .order_by(Course.subject, Course.number, Section.crn)
     )
-    if subject is not None and course_number is not None:
-        stmt = stmt.where(
-            Course.subject == subject.strip().upper(),
-            Course.number == course_number.strip().upper(),
-        )
+    if scoped_keys is not None:
+        stmt = stmt.where(course_key_column.in_(scoped_keys))
 
     # Imported lazily to avoid a circular import: easy_a.models.__init__ imports
     # this module (SectionRankingCache), and both of these depend (directly or
@@ -127,6 +146,7 @@ def refresh_section_rankings(
             term_code=normalized_term,
             course_keys=course_keys,
             config=config,
+            evidence_cache=evidence_cache,
         )
     }
 
@@ -226,11 +246,8 @@ def refresh_section_rankings(
         .join(Term, Section.term_id == Term.id)
         .where(Term.banner_code == normalized_term, Section.removed_at.is_not(None))
     )
-    if subject is not None and course_number is not None:
-        removed_section_ids = removed_section_ids.where(
-            Course.subject == subject.strip().upper(),
-            Course.number == course_number.strip().upper(),
-        )
+    if scoped_keys is not None:
+        removed_section_ids = removed_section_ids.where(course_key_column.in_(scoped_keys))
     session.execute(
         sa.delete(SectionRankingCache)
         .where(SectionRankingCache.section_id.in_(removed_section_ids))

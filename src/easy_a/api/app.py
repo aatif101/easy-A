@@ -13,6 +13,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 
 from easy_a.api.dependencies import get_api_session_factory, get_db_session
+from easy_a.api.response_cache import ResponseCache, cache_get_responses
 from easy_a.api.routes import discovery, metadata, rankings
 from easy_a.api.schemas import HealthResponse
 from easy_a.config import get_settings
@@ -83,6 +84,13 @@ def create_app() -> FastAPI:
         version="0.1.0",
         description="Thin API over computed Easy-A section rankings.",
     )
+    app.state.response_cache = (
+        ResponseCache(ttl_seconds=settings.response_cache_seconds)
+        if settings.response_cache_seconds > 0
+        else None
+    )
+    # Registered before CORS so CORS wraps it: CORS headers are added per request, never cached.
+    app.middleware("http")(cache_get_responses)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.allowed_frontend_origin_list(),

@@ -1,10 +1,10 @@
 ---
 gsd_state_version: "1.0"
-status: PR 45 web CI repair verified locally
-stopped_at: Publishing GenEd menu repair; GitHub CI is authoritative for remote status
-last_updated: "2026-10-07T21:40:54Z"
-last_activity: 2026-10-07
-last_activity_desc: Repaired malformed JSX and GenEd filter interaction; integrated fetched main
+status: Supabase egress fix awaiting review
+stopped_at: fix/supabase-egress PR open; awaiting owner review
+last_updated: "2026-10-27T23:30:00Z"
+last_activity: 2026-10-27
+last_activity_desc: Cut Supabase egress (scoped rebuilds, worker memory, API response cache)
 state_head: b6255e16184a2e41c0ff4b2babdb7b4fa5d0e91a
 progress:
   total_phases: 11
@@ -22,7 +22,28 @@ current_phase_name: Professor-level grades
 rules live in `PROJECT.md` `<decisions>`; the phase sequence lives in `ROADMAP.md`; dated history
 lives in `ARCHIVE.md`.
 
-## Current user-directed work — PR #45 web CI repair (2026-10-07)
+## Current user-directed work — Supabase egress (2026-10-27)
+
+- Supabase warned that organization Easy-A exceeded the free plan's egress (5.5 GB); the Fair Use
+  Policy applies from 2026-11-17. Read-only `pg_stat_statements` (since 2026-09-20) traced it to the
+  worker: every sweep with any structural change rebuilt the whole term's rankings cache, re-reading
+  all `section_rankings` rows (12.6 MB as text) plus every section and grade row, about 285 times
+  (2,593 full-row cache reads, ~1.2M rows, ~4 GB). Search reads were already paged.
+- Fix on branch `fix/supabase-egress`: course-scoped rankings rebuilds (scores unchanged; per-course
+  computation, parity test added); the worker keeps section state and grade evidence in memory
+  between sweeps behind one-row fingerprints (full reload on any other writer, a failure, or after
+  6 h); a 60 s in-process API response cache (`EASY_A_RESPONSE_CACHE_SECONDS`). Estimated sweep
+  reads drop from ~20 MB (structural) / ~1.5 MB (seat-only) to tens of KB. Estimate only: verify
+  on the Supabase usage page and the worker's `state_reused` log field after deploy. Runbook
+  section 17.
+- Supabase's other notice (no automatic Data API grants for new `public` tables from 2026-10-30)
+  does not affect Easy-A: nothing uses PostgREST or supabase-js.
+- Local run (Windows): 1,127 passed, 4 skipped, 1 xfailed; 8 failures are pre-existing (file
+  modes, SIGTERM, anchor-repair cases) and fail the same without this change.
+- **Next action:** owner review and merge before the 2026-11-02 registration window (5-minute
+  cadence).
+
+## Previous user-directed work — PR #45 web CI repair (2026-10-07; merged)
 
 - [PR #45](https://github.com/aatif101/easy-A/pull/45), remote branch
   `feat/gened-filters-menu`, failed its push web job at ESLint: malformed JSX in
