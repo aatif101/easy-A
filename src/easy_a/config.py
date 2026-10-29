@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     seat_stale_seconds: int | None = Field(
         default=None, ge=0, validation_alias="EASY_A_SEAT_STALE_SECONDS"
     )
+    # Seconds an identical public GET response is served from the API's memory (0 disables).
+    # Keeps the hosted database's egress small; data changes only when the worker sweeps.
+    response_cache_seconds: float = Field(
+        default=60, ge=0, validation_alias="EASY_A_RESPONSE_CACHE_SECONDS"
+    )
     echo_sql: bool = Field(default=False, validation_alias="EASY_A_ECHO_SQL")
     api_host: str = Field(default="127.0.0.1", validation_alias="EASY_A_API_HOST")
     api_port: int = Field(default=8000, validation_alias="EASY_A_API_PORT")

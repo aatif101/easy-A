@@ -130,6 +130,36 @@ def test_cached_rankings_match_on_demand_including_instructor_breakdown(
     assert statuses["71007"] is None
 
 
+def test_course_scoped_refresh_writes_exactly_the_whole_term_rows_for_those_courses(
+    db_session: Session,
+) -> None:
+    SectionRankingCache, _hydrate_ranking, refresh_section_rankings = _cache_api()
+    seed_breakdown_branches(db_session)
+
+    def payloads() -> dict[str, dict[str, Any]]:
+        rows = db_session.scalars(select(SectionRankingCache)).all()
+        return {
+            row.crn: {
+                column.key: getattr(row, column.key)
+                for column in inspect(SectionRankingCache).columns
+                if column.key not in {"id", "refreshed_at"}
+            }
+            for row in rows
+        }
+
+    assert refresh_section_rankings(db_session, term="202701") == 7
+    whole_term = payloads()
+    db_session.query(SectionRankingCache).delete()
+    db_session.flush()
+
+    assert refresh_section_rankings(db_session, term="202701", course_keys=[("mac", "1105 ")]) == 6
+    scoped = payloads()
+
+    assert set(scoped) == {crn for crn in whole_term if crn != "71007"}
+    assert scoped == {crn: whole_term[crn] for crn in scoped}
+    assert refresh_section_rankings(db_session, term="202701", course_keys=[]) == 0
+
+
 def test_old_cache_rows_without_a_breakdown_key_load_as_null(db_session: Session) -> None:
     SectionRankingCache, hydrate_ranking, refresh_section_rankings = _cache_api()
     seed_breakdown_branches(db_session)

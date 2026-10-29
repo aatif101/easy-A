@@ -22,6 +22,7 @@ from sqlalchemy import select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
+from easy_a.analytics.queries import GradeEvidenceCache
 from easy_a.common.lookups import ensure_term
 from easy_a.models import Course, IngestRun
 from easy_a.schedule.client import StaffScheduleClient, WholeTermResponseError
@@ -29,7 +30,7 @@ from easy_a.schedule.normalize import NormalizedSection
 from easy_a.schedule.parser import ScheduleParseError
 from easy_a.schema_guard import SchemaNotCurrentError
 from easy_a.sync import SYNC_ERROR_KINDS, sync_source
-from easy_a.sync.apply import apply_sweep_plan, load_db_state
+from easy_a.sync.apply import SweepStateCache, apply_sweep_plan, load_db_state
 from easy_a.sync.courses import (
     AutoAddResult,
     CourseAdderLike,
@@ -193,14 +194,20 @@ def run_sweep(
     dry_run: bool = False,
     max_missing_fraction: float | None = None,
     course_adder: CourseAdderLike | None = None,
+    state_cache: SweepStateCache | None = None,
+    evidence_cache: GradeEvidenceCache | None = None,
 ) -> SweepOutcome:
     """Run one sweep of ``term``. Exactly one USF request; one database transaction.
 
     ``max_missing_fraction`` is the operator's gate override; None means no override, which is the
-    worker loop's path and leaves the gate at its default thresholds.
+    worker loop's path and leaves the gate at its default thresholds. The worker loop passes
+    ``state_cache`` and ``evidence_cache`` so consecutive sweeps do not re-read unchanged rows;
+    a dry run never uses the state cache.
     """
     started_at = now_fn()
     progress: dict[str, Any] = {"records_seen": None}
+    if dry_run:
+        state_cache = None
     try:
         with session_factory.begin() as session:
             if dry_run and session.get_bind().dialect.name == "postgresql":
@@ -222,11 +229,17 @@ def run_sweep(
                 max_missing_fraction=max_missing_fraction,
                 progress=progress,
                 course_adder=course_adder,
+                state_cache=state_cache,
+                evidence_cache=evidence_cache,
             )
             if dry_run:
                 session.rollback()
-            return outcome
+        if state_cache is not None:
+            state_cache.commit()
+        return outcome
     except Exception as exc:
+        if state_cache is not None:
+            state_cache.invalidate()
         return _record_failure(
             session_factory,
             exc,
@@ -249,13 +262,17 @@ def _sweep_in_transaction(
     max_missing_fraction: float | None,
     progress: dict[str, Any],
     course_adder: CourseAdderLike | None = None,
+    state_cache: SweepStateCache | None = None,
+    evidence_cache: GradeEvidenceCache | None = None,
 ) -> SweepOutcome:
     fetched = fetch_whole_term(client, term, now_fn=now_fn)
     rows: tuple[NormalizedSection, ...]
     rows, report = apply_scope(fetched.parse.rows)
     progress["records_seen"] = len(rows)
     term_row = ensure_term(session, term)
-    state = load_db_state(session, term_row.id, rows, term_code=term_row.banner_code)
+    state = load_db_state(
+        session, term_row.id, rows, term_code=term_row.banner_code, cache=state_cache
+    )
 
     missing = missing_active_count(rows, state)
     thresholds = gate_thresholds(max_missing_fraction)
@@ -304,6 +321,7 @@ def _sweep_in_transaction(
             "restored": len(plan.restores),
             "instructor_changes": len(plan.instructor_appends),
             "seat_changes": len(plan.snapshot_appends),
+            "state_reused": None if state_cache is None else state_cache.last_load_reused,
         },
     }
 
@@ -315,12 +333,13 @@ def _sweep_in_transaction(
             **common,
         )
 
-    apply_sweep_plan(
+    touched = apply_sweep_plan(
         session,
         plan,
         term_id=term_row.id,
         term_code=term_row.banner_code,
         observed_at=fetched.fetched_at,
+        evidence_cache=evidence_cache,
     )
     finished_at = now_fn()
     session.add(
@@ -337,6 +356,8 @@ def _sweep_in_transaction(
         )
     )
     session.flush()
+    if state_cache is not None:
+        state_cache.stage(session, touched)
     return SweepOutcome(
         status=SweepStatus.succeeded,
         finished_at=finished_at,
