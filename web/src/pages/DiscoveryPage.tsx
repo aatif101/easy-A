@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { RmpLink } from "../components/RmpLink";
 import { LoadError, Loading, Notice } from "../components/Status";
-import { inAppClick, type Route } from "../lib/route";
+import { inAppClick, routeHref, type Route } from "../lib/route";
 import { formatShare, termSpan } from "../lib/section";
 import { useLoad } from "../lib/useLoad";
 import type { DiscoveryLoader, HistoryLoader } from "../types/search";
@@ -70,15 +70,17 @@ export function DiscoveryPage({ term, q, discoveryLoader, historyLoader, navigat
     </section>
     <section aria-label="Instructor results">
       <h2 className="mb-3 text-lg font-semibold">Instructors by course ({data.instructor_total})</h2>
+      {data.instructor_total ? <p className="mb-2 text-sm text-slate">Exact name matches first, then partial matches; current assignments first within each group.</p> : null}
       <p className="mb-3 text-sm text-slate">{data.identity_note}</p>
       {!data.instructor_total ? <p className="text-sm text-slate">No matching named instructors.</p> : null}
       <ul className="space-y-3">{data.instructors.map(instructor => {
         const key = `${instructor.course_id}:${instructor.name}`;
+        const route: Route = { view: "search", q: `${instructor.subject} ${instructor.course_number}`, instructor: { courseId: instructor.course_id, name: instructor.name } };
         return <li key={key} className="min-w-0 rounded border border-line p-4">
           <h3 className="break-words font-semibold">{instructor.subject} {instructor.course_number} · {instructor.title}</h3>
           <p className="mt-1 flex flex-wrap items-center gap-x-1 break-words">Listed instructor: <span>{instructor.name}</span><RmpLink instructor={instructor.name} subject={instructor.subject} /></p>
           <p className="mt-1 text-sm text-slate">{instructor.current_sections} current assignments · {instructor.historical_sections} historical assignments · Schedule observed {new Date(instructor.observed_at).toLocaleDateString("en-US", { timeZone: "America/New_York" })}</p>
-          {instructor.current_sections ? <a className="mt-2 block" href={`?q=${encodeURIComponent(`${instructor.subject} ${instructor.course_number}`)}`} onClick={inAppClick(navigate, { view: "search", q: `${instructor.subject} ${instructor.course_number}` })}>Compare current {instructor.subject} {instructor.course_number} sections</a> : null}
+          {instructor.current_sections ? <a className="mt-2 block" href={routeHref(route)} onClick={inAppClick(navigate, route)}>View {instructor.name}'s {instructor.subject} {instructor.course_number} sections</a> : null}
           <button className="mt-2 rounded border border-silver px-3 py-2 text-sm" aria-expanded={selection === key} onClick={() => setSelection(selection === key ? null : key)}>Grade history for {instructor.name} in {instructor.subject} {instructor.course_number}</button>
           {selection === key ? <HistoryPanel key={key} term={term} courseId={instructor.course_id} name={instructor.name} historyLoader={historyLoader} /> : null}
         </li>;

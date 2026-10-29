@@ -14,6 +14,9 @@ Search courses and instructors, compare historical grade distributions, and chec
 ## What it does
 
 - Search by course code, CRN, subject, number, title, or instructor.
+- Instructor results prioritize exact names and whole name words over prefixes, with current
+  assignments first within each group. Open an instructor's sections directly, share the link,
+  or clear the selection to compare everyone teaching that course.
 - Compare an instructor's past grades **in that course**, with sample sizes and covered terms.
 - Browse GenEd requirements and see seat counts with their last-checked time.
 - Open Rate My Professors links and copy a CRN for registration in OASIS.
@@ -83,6 +86,11 @@ npm run build
 ```
 
 PostgreSQL integration tests require a separate test database via `EASY_A_TEST_POSTGRES_URL`.
+
+### Instructor search API
+
+`GET /api/v1/search` finds instructors by course; `/api/v1/rankings/search` accepts a `course_id`
+and exact listed `instructor` to show their sections. See `/docs` on the API for parameters.
 
 </details>
 

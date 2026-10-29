@@ -70,6 +70,7 @@ export const fetchDiscovery: DiscoveryLoader = async (term, q, offset, signal) =
     ).map(row => ({
       ...courses.find(course => course.subject === row.subject && course.course_number === row.course_number)!,
       name: row.instructor!, historical_sections: 0,
+      current_sections: rows.filter(item => item.subject === row.subject && item.course_number === row.course_number && item.instructor === row.instructor).length,
       observed_at: row.seats.observed_at ?? new Date(0).toISOString(),
     }));
     return {
@@ -171,6 +172,7 @@ export const fetchMetadata: MetadataLoader = async (signal) => {
 
 const matchesMockQuery = (ranking: SectionRanking, query: RankingQuery): boolean =>
   ranking.term === query.term &&
+  (!query.instructor || (ranking.instructor_provenance.freshness === "current" && ranking.instructor?.trim().toLowerCase() === query.instructor.trim().toLowerCase())) &&
   (!query.subject || ranking.subject === query.subject.toUpperCase()) &&
   (!query.course_number || ranking.course_number === query.course_number.toUpperCase()) &&
   (!query.gened_code ||
@@ -200,8 +202,12 @@ const sortMockRankings = (items: SectionRanking[], sort = "easiness_desc"): Sect
 
 export const fetchRankings: RankingLoader = async (query, signal) => {
   if (isUsingMockData) {
+    // Use the same per-term synthetic course ids as fetchDiscovery.
+    const courses = uniqueBy(syntheticRankings.filter(row => row.term === query.term), row => `${row.subject}:${row.course_number}`);
+    const course = query.course_id === undefined ? null : courses[query.course_id - 1];
     const matching = sortMockRankings(
-      syntheticRankings.filter((ranking) => matchesMockQuery(ranking, query)),
+      syntheticRankings.filter((ranking) => matchesMockQuery(ranking, query) &&
+        (query.course_id === undefined || (course && ranking.subject === course.subject && ranking.course_number === course.course_number))),
       query.sort,
     );
     return {

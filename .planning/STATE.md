@@ -43,6 +43,12 @@ lives in `ARCHIVE.md`.
 - **Next action:** owner review and merge before the 2026-11-02 registration window (5-minute
   cadence).
 
+## Professor search — PR #50 (2026-10-29)
+
+[PR #50](https://github.com/aatif101/easy-A/pull/50) improves professor match ordering and
+links to instructor-specific course sections. Case-only name variants share a result and
+grade-history lookup within each course. Verification: `.planning/evidence/professor-search/REPORT.md`.
+
 ## Previous user-directed work — PR #45 web CI repair (2026-10-07; merged)
 
 - [PR #45](https://github.com/aatif101/easy-A/pull/45), remote branch

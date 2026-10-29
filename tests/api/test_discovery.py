@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
@@ -201,8 +202,8 @@ def test_same_name_kept_separate_by_course_and_initials_never_expanded(
 ) -> None:
     result = search(discovery_client, " j smith ")
     assert [(row["course_id"], row["name"]) for row in result["instructors"]] == [
-        (2, "J. Smith"),
         (1, "J. Smith"),
+        (2, "J. Smith"),
     ]
     assert search(discovery_client, "John Smith")["instructor_total"] == 0
     assert search(discovery_client, "smith")["instructor_total"] == 2
@@ -350,6 +351,7 @@ def test_history_unknown_course(discovery_client: TestClient) -> None:
 
 
 def test_long_stored_names_and_titles(discovery_client: TestClient) -> None:
+    assert isinstance(discovery_client.app, FastAPI)
     db = discovery_client.app.dependency_overrides[get_db_session]()
     session = next(db)
     name = "Program Design " + "Long Stored Name " * 10
@@ -367,6 +369,7 @@ def test_long_stored_names_and_titles(discovery_client: TestClient) -> None:
 
 
 def test_discovery_has_fixed_read_only_query_count(discovery_client: TestClient) -> None:
+    assert isinstance(discovery_client.app, FastAPI)
     db = discovery_client.app.dependency_overrides[get_db_session]()
     session = next(db)
     engine = session.get_bind()
@@ -392,3 +395,134 @@ def test_discovery_has_fixed_read_only_query_count(discovery_client: TestClient)
         event.remove(engine, "before_cursor_execute", record)
     assert len(statements) == 4
     assert all(statement.lstrip().upper().startswith("SELECT") for statement in statements)
+
+
+def test_name_relevance_and_current_assignments_rank_before_pagination(
+    discovery_client: TestClient,
+) -> None:
+    assert isinstance(discovery_client.app, FastAPI)
+    db = discovery_client.app.dependency_overrides[get_db_session]()
+    session = next(db)
+    for section_id, course_id, term_id, name in [
+        (50, 3, 2, "Smith"),  # Full exact name wins even when historical only.
+        (51, 3, 1, "Z. Smith"),  # Current whole-word match precedes historical J. Smith.
+        (52, 2, 1, "A. Smithson"),  # Current prefix still follows historical exact words.
+    ]:
+        session.add(
+            Section(
+                id=section_id,
+                course_id=course_id,
+                term_id=term_id,
+                crn=str(30000 + section_id),
+                section_number="001",
+                campus="Tampa",
+                session="Regular",
+                section_type="Lecture",
+                primary_status="Active",
+                first_seen_at=NOW,
+                last_seen_at=NOW,
+            )
+        )
+        session.flush()
+        session.add(
+            SectionInstructor(
+                section_id=section_id,
+                name_raw=name,
+                source="usf_schedule",
+                observed_at=NOW,
+            )
+        )
+    session.commit()
+    db.close()
+    expected = [(3, "Smith"), (1, "J. Smith"), (3, "Z. Smith"), (2, "J. Smith"), (2, "A. Smithson")]
+    result = search(discovery_client, "smith")
+    assert [(row["course_id"], row["name"]) for row in result["instructors"]] == expected
+    assert result["instructor_total"] == len(expected)
+    # Relevance applies to all matches, not just a page already sorted by course code.
+    assert [
+        (page["instructors"][0]["course_id"], page["instructors"][0]["name"])
+        for page in (
+            search(discovery_client, "smith", limit=1, offset=i) for i in range(len(expected))
+        )
+    ] == expected
+
+
+@pytest.mark.parametrize("variant", ["J. SMITH", "j. smith", " J. Smith "])
+def test_case_variants_share_one_course_result_and_complete_history(
+    discovery_client: TestClient,
+    variant: str,
+) -> None:
+    assert isinstance(discovery_client.app, FastAPI)
+    db = discovery_client.app.dependency_overrides[get_db_session]()
+    session = next(db)
+    session.query(SectionInstructor).filter_by(section_id=2).update({"name_raw": variant})
+    # A duplicate latest observation with the same normalized name must count once.
+    session.add(
+        SectionInstructor(
+            section_id=1,
+            name_raw=variant,
+            source="usf_schedule",
+            observed_at=NOW,
+        )
+    )
+    for section_id, term_id, name in [(60, 1, variant), (61, 2, "J. Smith")]:
+        session.add(
+            Section(
+                id=section_id,
+                course_id=1,
+                term_id=term_id,
+                crn=str(30000 + section_id),
+                section_number="001",
+                campus="Tampa",
+                session="Regular",
+                section_type="Lecture",
+                primary_status="Active",
+                first_seen_at=NOW,
+                last_seen_at=NOW,
+            )
+        )
+        session.flush()
+        session.add(
+            SectionInstructor(
+                section_id=section_id,
+                name_raw=name,
+                source="usf_schedule",
+                observed_at=NOW,
+            )
+        )
+    session.add(
+        GradeDistribution(
+            term_id=2,
+            crn="30061",
+            course_id=1,
+            section_number_raw="001",
+            a_count=30,
+            b_count=10,
+            total_grades=40,
+            source="usf_infocenter",
+            source_hash="b" * 64,
+            ingested_at=NOW,
+        )
+    )
+    session.commit()
+    db.close()
+    result = search(discovery_client, "j smith", limit=1)
+    assert result["instructor_total"] == 2  # Same listed name in the other course stays separate.
+    match = result["instructors"][0]
+    assert match["course_id"] == 1
+    assert match["name"].lower() == "j. smith"
+    assert match["current_sections"] == 2
+    assert match["historical_sections"] == 3  # Assignments include the excluded lab.
+    assert (
+        search(discovery_client, "j smith", limit=1, offset=1)["instructors"][0]["course_id"] == 2
+    )
+    for name in (match["name"], variant):
+        history = get_history(discovery_client, course_id=1, name=name, limit=1)
+        assert history["total"] == 2
+        assert history["observed_grade_count"] == 100
+        assert history["a_share"] == pytest.approx(0.8)
+        second = get_history(discovery_client, course_id=1, name=name, limit=1, offset=1)
+        assert history["items"][0]["crn"] != second["items"][0]["crn"]
+    assert get_history(discovery_client, course_id=2, name=variant)["observed_grade_count"] == 12
+    # Search punctuation normalization must not become instructor identity normalization.
+    assert get_history(discovery_client, course_id=1, name="J Smith")["status"] == "unavailable"

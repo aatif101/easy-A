@@ -132,6 +132,8 @@ export interface RankingQuery {
   term: string;
   subject?: string;
   course_number?: string;
+  course_id?: number;
+  instructor?: string;
   gened_code?: string;
   delivery_method?: string;
   seats_open?: boolean;

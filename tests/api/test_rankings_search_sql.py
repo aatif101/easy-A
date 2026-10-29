@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -152,10 +152,7 @@ def test_sql_search_uses_live_snapshot_and_section_column_seat_fallbacks(
     assert by_crn["10001"]["seats"]["provenance"]["source"] == "seat_snapshots"
     assert by_crn["10002"]["seats_remaining"] == 0
     assert by_crn["20001"]["seats_remaining"] == 4
-    assert (
-        by_crn["20001"]["seats"]["provenance"]["source"]
-        == "sections.current_seat_fields"
-    )
+    assert by_crn["20001"]["seats"]["provenance"]["source"] == "sections.current_seat_fields"
     assert by_crn["30001"]["seats_remaining"] is None
     assert by_crn["30001"]["seats"]["freshness"] == "unavailable"
 
@@ -455,6 +452,130 @@ def _seed_sql_search_data(session: Session) -> None:
                     wait_seats_available=0,
                 )
             )
+
+
+@pytest.mark.parametrize("name", ["J. Smith", " j. smith ", "J. SMITH"])
+def test_instructor_filter_uses_exact_name_and_course_before_pagination(
+    sql_search_client: TestClient,
+    sql_search_session_factory: sessionmaker[Session],
+    name: str,
+) -> None:
+    with sql_search_session_factory() as session:
+        for row in session.scalars(select(SectionRankingCache)):
+            row.instructor = "J. Smith"
+            row.instructor_provenance = _provenance("current", "section_instructors")
+        session.commit()
+    params = {"term": "202701", "course_id": 10, "instructor": name, "limit": 1}
+    first = sql_search_client.get("/api/v1/rankings/search", params=params)
+    second = sql_search_client.get("/api/v1/rankings/search", params={**params, "offset": 1})
+    assert first.status_code == second.status_code == 200
+    assert first.json()["total"] == second.json()["total"] == 2
+    assert [first.json()["items"][0]["crn"], second.json()["items"][0]["crn"]] == [
+        "10001",
+        "10002",
+    ]
+    # The same listed name in other courses never leaks into this course's selection.
+    assert all(item["subject"] == "MAC" for item in first.json()["items"])
+    open_only = sql_search_client.get(
+        "/api/v1/rankings/search", params={**params, "seats_open": True}
+    )
+    assert open_only.json()["total"] == 1
+    assert open_only.json()["items"][0]["crn"] == "10001"
+
+
+def test_instructor_filter_excludes_prefixes_unavailable_and_removed_assignments(
+    sql_search_client: TestClient,
+    sql_search_session_factory: sessionmaker[Session],
+) -> None:
+    with sql_search_session_factory() as session:
+        rows = list(session.scalars(select(SectionRankingCache).order_by(SectionRankingCache.crn)))
+        for row in rows:
+            row.instructor = "J. Smith"
+            row.instructor_provenance = _provenance("current", "section_instructors")
+        rows[0].instructor = "J. Smithson"
+        rows[1].instructor_provenance = _provenance("unavailable", "section_instructors")
+        session.commit()
+    params = {"term": "202701", "course_id": 10, "instructor": "J. Smith"}
+    assert sql_search_client.get("/api/v1/rankings/search", params=params).json()["total"] == 0
+    with sql_search_session_factory() as session:
+        cached = session.scalar(
+            select(SectionRankingCache).where(SectionRankingCache.crn == "10001")
+        )
+        assert cached is not None
+        cached.instructor = "J. Smith"
+        section = session.get(Section, cached.section_id)
+        assert section is not None
+        section.removed_at = NOW
+        session.commit()
+    assert sql_search_client.get("/api/v1/rankings/search", params=params).json()["total"] == 0
+    assert (
+        sql_search_client.get(
+            "/api/v1/rankings/search", params={**params, "course_id": 999}
+        ).json()["total"]
+        == 0
+    )
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"instructor": "Smith"},
+        {"course_id": 0},
+        {"course_id": 2_147_483_648},
+        {"course_id": 1, "instructor": " "},
+        {"course_id": 1, "instructor": "x" * 256},
+    ],
+)
+def test_instructor_filter_validates_scope_and_bounds(
+    sql_search_client: TestClient,
+    extra: dict[str, str | int],
+) -> None:
+    assert (
+        sql_search_client.get(
+            "/api/v1/rankings/search", params={"term": "202701", **extra}
+        ).status_code
+        == 422
+    )
+
+
+@pytest.mark.parametrize("name", ["Smith", "%", "' OR 1=1 --"])
+def test_instructor_filter_never_interprets_fragments_or_sql_as_a_name(
+    sql_search_client: TestClient,
+    sql_search_session_factory: sessionmaker[Session],
+    name: str,
+) -> None:
+    with sql_search_session_factory() as session:
+        for row in session.scalars(select(SectionRankingCache)):
+            row.instructor = "J. Smith"
+            row.instructor_provenance = _provenance("current", "section_instructors")
+        session.commit()
+    response = sql_search_client.get(
+        "/api/v1/rankings/search",
+        params={"term": "202701", "course_id": 10, "instructor": name},
+    )
+    assert response.status_code == 200
+    assert response.json()["items"] == []
+    assert response.json()["total"] == 0
+
+
+def test_instructor_filter_keeps_two_reads_without_seat_or_history_scans(
+    sql_search_client: TestClient,
+    sql_search_session_factory: sessionmaker[Session],
+) -> None:
+    with sql_search_session_factory() as session:
+        for row in session.scalars(select(SectionRankingCache)):
+            row.instructor = "J. Smith"
+            row.instructor_provenance = _provenance("current", "section_instructors")
+        session.commit()
+    statements = _record_selects(
+        sql_search_client,
+        sql_search_session_factory,
+        {"course_id": "10", "instructor": "J. Smith"},
+    )
+    assert len(statements) == 2
+    assert "seat_snapshots" not in statements[0].lower()
+    assert all("section_instructors" not in sql.lower() for sql in statements)
+    assert all("grade_distributions" not in sql.lower() for sql in statements)
 
 
 def _historical_analytics(

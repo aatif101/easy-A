@@ -55,6 +55,13 @@ def search_rankings(
     session: DbSession,
     subject: Annotated[str | None, Query(min_length=1)] = None,
     course_number: Annotated[str | None, Query(min_length=1)] = None,
+    course_id: Annotated[
+        int | None, Query(ge=1, le=2_147_483_647, description="Stored course identity.")
+    ] = None,
+    instructor: Annotated[
+        str | None,
+        Query(min_length=1, max_length=255, description="Exact listed name; requires course_id."),
+    ] = None,
     gened_code: Annotated[str | None, Query(min_length=1)] = None,
     delivery_method: Annotated[str | None, Query(min_length=1)] = None,
     seats_open: Annotated[bool, Query()] = False,
@@ -68,6 +75,8 @@ def search_rankings(
     normalized_course_number = _optional_upper(course_number)
     normalized_gened_code = _optional_upper(gened_code)
     normalized_delivery_method = _optional_upper(delivery_method)
+    if instructor is not None and (course_id is None or not instructor.strip()):
+        raise HTTPException(422, "A nonblank instructor requires course_id.")
 
     # The count and page-key queries read only narrow cache columns, and join latest seats
     # only when seats filter or order the results. Full rows and their latest seat snapshot
@@ -83,8 +92,17 @@ def search_rankings(
         SectionRankingCache.easiness_score,
         SectionRankingCache.smoothed_withdrawal_rate,
     ).where(SectionRankingCache.term == term)
-    if seats_in_keys or normalized_gened_code is not None:
+    if seats_in_keys or normalized_gened_code is not None or course_id is not None:
         keys = keys.join(Section, Section.id == SectionRankingCache.section_id)
+    if course_id is not None:
+        keys = keys.where(Section.course_id == course_id, Section.removed_at.is_(None))
+    if instructor is not None:
+        # A name is an identity only inside the selected stored course. Compare complete
+        # names without guessing aliases, expanding initials, or merging punctuation variants.
+        keys = keys.where(
+            func.lower(func.trim(SectionRankingCache.instructor)) == instructor.strip().lower(),
+            SectionRankingCache.instructor_provenance["freshness"].as_string() == "current",
+        )
     if seats_open:
         keys = _join_latest_snapshot(keys, key_snapshot)
     if normalized_subject is not None:

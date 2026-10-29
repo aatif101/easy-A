@@ -30,6 +30,7 @@ const loaderFor = (items: SectionRanking[]): RankingLoader =>
       (item) =>
         (!query.subject || item.subject === query.subject) &&
         (!query.course_number || item.course_number === query.course_number) &&
+        (!query.instructor || item.instructor === query.instructor) &&
         (!query.gened_code || item.gened_attributes.some(({ code }) => code === query.gened_code)),
     );
     return { items: matching.slice(query.offset, query.offset + query.limit), total: matching.length, limit: query.limit, offset: query.offset };
@@ -137,6 +138,42 @@ describe("search routing", () => {
       expect(discoveryLoader).toHaveBeenCalledWith("202701", q, 0, expect.anything());
     },
   );
+});
+
+describe("selected instructor sections", () => {
+  it("loads a shareable course-scoped selection and can clear it without changing the query", async () => {
+    const loader = loaderFor(encSections);
+    renderApp("/?q=ENC%201101&course_id=7&instructor=High%20Grader", loader);
+    const table = await screen.findByRole("table");
+    expect(within(table).getByText("High Grader")).toBeInTheDocument();
+    expect(within(table).queryByText("Low Grader")).not.toBeInTheDocument();
+    expect(loader).toHaveBeenCalledTimes(1);
+    expect(loader).toHaveBeenCalledWith(expect.objectContaining({
+      term: "202701", subject: "ENC", course_number: "1101", course_id: 7,
+      instructor: "High Grader", limit: 200, offset: 0,
+    }), expect.any(AbortSignal));
+    await userEvent.click(screen.getByRole("link", { name: "Show all ENC 1101 sections" }));
+    expect(await within(await screen.findByRole("table")).findByText("Low Grader")).toBeInTheDocument();
+    expect(window.location.search).toBe("?q=ENC%201101");
+    expect(loader).toHaveBeenLastCalledWith(expect.not.objectContaining({ instructor: expect.anything() }), expect.any(AbortSignal));
+  });
+
+  it("shows an empty selection honestly when a professor is no longer assigned", async () => {
+    renderApp("/?q=ENC%201101&course_id=7&instructor=Former%20Instructor");
+    expect(await screen.findByText("No current ENC 1101 sections for Former Instructor")).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Show all ENC 1101 sections" })).toBeInTheDocument();
+  });
+
+  it("restores the instructor selection on browser Back", async () => {
+    renderApp("/?q=ENC%201101&course_id=7&instructor=High%20Grader");
+    await screen.findByRole("table");
+    await userEvent.click(screen.getByRole("link", { name: "Show all ENC 1101 sections" }));
+    await screen.findAllByText("Low Grader");
+    window.history.back();
+    await screen.findByText(/Showing sections assigned to/);
+    expect(within(screen.getByRole("table")).queryByText("Low Grader")).not.toBeInTheDocument();
+  });
 });
 
 describe("CRN search", () => {
