@@ -1,11 +1,11 @@
 ---
 gsd_state_version: "1.0"
-status: Supabase egress fix awaiting review
-stopped_at: fix/supabase-egress PR open; awaiting owner review
-last_updated: "2026-10-27T23:30:00Z"
-last_activity: 2026-10-27
-last_activity_desc: Cut Supabase egress (scoped rebuilds, worker memory, API response cache)
-state_head: b6255e16184a2e41c0ff4b2babdb7b4fa5d0e91a
+status: Professor search PR 50 open for review
+stopped_at: Local verification passed; PR 50 open and GitHub CI pending
+last_updated: "2026-10-29T17:35:25Z"
+last_activity: 2026-10-29
+last_activity_desc: Improve professor match relevance and direct navigation to selected sections
+state_head: 82aa905b521ecae433dbc5c4604dfd937c57b420
 progress:
   total_phases: 11
   completed_phases: 7
@@ -22,7 +22,31 @@ current_phase_name: Professor-level grades
 rules live in `PROJECT.md` `<decisions>`; the phase sequence lives in `ROADMAP.md`; dated history
 lives in `ARCHIVE.md`.
 
-## Current user-directed work — Supabase egress (2026-10-27)
+## Current user-directed work — professor search (2026-10-29)
+
+- Fetched `origin/main` = `131ec209ae6030dabc8e635e148d2a12654074c6` (merged PR #49).
+  Branch `codex/professor-search`, feature commit `82aa905`, in this checkout.
+  [PR #50](https://github.com/aatif101/easy-A/pull/50) is open against `main` at the user's request.
+- Discovery orders full-name / complete-word / prefix matches before pagination, with current
+  assignments first within each group. Current instructor results link to only that name's
+  sections within the exact stored course id. Shared URLs, clearing and browser Back work;
+  changed assignments show an explicit empty state. Existing matching and scoring are preserved.
+- Additive bounded `course_id` / `instructor` filters use cached rankings before count/pagination.
+  No migration, dependency change, new request, name expansion or cross-course identity pooling.
+  Autocomplete, fuzzy suggestions and result-card grade summaries are deferred.
+- Fresh local checks on Python 3.12 / Node 24: **367 API/ranking/analytics tests**, **134 frontend
+  tests**, Ruff, targeted mypy, ESLint, TypeScript and production build passed. Query-count checks
+  retain four discovery reads and two filtered-ranking reads without history-table scans.
+- Synthetic browser checks: instructor selection, clearing and Back; 1280x720 desktop and
+  320x844 mobile, no mobile overflow or browser warning/error logs. Synthetic discovery benchmark
+  after p95 257–387 ms, before/after differences -17 to +20 ms over 30 samples/query. This is local
+  Python/SQLite endpoint cost, not hosted latency; no hosted DB or USF requests were made.
+- Evidence and scoped security review: `.planning/evidence/professor-search/REPORT.md`.
+  User's existing `web/package-lock.json` edit and `.pytest-tmp-codex-20260914a/` are preserved
+  and excluded from commits. Older local planning edits remain in stash `before-pull-main-2026-10-29`.
+- **Next action:** GitHub CI results and owner review of PR #50. Merge/deployment are not authorized.
+
+## Previous user-directed work — Supabase egress (2026-10-27; merged as PR #49)
 
 - Supabase warned that organization Easy-A exceeded the free plan's egress (5.5 GB); the Fair Use
   Policy applies from 2026-11-17. Read-only `pg_stat_statements` (since 2026-09-20) traced it to the
