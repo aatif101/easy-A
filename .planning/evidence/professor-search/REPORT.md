@@ -8,7 +8,8 @@ Observed 2026-10-29. Branch `codex/professor-search`, based on fetched `origin/m
 - Discovery orders full normalized name matches, complete name words, then word prefixes.
   Within each group, current assignments precede historical-only assignments, followed by
   name and course tie-breakers. Ordering happens before pagination. Matching and attribution
-  eligibility are unchanged; names are never expanded or combined across courses.
+  eligibility are unchanged; names are never expanded or combined across courses. Case-only
+  variants share a result and history lookup within the same course, using `lower(trim(name))`.
 - Each current instructor result links to only that instructor's sections within the exact
   stored course id. The selected name and course survive copied URLs, reload and browser Back.
   A visible link clears the selection. An assignment that disappears yields an explicit empty
@@ -23,9 +24,11 @@ Observed 2026-10-29. Branch `codex/professor-search`, based on fetched `origin/m
 ## Validation
 
 - Python 3.12.10, locked dependencies: `pytest tests/api tests/rankings tests/analytics
-  --basetemp .cache/professor-search/pytest-run2 -q --tb=short`: **367 passed**. Tests include
+  --basetemp .cache/professor-search/pytest-review -q --tb=short`: **370 passed**. Tests include
   relevance ordering across pages, exact course/name isolation, unavailable/removed assignments,
   literal SQL/wildcard inputs, input bounds, and compatibility with the open-seats filter.
+  Review regressions also cover mixed-case/outer-whitespace variants, duplicate observations,
+  combined history pagination, lab exclusion and course/punctuation identity separation.
 - The existing discovery read-count test still verifies **four SELECTs**. A new filtered-ranking
   test verifies **two reads** with no instructor-history or grade-table scan, and no seat scan in
   the count query. The frontend selection test verifies one ranking request for a one-page course.
@@ -37,7 +40,7 @@ Observed 2026-10-29. Branch `codex/professor-search`, based on fetched `origin/m
   selected Jordan Alvarez's ENC 1101 sections (only CRN 14022), cleared the selection (CRNs
   14022 and 14023), and used Back to restore the selection. Desktop capture: 1280x720;
   mobile: 320x844. Mobile document width equaled viewport width (320 px); no browser warning
-  or error logs. Screenshots: [desktop](desktop.png), [mobile](mobile.png).
+  or error logs. Screenshots are linked in PR #50's description rather than added to the tree.
 - Initial broader tests hit the existing Windows pytest temp-directory permission problem;
   rerunning with the explicit workspace-local `--basetemp` above resolved all setup errors.
   Starlette emits its existing httpx TestClient deprecation warning.
@@ -54,13 +57,14 @@ Raw results: [performance.json](performance.json).
 
 | Synthetic query | Before p50 | After p50 | Before p95 | After p95 |
 |---|---:|---:|---:|---:|
-| smith | 304.26 ms | 306.90 ms | 357.23 ms | 352.16 ms |
-| j smith | 322.98 ms | 320.55 ms | 391.05 ms | 386.50 ms |
-| smi | 256.43 ms | 264.91 ms | 322.15 ms | 341.81 ms |
-| no such name | 226.92 ms | 232.39 ms | 274.72 ms | 257.25 ms |
+| smith | 197.78 ms | 200.21 ms | 393.33 ms | 324.07 ms |
+| j smith | 201.94 ms | 201.93 ms | 235.35 ms | 238.37 ms |
+| smi | 194.54 ms | 209.00 ms | 271.94 ms | 249.89 ms |
+| no such name | 176.78 ms | 174.74 ms | 204.83 ms | 218.43 ms |
 
-Discovery costs remain close in this sample; p95 changes range from -17.47 to +19.66 ms.
-This measures direct endpoint execution on local Python/SQLite. It excludes HTTP, network,
+After the case-grouping review fix, median changes range from -2.04 to +14.46 ms; p95 changes
+range from -69.26 to +13.60 ms. Timing variation is not proof of a speedup. This measures direct
+endpoint execution on local Python/SQLite. It excludes HTTP, network,
 hosted PostgreSQL, cache behavior and rendering; it does **not** establish hosted p95 or promise
 the 1.5 s production budget. The new section filter is covered by request/query-count checks,
 not by this discovery timing benchmark. No hosted DB or USF request was needed for this change.
@@ -85,5 +89,4 @@ findings in this diff.
 - Spoofing, repudiation and privilege elevation: these public read-only changes introduce no
   accounts, credentials, mutation endpoints, or security-boundary changes.
 
-Live hosted performance and deployments are outside this verification. The user's pre-existing
-lockfile edit and pytest scratch directory are preserved and excluded from the feature commit.
+Live hosted performance and deployments are outside this verification.

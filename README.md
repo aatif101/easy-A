@@ -89,17 +89,8 @@ PostgreSQL integration tests require a separate test database via `EASY_A_TEST_P
 
 ### Instructor search API
 
-`GET /api/v1/search?term=202701&q=smith` returns course-specific instructor matches ordered
-before pagination. Name matching, identity rules and grade scoring are unchanged.
-
-`GET /api/v1/rankings/search` accepts optional `course_id` (1–2,147,483,647) and
-`instructor` (1–255 characters). An instructor requires a course id and a nonblank exact listed
-name, compared case-insensitively with outer whitespace trimmed. Initials and punctuation are
-not expanded or merged. The filter excludes removed sections and unavailable assignments;
-it applies before the count and page selection. Existing pagination, sorting and filters
-still apply. Invalid parameters return 422; no matches return 200 with empty items and total 0.
-These are additive query parameters on the existing public, read-only endpoint; no migration
-or additional request is needed. Existing response caching and seat-freshness behavior apply.
+`GET /api/v1/search` finds instructors by course; `/api/v1/rankings/search` accepts a `course_id`
+and exact listed `instructor` to show their sections. See `/docs` on the API for parameters.
 
 </details>
 

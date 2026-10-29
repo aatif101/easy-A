@@ -445,3 +445,84 @@ def test_name_relevance_and_current_assignments_rank_before_pagination(
             search(discovery_client, "smith", limit=1, offset=i) for i in range(len(expected))
         )
     ] == expected
+
+
+@pytest.mark.parametrize("variant", ["J. SMITH", "j. smith", " J. Smith "])
+def test_case_variants_share_one_course_result_and_complete_history(
+    discovery_client: TestClient,
+    variant: str,
+) -> None:
+    assert isinstance(discovery_client.app, FastAPI)
+    db = discovery_client.app.dependency_overrides[get_db_session]()
+    session = next(db)
+    session.query(SectionInstructor).filter_by(section_id=2).update({"name_raw": variant})
+    # A duplicate latest observation with the same normalized name must count once.
+    session.add(
+        SectionInstructor(
+            section_id=1,
+            name_raw=variant,
+            source="usf_schedule",
+            observed_at=NOW,
+        )
+    )
+    for section_id, term_id, name in [(60, 1, variant), (61, 2, "J. Smith")]:
+        session.add(
+            Section(
+                id=section_id,
+                course_id=1,
+                term_id=term_id,
+                crn=str(30000 + section_id),
+                section_number="001",
+                campus="Tampa",
+                session="Regular",
+                section_type="Lecture",
+                primary_status="Active",
+                first_seen_at=NOW,
+                last_seen_at=NOW,
+            )
+        )
+        session.flush()
+        session.add(
+            SectionInstructor(
+                section_id=section_id,
+                name_raw=name,
+                source="usf_schedule",
+                observed_at=NOW,
+            )
+        )
+    session.add(
+        GradeDistribution(
+            term_id=2,
+            crn="30061",
+            course_id=1,
+            section_number_raw="001",
+            a_count=30,
+            b_count=10,
+            total_grades=40,
+            source="usf_infocenter",
+            source_hash="b" * 64,
+            ingested_at=NOW,
+        )
+    )
+    session.commit()
+    db.close()
+    result = search(discovery_client, "j smith", limit=1)
+    assert result["instructor_total"] == 2  # Same listed name in the other course stays separate.
+    match = result["instructors"][0]
+    assert match["course_id"] == 1
+    assert match["name"].lower() == "j. smith"
+    assert match["current_sections"] == 2
+    assert match["historical_sections"] == 3  # Assignments include the excluded lab.
+    assert (
+        search(discovery_client, "j smith", limit=1, offset=1)["instructors"][0]["course_id"] == 2
+    )
+    for name in (match["name"], variant):
+        history = get_history(discovery_client, course_id=1, name=name, limit=1)
+        assert history["total"] == 2
+        assert history["observed_grade_count"] == 100
+        assert history["a_share"] == pytest.approx(0.8)
+        second = get_history(discovery_client, course_id=1, name=name, limit=1, offset=1)
+        assert history["items"][0]["crn"] != second["items"][0]["crn"]
+    assert get_history(discovery_client, course_id=2, name=variant)["observed_grade_count"] == 12
+    # Search punctuation normalization must not become instructor identity normalization.
+    assert get_history(discovery_client, course_id=1, name="J Smith")["status"] == "unavailable"

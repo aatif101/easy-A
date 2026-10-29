@@ -191,7 +191,7 @@ def discover(
     instructors = (
         select(
             Course,
-            assigned.c.name,
+            func.min(assigned.c.name).label("name"),
             func.max(assigned.c.observed_at).label("observed_at"),
             func.sum(
                 func.cast(
@@ -210,7 +210,9 @@ def discover(
         .where((Term.banner_code == term) | Section.id.in_(safe_historical_assignments()))
         # Names only for free text: "ENC" must not list R. Benchekroun or L. Spencer.
         .where(text_match(assigned.c.name, query.text) if query.kind == "text" else false())
-        .group_by(Course.id, assigned.c.name)
+        # Match the case/outer-whitespace equivalence used by assignments and section links.
+        # Keep one stored spelling for display; punctuation and course identities stay separate.
+        .group_by(Course.id, func.lower(func.trim(assigned.c.name)))
     )
     instructor_total = session.scalar(select(func.count()).select_from(instructors.subquery())) or 0
     # Rank the complete result set before pagination. Full names, then complete name words,
@@ -223,7 +225,7 @@ def discover(
         *[
             (" " + name_text + " ").contains(f" {token} ", autoescape=True)
             for token in query.text.split()
-        ]
+        ],
     )
     match_quality = case((name_text == query.text, 0), (whole_words, 1), else_=2)
     instructor_rows = session.execute(
@@ -299,7 +301,7 @@ def history_query(course_id: int, term: str, name: str | None) -> Select[Any]:
             .join(assigned, assigned.c.section_id == Section.id)
             .where(
                 Section.course_id == course_id,
-                assigned.c.name == name,
+                func.lower(func.trim(assigned.c.name)) == name.strip().lower(),
                 Section.id.in_(safe),
                 func.lower(func.trim(Section.section_type)).not_in(LABORATORY_SECTION_TYPES),
             )
