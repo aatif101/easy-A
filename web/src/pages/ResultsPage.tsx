@@ -3,7 +3,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { SectionTable, type SectionRow } from "../components/SectionTable";
 import { LoadError, Loading, Notice } from "../components/Status";
 import { loadAllSections } from "../lib/loadAll";
-import { inAppClick, type Route } from "../lib/route";
+import { inAppClick, type InstructorSelection, type Route } from "../lib/route";
 import { GEN_ED_AREAS, REQUIREMENT_CODES, findGenEdArea, parseSearch } from "../lib/search";
 import { sortSections, toSectionView, type SectionSort } from "../lib/section";
 import { useLoad } from "../lib/useLoad";
@@ -107,14 +107,20 @@ function SectionsView({
   );
 }
 
-function CourseResults({ subject, courseNumber, term, rankingLoader, navigate, discoveryLoader, historyLoader }: Loaders & { subject: string; courseNumber: string }) {
-  const [state, retry] = useLoad(`${term}:${subject}:${courseNumber}`, (signal) =>
-    loadAllSections(rankingLoader, [{ term, subject, course_number: courseNumber }], signal),
+function CourseResults({ subject, courseNumber, instructor, term, rankingLoader, navigate, discoveryLoader, historyLoader }: Loaders & { subject: string; courseNumber: string; instructor?: InstructorSelection }) {
+  const [state, retry] = useLoad(`${term}:${subject}:${courseNumber}:${instructor?.courseId ?? ""}:${instructor?.name ?? ""}`, (signal) =>
+    loadAllSections(rankingLoader, [{ term, subject, course_number: courseNumber, ...(instructor ? { course_id: instructor.courseId, instructor: instructor.name } : {}) }], signal),
   );
   const code = `${subject} ${courseNumber}`;
   if (state.status === "loading") return <Loading label={`Loading ${code} sections…`} />;
   if (state.status === "error") return <LoadError onRetry={retry} />;
+  const allSections: Route = { view: "search", q: code };
+  const instructorNotice = instructor ? <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+    <p className="break-words">Showing sections assigned to <strong>{instructor.name}</strong> in {code}.</p>
+    <a href={`?q=${encodeURIComponent(code)}`} onClick={inAppClick(navigate, allSections)}>Show all {code} sections</a>
+  </div> : null;
   if (state.data.length === 0) {
+    if (instructor) return <>{instructorNotice}<Notice title={`No current ${code} sections for ${instructor.name}`}>The stored schedule may have changed. Show all course sections to compare other instructors.</Notice></>;
     return (
       <><Notice title={`No Spring 2027 sections of ${code}`}>
         Check the course code, or{" "}
@@ -137,6 +143,7 @@ function CourseResults({ subject, courseNumber, term, rankingLoader, navigate, d
           <p className="mt-1 text-sm text-slate">{requirements.map(({ label }) => label).join(" · ")}</p>
         ) : null}
       </div>
+      {instructorNotice}
       <SectionsView sections={state.data} showCourse={false} navigate={navigate} />
     </>
   );
@@ -227,7 +234,7 @@ function CrnResult({ crn, term, sectionLoader, navigate }: Loaders & { crn: stri
  * CRNs, course codes and subjects load sections directly, as before, so the common searches never
  * wait on (or break with) discovery. Numbers, titles and professor names go to discovery.
  */
-export function SearchResults(props: Loaders & { q: string }) {
+export function SearchResults(props: Loaders & { q: string; instructor?: InstructorSelection }) {
   const parsed = parseSearch(props.q);
   if (parsed.kind === "crn") return <CrnResult {...props} crn={parsed.crn} />;
   if (parsed.kind === "course") {

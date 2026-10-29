@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
@@ -201,8 +202,8 @@ def test_same_name_kept_separate_by_course_and_initials_never_expanded(
 ) -> None:
     result = search(discovery_client, " j smith ")
     assert [(row["course_id"], row["name"]) for row in result["instructors"]] == [
-        (2, "J. Smith"),
         (1, "J. Smith"),
+        (2, "J. Smith"),
     ]
     assert search(discovery_client, "John Smith")["instructor_total"] == 0
     assert search(discovery_client, "smith")["instructor_total"] == 2
@@ -350,6 +351,7 @@ def test_history_unknown_course(discovery_client: TestClient) -> None:
 
 
 def test_long_stored_names_and_titles(discovery_client: TestClient) -> None:
+    assert isinstance(discovery_client.app, FastAPI)
     db = discovery_client.app.dependency_overrides[get_db_session]()
     session = next(db)
     name = "Program Design " + "Long Stored Name " * 10
@@ -367,6 +369,7 @@ def test_long_stored_names_and_titles(discovery_client: TestClient) -> None:
 
 
 def test_discovery_has_fixed_read_only_query_count(discovery_client: TestClient) -> None:
+    assert isinstance(discovery_client.app, FastAPI)
     db = discovery_client.app.dependency_overrides[get_db_session]()
     session = next(db)
     engine = session.get_bind()
@@ -392,3 +395,53 @@ def test_discovery_has_fixed_read_only_query_count(discovery_client: TestClient)
         event.remove(engine, "before_cursor_execute", record)
     assert len(statements) == 4
     assert all(statement.lstrip().upper().startswith("SELECT") for statement in statements)
+
+
+def test_name_relevance_and_current_assignments_rank_before_pagination(
+    discovery_client: TestClient,
+) -> None:
+    assert isinstance(discovery_client.app, FastAPI)
+    db = discovery_client.app.dependency_overrides[get_db_session]()
+    session = next(db)
+    for section_id, course_id, term_id, name in [
+        (50, 3, 2, "Smith"),  # Full exact name wins even when historical only.
+        (51, 3, 1, "Z. Smith"),  # Current whole-word match precedes historical J. Smith.
+        (52, 2, 1, "A. Smithson"),  # Current prefix still follows historical exact words.
+    ]:
+        session.add(
+            Section(
+                id=section_id,
+                course_id=course_id,
+                term_id=term_id,
+                crn=str(30000 + section_id),
+                section_number="001",
+                campus="Tampa",
+                session="Regular",
+                section_type="Lecture",
+                primary_status="Active",
+                first_seen_at=NOW,
+                last_seen_at=NOW,
+            )
+        )
+        session.flush()
+        session.add(
+            SectionInstructor(
+                section_id=section_id,
+                name_raw=name,
+                source="usf_schedule",
+                observed_at=NOW,
+            )
+        )
+    session.commit()
+    db.close()
+    expected = [(3, "Smith"), (1, "J. Smith"), (3, "Z. Smith"), (2, "J. Smith"), (2, "A. Smithson")]
+    result = search(discovery_client, "smith")
+    assert [(row["course_id"], row["name"]) for row in result["instructors"]] == expected
+    assert result["instructor_total"] == len(expected)
+    # Relevance applies to all matches, not just a page already sorted by course code.
+    assert [
+        (page["instructors"][0]["course_id"], page["instructors"][0]["name"])
+        for page in (
+            search(discovery_client, "smith", limit=1, offset=i) for i in range(len(expected))
+        )
+    ] == expected

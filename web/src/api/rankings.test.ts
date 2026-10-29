@@ -62,6 +62,31 @@ afterEach(() => {
 });
 
 describe("ranking API client", () => {
+  test("sends an exact instructor selection and course identity in one request", async () => {
+    vi.stubEnv("VITE_API_BASE_URL", "http://localhost:8000");
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response("{}", { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const { fetchRankings } = await import("./rankings");
+    await fetchRankings({ ...baseQuery, course_id: 12, instructor: "J. O'Neil & García" });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const url = new URL(String(fetchMock.mock.calls[0]?.[0]));
+    expect(url.searchParams.get("course_id")).toBe("12");
+    expect(url.searchParams.get("instructor")).toBe("J. O'Neil & García");
+  });
+
+  test("keeps synthetic instructor sections scoped to the discovery course id", async () => {
+    vi.stubEnv("VITE_USE_MOCK_DATA", "true");
+    const { fetchDiscovery, fetchRankings } = await import("./rankings");
+    const signal = new AbortController().signal;
+    const named = syntheticRankings.find(row => row.instructor && row.instructor_provenance.freshness === "current")!;
+    const result = await fetchDiscovery(named.term, named.instructor!, 0, signal);
+    const selection = result.instructors.find(row => row.subject === named.subject && row.course_number === named.course_number)!;
+    const sections = await fetchRankings({ ...baseQuery, course_id: selection.course_id, instructor: selection.name });
+    expect(sections.total).toBeGreaterThan(0);
+    expect(sections.items.every(row => row.subject === selection.subject && row.course_number === selection.course_number && row.instructor === selection.name)).toBe(true);
+    expect((await fetchRankings({ ...baseQuery, course_id: 999, instructor: selection.name })).total).toBe(0);
+  });
+
   test("loads term metadata from the terms endpoint", async () => {
     vi.stubEnv("VITE_API_BASE_URL", "http://localhost:8000/");
     const terms = [

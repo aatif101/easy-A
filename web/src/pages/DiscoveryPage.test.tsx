@@ -56,6 +56,16 @@ describe("expanded search", () => {
     expect(buttons[1]).toHaveAttribute("aria-expanded", "true");
   });
 
+  it("links current assignments to the selected instructor and exact stored course", async () => {
+    const { navigate } = setup();
+    const link = await screen.findByRole("link", { name: "View J. Smith's ENC 1101 sections" });
+    expect(link).toHaveAttribute("href", "?q=ENC%201101&course_id=1&instructor=J.%20Smith");
+    await userEvent.click(link);
+    expect(navigate).toHaveBeenCalledWith({ view: "search", q: "ENC 1101", instructor: { courseId: 1, name: "J. Smith" } });
+    // The same historical-only name in a different course gets no current-sections link.
+    expect(screen.getAllByRole("link", { name: /View .* sections/ })).toHaveLength(1);
+  });
+
   it.each(["unavailable", "no_letter_grades"])("preserves %s evidence states", async status => {
     setup(matches, { ...history, status, a_share: null, observed_grade_count: 0, total: 0, items: [], terms: [] });
     await userEvent.click((await screen.findAllByRole("button", { name: "Grade history for ENC 1101" }))[0]);

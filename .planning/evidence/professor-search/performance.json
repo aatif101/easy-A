@@ -1,0 +1,61 @@
+{
+  "environment": "Python 3.12.10; Windows; direct endpoint calls + SQLite; synthetic only",
+  "baseline_sha": "131ec209ae6030dabc8e635e148d2a12654074c6",
+  "generated_courses": 1400,
+  "generated_current_sections": 3782,
+  "generated_historical_sections": 8600,
+  "warmups_per_query": 3,
+  "samples_per_query": 30,
+  "ordering": "alternating before/after; response cache bypassed",
+  "scope": "Discovery query cost only; excludes HTTP, network, hosted PostgreSQL and browser rendering",
+  "results": {
+    "smith": {
+      "before": {
+        "p50_ms": 304.26,
+        "p95_ms": 357.23,
+        "max_ms": 384.28
+      },
+      "after": {
+        "p50_ms": 306.9,
+        "p95_ms": 352.16,
+        "max_ms": 353.67
+      }
+    },
+    "j smith": {
+      "before": {
+        "p50_ms": 322.98,
+        "p95_ms": 391.05,
+        "max_ms": 405.92
+      },
+      "after": {
+        "p50_ms": 320.55,
+        "p95_ms": 386.5,
+        "max_ms": 413.5
+      }
+    },
+    "smi": {
+      "before": {
+        "p50_ms": 256.43,
+        "p95_ms": 322.15,
+        "max_ms": 335.55
+      },
+      "after": {
+        "p50_ms": 264.91,
+        "p95_ms": 341.81,
+        "max_ms": 350.38
+      }
+    },
+    "no such name": {
+      "before": {
+        "p50_ms": 226.92,
+        "p95_ms": 274.72,
+        "max_ms": 287.78
+      },
+      "after": {
+        "p50_ms": 232.39,
+        "p95_ms": 257.25,
+        "max_ms": 275.62
+      }
+    }
+  }
+}

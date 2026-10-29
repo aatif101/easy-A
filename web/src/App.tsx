@@ -97,7 +97,7 @@ export default function App({
           route.view === "home" ? (
             <HomePage term={term} rankingLoader={rankingLoader} navigate={navigate} />
           ) : route.view === "search" ? (
-            <SearchResults key={route.q} term={term} q={route.q} {...loaders} />
+            <SearchResults key={routeHref(route)} term={term} q={route.q} instructor={route.instructor} {...loaders} />
           ) : (
             <GenEdResults key={route.area} term={term} area={route.area} {...loaders} />
           )

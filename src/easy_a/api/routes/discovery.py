@@ -5,7 +5,7 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import Select, and_, exists, false, func, select
+from sqlalchemy import Select, and_, case, exists, false, func, select
 from sqlalchemy.sql.selectable import Subquery
 
 from easy_a.analytics.confidence import LOW_CONFIDENCE_MAX_EFFECTIVE_N
@@ -13,7 +13,7 @@ from easy_a.analytics.scoring import ScoreConfig
 from easy_a.api.dependencies import BannerTerm, DbSession
 from easy_a.common.section_types import LABORATORY_SECTION_TYPES
 from easy_a.models import Course, GradeDistribution, Section, SectionInstructor, Term
-from easy_a.search import SearchQuery, parse_query, text_match
+from easy_a.search import SearchQuery, parse_query, searchable, text_match
 
 router = APIRouter(prefix="/api/v1/search", tags=["search"])
 IDENTITY_NOTE = (
@@ -213,8 +213,37 @@ def discover(
         .group_by(Course.id, assigned.c.name)
     )
     instructor_total = session.scalar(select(func.count()).select_from(instructors.subquery())) or 0
+    # Rank the complete result set before pagination. Full names, then complete name words,
+    # precede partial words; current assignments win within each match quality. This changes
+    # discovery order only, never historical grade scoring or instructor identity.
+    matches = instructors.subquery()
+    name_text = func.trim(searchable(matches.c.name))
+    whole_words = and_(
+        True,
+        *[
+            (" " + name_text + " ").contains(f" {token} ", autoescape=True)
+            for token in query.text.split()
+        ]
+    )
+    match_quality = case((name_text == query.text, 0), (whole_words, 1), else_=2)
     instructor_rows = session.execute(
-        instructors.order_by(Course.subject, Course.number, Course.id, assigned.c.name)
+        select(
+            Course,
+            matches.c.name,
+            matches.c.observed_at,
+            matches.c.current_sections,
+            matches.c.historical_sections,
+        )
+        .join(matches, matches.c.id == Course.id)
+        .order_by(
+            match_quality,
+            case((matches.c.current_sections > 0, 0), else_=1),
+            func.lower(matches.c.name),
+            Course.subject,
+            Course.number,
+            Course.id,
+            matches.c.name,
+        )
         .limit(limit)
         .offset(offset)
     ).all()
