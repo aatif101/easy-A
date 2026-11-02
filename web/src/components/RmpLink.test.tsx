@@ -36,7 +36,7 @@ describe("RmpLink", () => {
   it.each([null, "", " ", "Staff", "TBA", "Unavailable", "Ambiguous", "Jane Doe / John Smith"])(
     "has no link for %s", (instructor) => {
       render(<RmpLink instructor={instructor} subject="ENC" />);
-      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: /Rate My Professors/ })).not.toBeInTheDocument();
     },
   );
 });
@@ -57,7 +57,7 @@ describe("current instructor displays", () => {
     "omits current links in both layouts for %s", (name) => {
       const ranking = section("12345", name, null, { breakdown: breakdown() });
       render(<SectionTable rows={[{ ranking, view: toSectionView(ranking) }]} />);
-      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: /Rate My Professors/ })).not.toBeInTheDocument();
     },
   );
 
@@ -67,7 +67,7 @@ describe("current instructor displays", () => {
         instructor_provenance: { freshness: "unavailable", source: "section_instructors", source_term: "202701", detail },
       });
       render(<SectionTable rows={[{ ranking, view: toSectionView(ranking) }]} />);
-      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: /Rate My Professors/ })).not.toBeInTheDocument();
     },
   );
 
@@ -80,8 +80,8 @@ describe("current instructor displays", () => {
       breakdown: breakdown({ instructors: [historyRow("Past Teacher", 0.6, 100)] }),
     });
     render(<SectionTable rows={[{ ranking, view: toSectionView(ranking) }]} />);
-    expect(screen.queryByRole("link")).not.toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: "Compare instructors for CRN 12345" }));
+    expect(screen.queryByRole("link", { name: /Rate My Professors/ })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Details for CRN 12345" }));
     expect(within(screen.getByRole("table")).getByRole("link", { name: label("Past Teacher") })).toBeInTheDocument();
   });
 });

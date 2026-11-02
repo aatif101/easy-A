@@ -1,13 +1,12 @@
-import { useMemo, useState, type ReactNode } from "react";
-
-import { SectionTable, type SectionRow } from "../components/SectionTable";
+import { Chip, SectionsView } from "../components/SectionsView";
+import { SectionTable } from "../components/SectionTable";
 import { LoadError, Loading, Notice } from "../components/Status";
 import { loadAllSections } from "../lib/loadAll";
 import { inAppClick, type InstructorSelection, type Route } from "../lib/route";
 import { GEN_ED_AREAS, REQUIREMENT_CODES, findGenEdArea, parseSearch } from "../lib/search";
-import { sortSections, toSectionView, type SectionSort } from "../lib/section";
+import { toRows } from "../lib/section";
 import { useLoad } from "../lib/useLoad";
-import type { RankingLoader, SectionLoader, SectionRanking } from "../types/rankings";
+import type { RankingLoader, SectionLoader } from "../types/rankings";
 import type { DiscoveryLoader, HistoryLoader } from "../types/search";
 import { DiscoveryPage } from "./DiscoveryPage";
 
@@ -18,93 +17,6 @@ interface Loaders {
   navigate: (route: Route) => void;
   discoveryLoader: DiscoveryLoader;
   historyLoader: HistoryLoader;
-}
-
-const toRows = (items: SectionRanking[]): SectionRow[] =>
-  items.map((ranking) => ({ ranking, view: toSectionView(ranking) }));
-
-function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={on}
-      onClick={onClick}
-      className={`h-9 rounded-full border px-3 text-sm ${
-        on ? "border-ink bg-ink text-white" : "border-silver bg-white text-ink hover:bg-wash"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
-
-type Mode = "" | "in_person" | "online";
-
-/** A fully loaded set of sections with client-side filters and sorting. */
-function SectionsView({
-  sections,
-  showCourse,
-  navigate,
-}: {
-  sections: SectionRanking[];
-  showCourse: boolean;
-  navigate: Loaders["navigate"];
-}) {
-  const [sort, setSort] = useState<SectionSort>("a_share");
-  const [hasHistory, setHasHistory] = useState(false);
-  const [openSeats, setOpenSeats] = useState(false);
-  const [mode, setMode] = useState<Mode>("");
-
-  const all = useMemo(() => toRows(sections), [sections]);
-  const rows = sortSections(
-    all.filter(
-      ({ view }) =>
-        (!hasHistory || view.kind === "instructor" || view.kind === "thin") &&
-        (!openSeats || (view.seatsOpen ?? 0) > 0) &&
-        (mode === "" ||
-          (mode === "in_person"
-            ? view.delivery === "In person"
-            : view.delivery === "Online" || view.delivery === "Mostly online")),
-    ),
-    sort,
-  );
-
-  return (
-    <>
-      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2.5">
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter sections">
-          <Chip on={hasHistory} onClick={() => setHasHistory(!hasHistory)}>Has grade history</Chip>
-          <Chip on={openSeats} onClick={() => setOpenSeats(!openSeats)}>Open seats</Chip>
-          <Chip on={mode === "in_person"} onClick={() => setMode(mode === "in_person" ? "" : "in_person")}>In person</Chip>
-          <Chip on={mode === "online"} onClick={() => setMode(mode === "online" ? "" : "online")}>Online</Chip>
-        </div>
-        <label className="flex items-center gap-2 text-sm text-slate">
-          Sort
-          <select
-            value={sort}
-            onChange={(event) => setSort(event.target.value as SectionSort)}
-            className="h-9 rounded-md border border-silver bg-white px-2 text-sm text-ink"
-          >
-            <option value="a_share">Most A's</option>
-            <option value="seats">Most seats open</option>
-            <option value="crn">CRN</option>
-          </select>
-        </label>
-      </div>
-      {rows.length === 0 ? (
-        <Notice title="No sections match these filters">Turn a filter off to see more sections.</Notice>
-      ) : (
-        <SectionTable
-          rows={rows}
-          showCourse={showCourse}
-          onOpenCourse={(subject, courseNumber) => navigate({ view: "search", q: `${subject} ${courseNumber}` })}
-        />
-      )}
-      <p className="mt-3 text-sm text-slate" role="status">
-        Showing {rows.length} of {all.length} {all.length === 1 ? "section" : "sections"}
-      </p>
-    </>
-  );
 }
 
 function CourseResults({ subject, courseNumber, instructor, term, rankingLoader, navigate, discoveryLoader, historyLoader }: Loaders & { subject: string; courseNumber: string; instructor?: InstructorSelection }) {
@@ -120,7 +32,7 @@ function CourseResults({ subject, courseNumber, instructor, term, rankingLoader,
     <a href={`?q=${encodeURIComponent(code)}`} onClick={inAppClick(navigate, allSections)}>Show all {code} sections</a>
   </div> : null;
   if (state.data.length === 0) {
-    if (instructor) return <>{instructorNotice}<Notice title={`No current ${code} sections for ${instructor.name}`}>The stored schedule may have changed. Show all course sections to compare other instructors.</Notice></>;
+    if (instructor) return <>{instructorNotice}<Notice title={`No current ${code} sections for ${instructor.name}`}>The stored schedule may have changed. Show all course sections to see who else is teaching it.</Notice></>;
     return (
       <><Notice title={`No Spring 2027 sections of ${code}`}>
         Check the course code, or{" "}
@@ -128,7 +40,7 @@ function CourseResults({ subject, courseNumber, instructor, term, rankingLoader,
           see every {subject} section
         </a>
         .
-      </Notice><div className="mt-6"><DiscoveryPage term={term} q={code} discoveryLoader={discoveryLoader} historyLoader={historyLoader} navigate={navigate} /></div></>
+      </Notice><div className="mt-6"><DiscoveryPage term={term} q={code} discoveryLoader={discoveryLoader} historyLoader={historyLoader} rankingLoader={rankingLoader} navigate={navigate} /></div></>
     );
   }
   const first = state.data[0];
@@ -144,7 +56,7 @@ function CourseResults({ subject, courseNumber, instructor, term, rankingLoader,
         ) : null}
       </div>
       {instructorNotice}
-      <SectionsView sections={state.data} showCourse={false} navigate={navigate} />
+      <SectionsView sections={state.data} navigate={navigate} />
     </>
   );
 }
@@ -161,7 +73,7 @@ function SubjectResults(props: Loaders & { subject: string; q: string }) {
   return (
     <>
       <h1 className="mb-5 text-2xl font-semibold">{subject} sections</h1>
-      <SectionsView sections={state.data} showCourse navigate={navigate} />
+      <SectionsView sections={state.data} navigate={navigate} />
     </>
   );
 }
@@ -197,7 +109,7 @@ export function GenEdResults({ area: areaId, term, rankingLoader, navigate }: Lo
       </div>
       {state.status === "loading" ? <Loading label={`Loading ${area.label} sections…`} /> : null}
       {state.status === "error" ? <LoadError onRetry={retry} /> : null}
-      {state.status === "ready" ? <SectionsView key={area.id} sections={state.data} showCourse navigate={navigate} /> : null}
+      {state.status === "ready" ? <SectionsView key={area.id} sections={state.data} navigate={navigate} /> : null}
     </>
   );
 }
@@ -220,11 +132,10 @@ function CrnResult({ crn, term, sectionLoader, navigate }: Loaders & { crn: stri
       <h1 className="mb-4 text-2xl font-semibold">CRN {crn}</h1>
       <SectionTable
         rows={toRows([ranking])}
-        showCourse
         onOpenCourse={(subject, courseNumber) => navigate({ view: "search", q: `${subject} ${courseNumber}` })}
       />
       <a href={`?q=${encodeURIComponent(code)}`} onClick={inAppClick(navigate, { view: "search", q: code })} className="mt-3 inline-block text-sm font-semibold">
-        Compare every {code} section
+        See every {code} section
       </a>
     </>
   );

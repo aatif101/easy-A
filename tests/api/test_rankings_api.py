@@ -619,7 +619,14 @@ def test_search_embeds_instructor_breakdown_with_exact_contract_keys(
         "easiness_score",
         "scored",
         "is_current",
+        "b_share",
+        "c_share",
+        "d_share",
+        "f_share",
     }
+    first = breakdown["instructors"][0]
+    shares = [first[f"{grade}_share"] for grade in "abcdf"]
+    assert sum(shares) == pytest.approx(1.0, abs=0.001)
     assert breakdown["instructors"][0]["name"] == "Dr. Hist"
     # A global-fallback item carries an explicit null, never an instructor claim (D-20).
     fallback = items["73001"]

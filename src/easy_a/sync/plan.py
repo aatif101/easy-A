@@ -35,6 +35,7 @@ SECTION_FIELDS: tuple[str, ...] = (
     "days",
     "start_time",
     "end_time",
+    "meeting_times",
     "building",
     "room",
     "capacity",

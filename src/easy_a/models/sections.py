@@ -38,6 +38,8 @@ class Section(Base):
     days: Mapped[str | None] = mapped_column(String(32), nullable=True)
     start_time: Mapped[time | None] = mapped_column(Time(), nullable=True)
     end_time: Mapped[time | None] = mapped_column(Time(), nullable=True)
+    # The raw TIME cell: start_time/end_time stay unset for several meetings, this keeps them.
+    meeting_times: Mapped[str | None] = mapped_column(Text, nullable=True)
     building: Mapped[str | None] = mapped_column(String(64), nullable=True)
     room: Mapped[str | None] = mapped_column(String(64), nullable=True)
     capacity: Mapped[int | None] = mapped_column(Integer, nullable=True)

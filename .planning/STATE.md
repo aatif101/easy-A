@@ -22,7 +22,18 @@ current_phase_name: Professor-level grades
 rules live in `PROJECT.md` `<decisions>`; the phase sequence lives in `ROADMAP.md`; dated history
 lives in `ARCHIVE.md`.
 
-## Current user-directed work — Supabase egress (2026-10-27)
+## Current user-directed work — class list table (2026-11-02)
+
+- Owner picked one flat table everywhere and a five-part grade bar with A, B and C numbers (options
+  compared on real rows first). Home, course, subject, Gen Ed, CRN and text searches now share
+  `SectionTable`, with CRN first, seats as "N of M", a schedule column and sortable headers.
+- New data: `sections.meeting_times` (migration `0005_section_meeting_times`) keeps the raw TIME
+  cell, which was dropped for several meetings (426 of 3,726 live sections on 2026-11-02, 15 of 16
+  in MAC 2311). B, C, D and F shares are display fields in the cached breakdown; scoring is unchanged.
+- **Next action:** owner review; hosted rollout steps are in runbook section 18. The migration is
+  not applied and nothing is deployed.
+
+## Previous user-directed work — Supabase egress (2026-10-27)
 
 - Supabase warned that organization Easy-A exceeded the free plan's egress (5.5 GB); the Fair Use
   Policy applies from 2026-11-17. Read-only `pg_stat_statements` (since 2026-09-20) traced it to the

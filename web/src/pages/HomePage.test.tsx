@@ -59,7 +59,7 @@ describe("GenEd filter popover", () => {
   it("dismisses outside clicks and preserves normal search submission", async () => {
     const { user, navigate } = setup();
     await user.click(screen.getByRole("button", { name: "GenEd filters" }));
-    await user.click(screen.getByRole("heading", { name: "Who gives the most A's?" }));
+    await user.click(screen.getByRole("heading", { name: "Find your Spring 2027 classes" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     await user.type(screen.getByRole("searchbox"), "ENC 1101{Enter}");
     expect(navigate).toHaveBeenCalledExactlyOnceWith({ view: "search", q: "ENC 1101" });

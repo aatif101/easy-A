@@ -142,7 +142,11 @@ def test_rank_section_cli_outputs_synthetic_spring_2027_fixture(
         '          "last_term": "202408",\n'
         '          "easiness_score": 8.904761904761905,\n'
         '          "scored": true,\n'
-        '          "is_current": true\n'
+        '          "is_current": true,\n'
+        '          "b_share": 0.3,\n'
+        '          "c_share": 0.1,\n'
+        '          "d_share": 0.0,\n'
+        '          "f_share": 0.0\n'
         "        }\n"
         "      ],\n"
         '      "current_instructor": "I. Rothstein",\n'
@@ -182,7 +186,11 @@ def test_rank_section_cli_outputs_synthetic_spring_2027_fixture(
         '    "source": "sections",\n'
         '    "source_term": "202701",\n'
         '    "detail": "resolved by current term and CRN"\n'
-        "  }\n"
+        "  },\n"
+        '  "section_number": "001",\n'
+        '  "section_type": "Class Lecture",\n'
+        '  "credits": null,\n'
+        '  "meetings": []\n'
         "}\n"
     )
 

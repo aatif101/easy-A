@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-import { formatShare, termSpan, type SectionView } from "../lib/section";
-import { GradeBar } from "./GradeBar";
+import { gradeShares, termSpan, type SectionView } from "../lib/section";
+import { GradeBar, GradeNumbers } from "./GradeBar";
 import { RmpLink } from "./RmpLink";
 
 const SOURCE_NOTE =
@@ -26,20 +26,20 @@ export function InstructorHistory({ view, courseCode }: { view: SectionView; cou
   return (
     <div className="flex flex-col gap-3">
       <h3 className="text-sm font-semibold">Everyone who has taught {courseCode} recently</h3>
-      <ul className="flex max-w-3xl flex-col">
+      <ul className="flex max-w-4xl flex-col">
         {(showAll ? view.history : view.history.slice(0, INITIAL)).map((row) => (
           <li
             key={row.name}
-            className="grid grid-cols-[minmax(0,1fr)_48px] items-center gap-x-3 gap-y-1 border-b border-line py-1.5 text-sm last:border-b-0 sm:grid-cols-[minmax(0,1fr)_160px_48px_minmax(0,1.4fr)]"
+            className="grid grid-cols-[minmax(0,1fr)] items-center gap-x-3 gap-y-1 border-b border-line py-1.5 text-sm last:border-b-0 sm:grid-cols-[minmax(0,1fr)_160px_230px_minmax(0,1.4fr)]"
           >
-            <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-x-1 sm:col-span-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-1">
               <span className="min-w-0 max-w-full truncate" title={row.name}>{row.name}</span>
               <RmpLink instructor={row.name} subject={view.subject} />
               {row.is_current ? <span className="ml-2 text-xs font-semibold text-green">This section</span> : null}
             </div>
-            <GradeBar share={row.a_share} faded={!row.scored} />
-            <span className="tabular text-right font-semibold">{formatShare(row.a_share)}</span>
-            <span className="tabular col-span-2 text-xs text-slate sm:col-span-1 sm:whitespace-nowrap">
+            <GradeBar share={row.a_share} grades={gradeShares(row)} faded={!row.scored} />
+            <GradeNumbers share={row.a_share} grades={gradeShares(row)} full />
+            <span className="tabular text-xs text-slate sm:whitespace-nowrap">
               {row.effective_n.toLocaleString("en-US")} grades · {termSpan(row.first_term, row.last_term)}
               {row.scored ? "" : " · too few"}
             </span>

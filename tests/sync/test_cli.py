@@ -212,7 +212,7 @@ def test_missing_removed_at_exits_4_naming_the_migration(
     out = capsys.readouterr().out
     assert code == 4
     assert requests == []
-    assert "0004_sync_removed_at" in out
+    assert "0005_section_meeting_times" in out
     assert out.startswith("startup check failed:")
     engine.dispose()
 

@@ -1,11 +1,14 @@
 import { useState } from "react";
 
 import { RmpLink } from "../components/RmpLink";
+import { SectionsView } from "../components/SectionsView";
 import { LoadError, Loading, Notice } from "../components/Status";
-import { inAppClick, routeHref, type Route } from "../lib/route";
+import { loadAllSections } from "../lib/loadAll";
+import type { Route } from "../lib/route";
 import { formatShare, termSpan } from "../lib/section";
 import { useLoad } from "../lib/useLoad";
-import type { DiscoveryLoader, HistoryLoader } from "../types/search";
+import type { RankingLoader, RankingQuery } from "../types/rankings";
+import type { DiscoveryLoader, DiscoveryResponse, HistoryLoader } from "../types/search";
 
 function Pagination({ offset, total, onPage }: { offset: number; total: number; onPage: (offset: number) => void }) {
   return <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -32,60 +35,86 @@ export function HistoryPanel({ term, courseId, name, historyLoader }: { term: st
       <p>Historical record · {termSpan(row.term, row.term)} · CRN {row.crn}</p>
       <p>{Object.entries(row.counts).map(([bucket, n]) => `${bucket.toUpperCase()}: ${n}`).join(" · ")}</p>
       <p className="text-xs text-slate">Source: {row.source} · Imported {new Date(row.ingested_at).toLocaleDateString("en-US", { timeZone: "America/New_York" })}</p>
-      <details className="text-xs text-slate"><summary>Source fingerprint</summary><p className="break-all">{row.source_hash}</p></details>
     </li>)}</ul>
     {data.total > 20 ? <Pagination offset={offset} total={data.total} onPage={setOffset} /> : null}
   </div>;
 }
 
-export function DiscoveryPage({ term, q, discoveryLoader, historyLoader, navigate }: {
-  term: string; q: string; discoveryLoader: DiscoveryLoader; historyLoader: HistoryLoader;
+/** One query per offered match. A matched course already covers its instructors' sections. */
+const sectionFilters = (term: string, data: DiscoveryResponse): Omit<RankingQuery, "limit" | "offset">[] => {
+  const courses = data.courses.filter(course => course.current_sections > 0);
+  const covered = new Set(courses.map(course => course.course_id));
+  return [
+    ...courses.map(course => ({ term, subject: course.subject, course_number: course.course_number })),
+    ...data.instructors
+      .filter(match => match.current_sections > 0 && !covered.has(match.course_id))
+      .map(match => ({ term, subject: match.subject, course_number: match.course_number, course_id: match.course_id, instructor: match.name })),
+  ];
+};
+
+function MatchedSections({ term, q, offset, data, rankingLoader, navigate }: {
+  term: string; q: string; offset: number; data: DiscoveryResponse; rankingLoader: RankingLoader; navigate: (route: Route) => void;
+}) {
+  const filters = sectionFilters(term, data);
+  const [state, retry] = useLoad(`${term}:${q}:${offset}:sections`, signal => loadAllSections(rankingLoader, filters, signal));
+  if (filters.length === 0) return <Notice title={`Nothing matching "${q}" is offered in ${termSpan(term, term)}`}>Past grades for these matches are below.</Notice>;
+  if (state.status === "loading") return <Loading label="Loading matching sections…" />;
+  if (state.status === "error") return <LoadError onRetry={retry} message="Unable to load these sections. Check your connection and try again." />;
+  return <SectionsView key={`${q}:${offset}`} sections={state.data} navigate={navigate} />;
+}
+
+/** Past records for every match, including courses and people with nothing this term. */
+function PastGrades({ term, data, offered, historyLoader }: { term: string; data: DiscoveryResponse; offered: boolean; historyLoader: HistoryLoader }) {
+  const [selection, setSelection] = useState<string | null>(null);
+  const termLabel = termSpan(term, term);
+  return <details open={!offered} className="rounded border border-line p-4 text-sm">
+    <summary className="cursor-pointer font-semibold">Past grade records for these matches</summary>
+    <ul className="mt-3 space-y-3">
+      {data.courses.map(course => {
+        const key = `course:${course.course_id}`;
+        return <li key={key} className="min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <span className="min-w-0 break-words"><strong className="font-semibold">{course.subject} {course.course_number}</strong> {course.title}{course.current_sections ? "" : <span className="text-slate"> · Not offered in {termLabel}</span>}</span>
+            <button className="rounded border border-silver px-3 py-2" aria-expanded={selection === key} onClick={() => setSelection(selection === key ? null : key)}>Grade history for {course.subject} {course.course_number}</button>
+          </div>
+          {selection === key ? <HistoryPanel key={key} term={term} courseId={course.course_id} name={null} historyLoader={historyLoader} /> : null}
+        </li>;
+      })}
+      {data.instructors.map(match => {
+        const key = `${match.course_id}:${match.name}`;
+        return <li key={key} className="min-w-0">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <span className="flex min-w-0 flex-wrap items-center gap-x-1 break-words"><span className="font-semibold">{match.name}</span><RmpLink instructor={match.name} subject={match.subject} /> {match.subject} {match.course_number}{match.current_sections ? "" : <span className="text-slate"> · Not teaching it in {termLabel}</span>}</span>
+            <button className="rounded border border-silver px-3 py-2" aria-expanded={selection === key} onClick={() => setSelection(selection === key ? null : key)}>Grade history for {match.name} in {match.subject} {match.course_number}</button>
+          </div>
+          {selection === key ? <HistoryPanel key={key} term={term} courseId={match.course_id} name={match.name} historyLoader={historyLoader} /> : null}
+        </li>;
+      })}
+    </ul>
+    {data.instructors.length ? <p className="mt-3 text-slate">{data.identity_note}</p> : null}
+  </details>;
+}
+
+export function DiscoveryPage({ term, q, discoveryLoader, historyLoader, rankingLoader, navigate }: {
+  term: string; q: string; discoveryLoader: DiscoveryLoader; historyLoader: HistoryLoader; rankingLoader: RankingLoader;
   navigate: (route: Route) => void;
 }) {
   const [offset, setOffset] = useState(0);
-  const [selection, setSelection] = useState<string | null>(null);
   const [state, retry] = useLoad(`${term}:${q}:${offset}`, signal => discoveryLoader(term, q, offset, signal));
   if (state.status === "loading") return <Loading label="Searching courses and instructors…" />;
   if (state.status === "error") return <LoadError onRetry={retry} message="Unable to search courses and instructors. Check your connection and try again." />;
   const data = state.data;
-  if (!data.course_total && !data.instructor_total) return <Notice title={`Nothing matches "${q}"`}>Try a CRN, course code, number, official title, or stored professor name. Initials cannot be expanded into a full name.</Notice>;
+  if (!data.course_total && !data.instructor_total) return <Notice title={`Nothing matches "${q}"`}>Try a CRN, course code, number, official title, or professor's listed name. Initials can't be expanded into a full name.</Notice>;
+  const offered = sectionFilters(term, data).length > 0;
   return <div className="space-y-6">
-    <p className="text-xs text-slate">Source: stored USF catalog and class schedule · Database read {new Date(data.as_of).toLocaleString("en-US", { timeZone: "America/New_York" })}</p>
-    <h1 className="break-words text-2xl font-semibold">Matches for “{q}”</h1><section aria-label="Course results">
-      <h2 className="mb-3 text-lg font-semibold">Courses ({data.course_total})</h2>
-      {!data.course_total ? <p className="text-sm text-slate">No matching catalog courses.</p> : null}
-      <ul className="space-y-3">{data.courses.map(course => {
-        const key = `course:${course.course_id}`;
-        const route: Route = { view: "search", q: `${course.subject} ${course.course_number}` };
-        return <li key={key} className="min-w-0 rounded border border-line p-4">
-          <h3 className="break-words font-semibold">{course.subject} {course.course_number} · {course.title}</h3>
-          <p className="mt-1 text-sm text-slate">Catalog {course.catalog_edition} · {course.current_sections} current sections in {termSpan(term, term)}</p>
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            {course.current_sections ? <a href={`?q=${encodeURIComponent(route.q)}`} onClick={inAppClick(navigate, route)}>Compare current sections</a> : <span className="text-sm text-slate">No current sections; historical records are separate.</span>}
-            <button className="rounded border border-silver px-3 py-2 text-sm" aria-expanded={selection === key} onClick={() => setSelection(selection === key ? null : key)}>Grade history for {course.subject} {course.course_number}</button>
-          </div>
-          {selection === key ? <HistoryPanel key={key} term={term} courseId={course.course_id} name={null} historyLoader={historyLoader} /> : null}
-        </li>;
-      })}</ul>
+    <div>
+      <h1 className="mb-1 break-words text-2xl font-semibold">Classes matching “{q}”</h1>
+      <p className="text-xs text-slate">From USF's catalog and class schedule, checked {new Date(data.as_of).toLocaleString("en-US", { timeZone: "America/New_York" })}</p>
+    </div>
+    <section aria-label="Matching classes">
+      <MatchedSections term={term} q={q} offset={offset} data={data} rankingLoader={rankingLoader} navigate={navigate} />
     </section>
-    <section aria-label="Instructor results">
-      <h2 className="mb-3 text-lg font-semibold">Instructors by course ({data.instructor_total})</h2>
-      {data.instructor_total ? <p className="mb-2 text-sm text-slate">Exact name matches first, then partial matches; current assignments first within each group.</p> : null}
-      <p className="mb-3 text-sm text-slate">{data.identity_note}</p>
-      {!data.instructor_total ? <p className="text-sm text-slate">No matching named instructors.</p> : null}
-      <ul className="space-y-3">{data.instructors.map(instructor => {
-        const key = `${instructor.course_id}:${instructor.name}`;
-        const route: Route = { view: "search", q: `${instructor.subject} ${instructor.course_number}`, instructor: { courseId: instructor.course_id, name: instructor.name } };
-        return <li key={key} className="min-w-0 rounded border border-line p-4">
-          <h3 className="break-words font-semibold">{instructor.subject} {instructor.course_number} · {instructor.title}</h3>
-          <p className="mt-1 flex flex-wrap items-center gap-x-1 break-words">Listed instructor: <span>{instructor.name}</span><RmpLink instructor={instructor.name} subject={instructor.subject} /></p>
-          <p className="mt-1 text-sm text-slate">{instructor.current_sections} current assignments · {instructor.historical_sections} historical assignments · Schedule observed {new Date(instructor.observed_at).toLocaleDateString("en-US", { timeZone: "America/New_York" })}</p>
-          {instructor.current_sections ? <a className="mt-2 block" href={routeHref(route)} onClick={inAppClick(navigate, route)}>View {instructor.name}'s {instructor.subject} {instructor.course_number} sections</a> : null}
-          <button className="mt-2 rounded border border-silver px-3 py-2 text-sm" aria-expanded={selection === key} onClick={() => setSelection(selection === key ? null : key)}>Grade history for {instructor.name} in {instructor.subject} {instructor.course_number}</button>
-          {selection === key ? <HistoryPanel key={key} term={term} courseId={instructor.course_id} name={instructor.name} historyLoader={historyLoader} /> : null}
-        </li>;
-      })}</ul>
-    </section>
-    {Math.max(data.course_total, data.instructor_total) > 20 ? <Pagination offset={offset} total={Math.max(data.course_total, data.instructor_total)} onPage={page => { setSelection(null); setOffset(page); }} /> : null}
+    {Math.max(data.course_total, data.instructor_total) > 20 ? <Pagination offset={offset} total={Math.max(data.course_total, data.instructor_total)} onPage={setOffset} /> : null}
+    <PastGrades key={`${q}:${offset}`} term={term} data={data} offered={offered} historyLoader={historyLoader} />
   </div>;
 }

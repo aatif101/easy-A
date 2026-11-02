@@ -71,12 +71,12 @@ describe("header brand", () => {
     await user.tab();
     expect(home).toHaveFocus();
     await user.keyboard("{Enter}");
-    expect(await screen.findByRole("heading", { name: "Who gives the most A's?" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Find your Spring 2027 classes" })).toBeInTheDocument();
   });
 });
 
 describe("course search", () => {
-  it("lists every section with the most A's first and missing history last", async () => {
+  it("lists every section by CRN within the course and sorts by grades on request", async () => {
     renderApp("/?q=ENC%201101");
     expect(await screen.findByRole("heading", { name: /ENC 1101/ })).toBeInTheDocument();
     const table = screen.getByRole("table");
@@ -84,10 +84,16 @@ describe("course search", () => {
       .getAllByRole("row")
       .slice(1)
       .map((row) => row.querySelector("td")?.textContent?.match(/\d{5}/)?.[0]);
-    expect(crns).toEqual(["22222", "11111", "44444", "33333"]);
-    expect(within(table).getByText("88%")).toBeInTheDocument();
+    expect(crns).toEqual(["11111", "22222", "33333", "44444"]);
+    expect(within(table).getByText("A 88%")).toBeInTheDocument();
     expect(within(table).getByText("9 grades · too few to trust")).toBeInTheDocument();
-    expect(within(table).getByText("Instructor not announced yet")).toBeInTheDocument();
+    expect(within(table).getByText("Professor not assigned yet")).toBeInTheDocument();
+    await userEvent.click(within(table).getByRole("button", { name: "Instructor's grades in this course" }));
+    const sorted = within(table)
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) => row.querySelector("td")?.textContent?.match(/\d{5}/)?.[0]);
+    expect(sorted).toEqual(["22222", "11111", "44444", "33333"]);
   });
 
   it("filters to sections whose instructor has grade history", async () => {
@@ -95,6 +101,30 @@ describe("course search", () => {
     await screen.findByRole("table");
     await userEvent.click(screen.getByRole("button", { name: "Has grade history" }));
     expect(screen.getByRole("status")).toHaveTextContent("Showing 3 of 4 sections");
+  });
+
+  it("gives hybrid sections their own filter so they never vanish", async () => {
+    const withDelivery = (crn: string, code: string) => {
+      const item = section(crn, "A Teacher", 0.5);
+      return { ...item, modality: { ...item.modality, delivery_method: code } };
+    };
+    renderApp("/?q=ENC%201101", loaderFor([withDelivery("11111", "CL"), withDelivery("22222", "HB"), withDelivery("33333", "AD")]));
+    await screen.findByRole("table");
+    for (const [name, shown] of [["In person", "11111"], ["Hybrid", "22222"], ["Online", "33333"]]) {
+      await userEvent.click(screen.getByRole("button", { name }));
+      expect(screen.getByRole("status")).toHaveTextContent("Showing 1 of 3 sections");
+      expect(within(screen.getByRole("table")).getByText(shown)).toBeInTheDocument();
+    }
+  });
+
+  it("says Full with waitlist spots, in the table and on the phone card alike", async () => {
+    const full = section("11111", "A Teacher", 0.5);
+    const item = { ...full, seats: { ...full.seats, seats_remaining: 0, capacity: 30, wait_seats_available: 3 }, seats_remaining: 0 };
+    const { container } = renderApp("/?q=ENC%201101", loaderFor([item]));
+    await screen.findByRole("table");
+    expect(screen.getAllByText("Full")).toHaveLength(2);
+    expect(screen.getAllByText("3 waitlist spots")).toHaveLength(2);
+    expect(container).not.toHaveTextContent("Full seats");
   });
 
   it("copies a CRN for OASIS", async () => {
@@ -182,7 +212,7 @@ describe("CRN search", () => {
     renderApp("/?q=22222", loaderFor(encSections), sectionLoader);
     expect(await screen.findByRole("heading", { name: "CRN 22222" })).toBeInTheDocument();
     expect(sectionLoader).toHaveBeenCalledWith("202701", "22222", expect.anything());
-    expect(screen.getByRole("link", { name: "Compare every ENC 1101 section" })).toHaveAttribute("href", "?q=ENC%201101");
+    expect(screen.getByRole("link", { name: "See every ENC 1101 section" })).toHaveAttribute("href", "?q=ENC%201101");
   });
 });
 
@@ -196,13 +226,14 @@ describe("home", () => {
     ];
     renderApp("/", loaderFor(social));
     expect(await screen.findByRole("heading", { name: "Social Sciences sections with high A rates" })).toBeInTheDocument();
-    const items = await screen.findAllByRole("listitem");
-    expect(items).toHaveLength(2);
-    expect(items[0]).toHaveTextContent("91%");
+    const table = await screen.findByRole("table");
+    const items = within(table).getAllByRole("row").slice(1);
+    expect(items).toHaveLength(3);
+    expect(items[0]).toHaveTextContent("A 91%");
     expect(items[0]).toHaveTextContent("50001");
-    expect(items[0]).toHaveTextContent("50002");
-    expect(items[1]).toHaveTextContent("60%");
-    for (const [index, name] of ["Same Person", "Other Person"].entries()) {
+    expect(items[1]).toHaveTextContent("50002");
+    expect(items[2]).toHaveTextContent("A 60%");
+    for (const [index, name] of ["Same Person", "Same Person", "Other Person"].entries()) {
       const link = within(items[index]).getByRole("link", { name: `Search for ${name} on Rate My Professors` });
       expect(link.previousElementSibling).toHaveTextContent(name);
       expect(link).toHaveAttribute("href", `https://www.ratemyprofessors.com/search/professors/1262?q=${encodeURIComponent(name)}`);
@@ -223,7 +254,8 @@ describe("home", () => {
       }),
     ];
     renderApp("/", loaderFor(items));
-    await screen.findByText("Old Name");
+    await screen.findByRole("table");
+    expect(within(screen.getByRole("table")).getByText("Old Name")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /on Rate My Professors/ })).not.toBeInTheDocument();
   });
 
