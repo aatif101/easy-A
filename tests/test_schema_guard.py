@@ -23,7 +23,7 @@ def _current_engine() -> Engine:
 
 def _assert_safe_message(error: SchemaNotCurrentError) -> None:
     message = str(error)
-    assert "0004_sync_removed_at" in message
+    assert "0005_section_meeting_times" in message
     assert "sqlite://" not in message
     assert "postgresql" not in message
 

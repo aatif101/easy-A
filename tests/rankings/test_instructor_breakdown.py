@@ -60,6 +60,10 @@ ROW_KEYS = {
     "easiness_score",
     "scored",
     "is_current",
+    "b_share",
+    "c_share",
+    "d_share",
+    "f_share",
 }
 
 # Banner term ids used by the seeds below.

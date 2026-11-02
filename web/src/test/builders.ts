@@ -18,6 +18,10 @@ export const historyRow = (
   easiness_score: 8,
   scored: true,
   is_current: false,
+  b_share: (1 - aShare) * 0.5,
+  c_share: (1 - aShare) * 0.3,
+  d_share: (1 - aShare) * 0.1,
+  f_share: (1 - aShare) * 0.1,
   ...overrides,
 });
 

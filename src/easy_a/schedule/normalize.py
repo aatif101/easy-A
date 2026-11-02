@@ -104,6 +104,7 @@ class NormalizedSection(BaseModel):
     days: str | None
     start_time: time | None
     end_time: time | None
+    meeting_times: str | None = None
     building: str | None
     room: str | None
     capacity: int | None
@@ -135,6 +136,7 @@ def normalize_schedule_row(row: ParsedScheduleRow) -> NormalizedSection:
         days=_optional_clean(row.days_raw),
         start_time=start_time,
         end_time=end_time,
+        meeting_times=_optional_clean(row.time_raw),
         building=_optional_clean(row.building),
         room=_optional_clean(row.room),
         capacity=_parse_optional_int(row.capacity_raw, "capacity"),

@@ -28,6 +28,7 @@ from easy_a.rankings.models import (
     SectionRanking,
 )
 from easy_a.schedule.freshness import snapshot_freshness
+from easy_a.schedule.meetings import section_meetings
 from easy_a.schedule.normalize import DELIVERY_METHOD_LABELS
 from easy_a.signals.models import ResolvedSignalSet, SignalSourceKind
 from easy_a.signals.resolver import resolve_section_signals
@@ -110,6 +111,10 @@ def rank_section(
         historical_analytics=historical_analytics,
         signals=_signals_for(resolved_signals),
         signal_provenance=_signal_provenance(resolved_signals),
+        section_number=section.section_number,
+        section_type=section.section_type,
+        credits=section.credits,
+        meetings=section_meetings(section),
         section_provenance=RankingProvenance(
             freshness=RankingFreshness.current,
             source="sections",
@@ -400,6 +405,10 @@ def _instructor_breakdown_model(
                 easiness_score=row.easiness_score,
                 scored=row.scored,
                 is_current=row.is_current,
+                b_share=row.b_share,
+                c_share=row.c_share,
+                d_share=row.d_share,
+                f_share=row.f_share,
             )
             for row in breakdown.instructors
         ),

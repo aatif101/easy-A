@@ -139,7 +139,7 @@ def test_startup_refuses_a_schema_without_removed_at(monkeypatch: pytest.MonkeyP
     with pytest.raises(SchemaNotCurrentError) as excinfo, TestClient(app):
         pass
 
-    assert "0004_sync_removed_at" in str(excinfo.value)
+    assert "0005_section_meeting_times" in str(excinfo.value)
 
 
 def test_startup_accepts_a_current_schema(monkeypatch: pytest.MonkeyPatch) -> None:

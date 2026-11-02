@@ -230,6 +230,24 @@ Supabase bills for bytes sent from the database to the API and worker (free plan
 - **Worker memory.** The worker keeps the term's section state and the historical grade evidence between sweeps. Each sweep first reads a one-row fingerprint; if another writer changed the term's sections, instructors or snapshots (or the grade tables), the worker reloads everything. It also reloads in full every 6 hours and after any failed sweep. Each `sweep_succeeded` log line carries `state_reused` (`true` = served from memory). After editing current-term section fields by hand in SQL (the fingerprint does not see in-place field edits), restart `easy-a-worker`.
 - **API response cache.** Identical public GET responses are served from the API's memory for `EASY_A_RESPONSE_CACHE_SECONDS` (default 60; `0` disables). `sync-status` and error responses are never cached. A cached search can be up to that many seconds older than the database.
 
+## 18. Class list rollout (meeting times and B, C, D, F shares)
+
+Do these in order. The hosted steps are operator-run.
+
+1. Apply migration `0005_section_meeting_times` to hosted Supabase (Standing rules). The running code ignores the new nullable column. New code refuses to start without it, so a skipped step fails the deploy instead of breaking search.
+2. Merge. Render deploys the API, worker and static site together.
+3. The next worker sweep fills `sections.meeting_times`. No extra USF request is made. That sweep updates most sections once and rebuilds the rankings cache for the courses it touched, so expect one larger write and read than usual. Until it runs, sections with several meetings show days without times.
+4. Rebuild the whole term once so every course gets the new grade shares. This takes the sweep lock and makes no USF request:
+
+   ```powershell
+   uv run python scripts/backfill_historical_sections.py --rebuild-only --rebuild-term 202701
+   ```
+
+   Until then, a course not touched by a sweep shows its A share and a two-part bar.
+5. Confirm scores did not move: `uv run python scripts/report_ranking_diff.py --term 202701` must exit 0. Spot-check `?q=MAC 2311` for times and A, B and C.
+
+Rolling back the code alone is safe. The column can stay.
+
 ## Run Log
 
 | Date (UTC) | Operator | Action | Command / setting | Result | Justification |

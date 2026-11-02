@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from easy_a.analytics.confidence import ConfidenceLabel, PriorLevel, ScoreSource
 from easy_a.schedule.freshness import SeatFreshness
+from easy_a.schedule.meetings import Meeting
 
 
 class RankingFreshness(StrEnum):
@@ -76,6 +77,11 @@ class InstructorHistoryRow(BaseModel):
     easiness_score: float | None
     scored: bool
     is_current: bool
+    # Absent on cache rows written before these fields existed, until the next rebuild.
+    b_share: float | None = None
+    c_share: float | None = None
+    d_share: float | None = None
+    f_share: float | None = None
 
     model_config = ConfigDict(frozen=True)
 
@@ -135,5 +141,9 @@ class SectionRanking(BaseModel):
     signals: tuple[RankingSignal, ...]
     signal_provenance: RankingProvenance
     section_provenance: RankingProvenance
+    section_number: str | None = None
+    section_type: str | None = None
+    credits: str | None = None
+    meetings: tuple[Meeting, ...] = ()
 
     model_config = ConfigDict(frozen=True)

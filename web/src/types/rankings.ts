@@ -62,6 +62,11 @@ export interface InstructorHistoryRow {
   easiness_score: number | null;
   scored: boolean;
   is_current: boolean;
+  /** Shares of A-F grades, like a_share. Absent until the rankings cache is rebuilt. */
+  b_share?: number | null;
+  c_share?: number | null;
+  d_share?: number | null;
+  f_share?: number | null;
 }
 
 export interface InstructorBreakdown {
@@ -96,6 +101,16 @@ export interface HistoricalAnalytics {
   instructor_breakdown?: InstructorBreakdown | null;
 }
 
+/** One day-and-time pattern of a section. Times are 24-hour "HH:MM". */
+export interface Meeting {
+  days: string;
+  start_time: string | null;
+  end_time: string | null;
+  building: string | null;
+  room: string | null;
+  is_exam: boolean;
+}
+
 export interface SectionRanking {
   term: string;
   term_name: string;
@@ -119,6 +134,10 @@ export interface SectionRanking {
   signals: RankingSignal[];
   signal_provenance: RankingProvenance;
   section_provenance: RankingProvenance;
+  section_number?: string | null;
+  section_type?: string | null;
+  credits?: string | null;
+  meetings?: Meeting[];
 }
 
 export type RankingSort =

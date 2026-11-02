@@ -277,6 +277,7 @@ def hydrate_ranking(
         SectionRanking,
     )
     from easy_a.schedule.freshness import snapshot_freshness
+    from easy_a.schedule.meetings import section_meetings
 
     section = session.get(Section, cache_row.section_id)
     if section is None:
@@ -373,6 +374,10 @@ def hydrate_ranking(
         signals=tuple(RankingSignal.model_validate(value) for value in cache_row.signals),
         signal_provenance=RankingProvenance.model_validate(cache_row.signal_provenance),
         section_provenance=RankingProvenance.model_validate(cache_row.section_provenance),
+        section_number=section.section_number,
+        section_type=section.section_type,
+        credits=section.credits,
+        meetings=section_meetings(section),
     )
 
 

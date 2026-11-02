@@ -5,6 +5,7 @@ import type {
   Freshness,
   InstructorBreakdown,
   InstructorHistoryRow,
+  Meeting,
   RankingProvenance,
   RankingSignal,
   ScoreSource,
@@ -34,6 +35,22 @@ const unavailable: RankingProvenance = {
   source: "unavailable",
   source_term: null,
   detail: null,
+};
+
+const meeting = (days: string, start: string, end: string, building: string, room: string, isExam = false): Meeting => ({
+  days,
+  start_time: start,
+  end_time: end,
+  building,
+  room,
+  is_exam: isExam,
+});
+
+const syntheticMeetings = (crn: string): Meeting[] => {
+  const pattern = Number(crn) % 3;
+  if (pattern === 0) return [meeting("MW", "09:30", "10:45", "CHE", "100"), meeting("F", "11:00", "11:50", "CHE", "205"), meeting("S", "07:30", "09:30", "EXAM", "F100", true)];
+  if (pattern === 1) return [meeting("TR", "12:30", "13:45", "BEH", "104")];
+  return [meeting("MW", "17:30", "18:45", "CIS", "1045")];
 };
 
 interface FixtureOptions {
@@ -100,6 +117,10 @@ const syntheticInstructor = (
   easiness_score: easiness,
   scored: easiness !== null,
   is_current: isCurrent,
+  b_share: (1 - aShare) * 0.5,
+  c_share: (1 - aShare) * 0.3,
+  d_share: (1 - aShare) * 0.1,
+  f_share: (1 - aShare) * 0.1,
 });
 
 const syntheticBreakdown = (
@@ -174,6 +195,10 @@ const makeRanking = (options: FixtureOptions): SectionRanking => {
     signals: options.signals ?? [],
     signal_provenance: options.signalProvenance ?? unavailable,
     section_provenance: current("sections"),
+    section_number: "001",
+    section_type: "Class Lecture",
+    credits: "3",
+    meetings: syntheticMeetings(options.crn),
   };
 };
 

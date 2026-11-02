@@ -5,12 +5,13 @@ from sqlalchemy.engine import Connection, Engine
 from sqlalchemy.exc import SQLAlchemyError
 
 SCHEMA_NOT_CURRENT_MESSAGE = (
-    "The database schema is behind this release: migration 0004_sync_removed_at "
-    "(sections.removed_at) has not been applied. The operator must apply it manually "
+    "The database schema is behind this release: migrations through 0005_section_meeting_times "
+    "(sections.removed_at, sections.meeting_times) have not been applied. The operator must "
+    "apply them manually "
     "(see docs/runbooks/hosted-beta-operations.md) before this process can start."
 )
 
-_PROBE = text("SELECT removed_at FROM sections LIMIT 0")
+_PROBE = text("SELECT removed_at, meeting_times FROM sections LIMIT 0")
 
 
 class SchemaNotCurrentError(RuntimeError):
@@ -18,7 +19,7 @@ class SchemaNotCurrentError(RuntimeError):
 
 
 def require_sync_schema(bind: Engine | Connection) -> None:
-    """Fail fast when migration 0004_sync_removed_at has not been applied.
+    """Fail fast when migrations through 0005_section_meeting_times have not been applied.
 
     The message is fixed on purpose: it never includes the connection URL or the driver
     error text, so it is safe to log and to surface from a startup failure.

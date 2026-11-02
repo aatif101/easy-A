@@ -56,6 +56,10 @@ class InstructorHistory:
     easiness_score: float | None
     scored: bool
     is_current: bool
+    b_share: float = 0.0
+    c_share: float = 0.0
+    d_share: float = 0.0
+    f_share: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -83,6 +87,13 @@ class SectionHistoricalAnalytics:
     @property
     def historical_withdrawal_rate(self) -> float:
         return self.stats.withdrawal_rate_smoothed
+
+
+def _grade_share(observations: Sequence[GradeObservation], grade: str) -> float:
+    """One letter grade's share of A-F grades. Display only: never feeds a score."""
+    completed = sum(completed_grade_count(item.counts) for item in observations)
+    count = sum(getattr(item.counts, f"{grade}_count") for item in observations)
+    return round(count / completed, 4) if completed > 0 else 0.0
 
 
 def build_instructor_breakdown(
@@ -143,6 +154,7 @@ def build_instructor_breakdown(
         a_count = sum(observation.counts.a_count for observation in observations)
         completed = sum(completed_grade_count(observation.counts) for observation in observations)
         term_codes = {observation.term_code for observation in observations}
+
         rows.append(
             InstructorHistory(
                 name=name,
@@ -154,6 +166,10 @@ def build_instructor_breakdown(
                 easiness_score=stats.easiness_score if scored else None,
                 scored=scored,
                 is_current=is_current,
+                b_share=_grade_share(observations, "b"),
+                c_share=_grade_share(observations, "c"),
+                d_share=_grade_share(observations, "d"),
+                f_share=_grade_share(observations, "f"),
             )
         )
 

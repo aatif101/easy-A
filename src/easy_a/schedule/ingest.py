@@ -124,6 +124,7 @@ def _section_values(row: NormalizedSection) -> dict[str, object]:
         "days": row.days,
         "start_time": row.start_time,
         "end_time": row.end_time,
+        "meeting_times": row.meeting_times,
         "building": row.building,
         "room": row.room,
         "capacity": row.capacity,
