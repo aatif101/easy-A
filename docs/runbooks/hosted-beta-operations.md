@@ -252,4 +252,5 @@ Rolling back the code alone is safe. The column can stay.
 
 | Date (UTC) | Operator | Action | Command / setting | Result | Justification |
 |---|---|---|---|---|---|
+| 2026-11-02 | Claude Code, at the owner's request | Class list rollout (section 18) | `alembic upgrade head`; merged PR #51; `backfill_historical_sections.py --rebuild-only --rebuild-term 202701`; `report_ranking_diff.py --term 202701` | Migration at `0005`; 3,726 rows rebuilt with 0 changed scores; diff exit 0 | Ship meeting times and A, B, C grades |
 | | | | | | |

@@ -1,11 +1,11 @@
 ---
 gsd_state_version: "1.0"
-status: Supabase egress fix awaiting review
-stopped_at: fix/supabase-egress PR open; awaiting owner review
-last_updated: "2026-10-27T23:30:00Z"
-last_activity: 2026-10-27
-last_activity_desc: Cut Supabase egress (scoped rebuilds, worker memory, API response cache)
-state_head: b6255e16184a2e41c0ff4b2babdb7b4fa5d0e91a
+status: Class list table live
+stopped_at: PR #51 merged and deployed; rollout checks passed
+last_updated: "2026-11-02T21:30:00Z"
+last_activity: 2026-11-02
+last_activity_desc: Shipped one class table with A, B, C grades and meeting times
+state_head: 36365e2a08b4441b5eac837aa78c8bf1b9711c5e
 progress:
   total_phases: 11
   completed_phases: 7
@@ -30,8 +30,13 @@ lives in `ARCHIVE.md`.
 - New data: `sections.meeting_times` (migration `0005_section_meeting_times`) keeps the raw TIME
   cell, which was dropped for several meetings (426 of 3,726 live sections on 2026-11-02, 15 of 16
   in MAC 2311). B, C, D and F shares are display fields in the cached breakdown; scoring is unchanged.
-- **Next action:** owner review; hosted rollout steps are in runbook section 18. The migration is
-  not applied and nothing is deployed.
+- **Live (2026-11-02):** migration `0005` applied to hosted Supabase before merge; PR #51 merged as
+  `36365e2` at 20:53Z; first sweep on the new code succeeded at 21:01Z. MAC 2311 reads real times on
+  all 16 sections. `--rebuild-only --rebuild-term 202701` rebuilt 3,726 rows with 0 changed scores,
+  and `report_ranking_diff.py --term 202701` exited 0. Steps: runbook section 18.
+- **Not measured:** Supabase egress from the first sweep and the rebuild; meeting-time coverage
+  across the whole term.
+- **Next action:** match the link preview on `feat/launch-share-previews` to the class framing.
 
 ## Previous user-directed work — Supabase egress (2026-10-27)
 
